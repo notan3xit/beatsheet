@@ -16,6 +16,11 @@
 
 Aufbau unter `src/`: `domain` (reine Fachlogik), `notation` (Notationsmodell + Renderer), `persistence`, `state`, `ui`. `domain`, `notation/model` und die Format-/Merge-Logik in `persistence` haben keine Abhängigkeit zu React oder Browser-APIs.
 
+## Umgebung (Windows 10)
+
+- Ein laufender Vite-Dev-/Preview-Server sperrt unter Windows 10 Verzeichnisse im Projekt, etwa `openspec/changes/<change>`. Vor jedem Verschieben oder Umbenennen von Verzeichnissen (z. B. beim Archivieren eines Changes) laufende Vite-Prozesse dieses Projekts **ohne Nachfrage beenden**.
+- Schlägt ein Verschieben trotzdem fehl, alle folgenden Schritte (Commit usw.) abbrechen und erst nach erfolgreichem Verschieben fortsetzen.
+
 ## Befehle
 
 - `npm install`: Abhängigkeiten installieren
