@@ -1,0 +1,181 @@
+import { describe, expect, it } from 'vitest';
+import { emptyBeats, patternOf } from '../test/patterns';
+import { toNotation, type BeatGroup, type NotationEvent } from './model';
+
+const summary = (events: NotationEvent[]) => events.map((e) => (e.kind === 'rest' ? `${e.duration}r` : e.duration));
+const instrumentsOf = (event: NotationEvent) => event.keys.map((k) => k.instrument);
+
+describe('Spec drum-notation › Notensystem', () => {
+  it('Groove über zwei Takte', () => {
+    const model = toNotation(patternOf(emptyBeats(8)));
+    expect(model.clef).toBe('percussion');
+    expect(model.measures.map((m) => m.beatCount)).toEqual([4, 4]);
+  });
+
+  it('Kurzer Fill', () => {
+    const model = toNotation(patternOf([{ hits: { snare: [1, 2, 3, 4] } }], 'fill'));
+    expect(model.measures).toHaveLength(1);
+    expect(model.measures[0]!.beatCount).toBe(1);
+    expect(model.measures[0]!.voices.up).toHaveLength(1);
+    expect(model.measures[0]!.voices.down).toHaveLength(1);
+  });
+
+  it('Unvollständiger letzter Takt bei 6 Beats', () => {
+    const model = toNotation(patternOf(emptyBeats(6)));
+    expect(model.measures.map((m) => m.beatCount)).toEqual([4, 2]);
+  });
+});
+
+describe('Spec drum-notation › Systemposition je Instrument', () => {
+  it('Snare und Bassdrum', () => {
+    const model = toNotation(patternOf([{ hits: { snare: [1], kick: [1] } }]));
+    const [upGroup] = model.measures[0]!.voices.up;
+    const [downGroup] = model.measures[0]!.voices.down;
+    // Linie 1 = Schritt 0, Zwischenraum 1 = Schritt 1, Zwischenraum 3 = Schritt 5
+    expect(upGroup!.events[0]!.keys).toEqual([expect.objectContaining({ instrument: 'snare', staffStep: 5 })]);
+    expect(downGroup!.events[0]!.keys).toEqual([expect.objectContaining({ instrument: 'kick', staffStep: 1 })]);
+  });
+
+  it('Alle Instrumente an ihrer festen Position', () => {
+    const all = toNotation(
+      patternOf([
+        {
+          hits: { crash: [1], ride: [2], hihat: [3], tom1: [1], tom2: [2], snare: [3], floorTom: [4], kick: [1], hihatPedal: [2] },
+        },
+        { hits: { hihatOpen: [1] } },
+      ]),
+    );
+    const steps = new Map<string, number>();
+    for (const measure of all.measures)
+      for (const group of [...measure.voices.up, ...measure.voices.down])
+        for (const event of group.events) for (const key of event.keys) steps.set(key.instrument, key.staffStep);
+    expect(Object.fromEntries(steps)).toEqual({
+      hihatPedal: -2,
+      kick: 1,
+      floorTom: 3,
+      snare: 5,
+      tom2: 6,
+      tom1: 7,
+      ride: 8,
+      hihat: 9,
+      hihatOpen: 9,
+      crash: 10,
+    });
+  });
+});
+
+describe('Spec drum-notation › Notenköpfe', () => {
+  it('Becken mit x-Notenkopf', () => {
+    const model = toNotation(patternOf([{ hits: { ride: [1] } }]));
+    expect(model.measures[0]!.voices.up[0]!.events[0]!.keys[0]).toMatchObject({ staffStep: 8, notehead: 'x' });
+  });
+
+  it('Offene Hi-Hat', () => {
+    const model = toNotation(patternOf([{ hits: { hihatOpen: [1] } }]));
+    expect(model.measures[0]!.voices.up[0]!.events[0]!.keys[0]).toMatchObject({
+      staffStep: 9,
+      notehead: 'x',
+      open: true,
+    });
+  });
+
+  it('Trommeln mit normalem, Hi-Hat-Pedal mit x-Notenkopf', () => {
+    const model = toNotation(patternOf([{ hits: { snare: [1], hihatPedal: [1] } }]));
+    expect(model.measures[0]!.voices.up[0]!.events[0]!.keys[0]!.notehead).toBe('normal');
+    expect(model.measures[0]!.voices.down[0]!.events[0]!.keys[0]!.notehead).toBe('x');
+  });
+});
+
+describe('Spec drum-notation › Hände und Füße als getrennte Stimmen', () => {
+  it('Grundgroove', () => {
+    const model = toNotation(patternOf([{ hits: { hihat: [1, 3], kick: [1], snare: [3] } }]));
+    const up = model.measures[0]!.voices.up[0]!.events;
+    const down = model.measures[0]!.voices.down[0]!.events;
+    expect(up.map(instrumentsOf)).toEqual([['hihat'], ['snare', 'hihat']]);
+    expect(down.filter((e) => e.kind === 'note').map(instrumentsOf)).toEqual([['kick']]);
+  });
+});
+
+describe('Spec drum-notation › Notenwerte und Pausen aus dem Raster', () => {
+  it('Achtel aus Sechzehntel-Raster', () => {
+    const model = toNotation(patternOf([{ hits: { hihat: [1, 3] } }]));
+    expect(summary(model.measures[0]!.voices.up[0]!.events)).toEqual(['8', '8']);
+  });
+
+  it('Pause vor Offbeat', () => {
+    const model = toNotation(patternOf([{ hits: { snare: [3] } }]));
+    expect(summary(model.measures[0]!.voices.up[0]!.events)).toEqual(['8r', '8']);
+  });
+
+  it('Leerer Beat für die Füße', () => {
+    const model = toNotation(patternOf([{ hits: { snare: [1] } }]));
+    expect(summary(model.measures[0]!.voices.down[0]!.events)).toEqual(['qr']);
+  });
+
+  it('Sechzehntel-Figuren', () => {
+    const model = toNotation(patternOf([{ hits: { kick: [1, 4] } }, { hits: { kick: [2] } }]));
+    const [beat1, beat2] = model.measures[0]!.voices.down;
+    expect(summary(beat1!.events)).toEqual(['8d', '16']);
+    expect(summary(beat2!.events)).toEqual(['16r', '8d']);
+  });
+});
+
+describe('Spec drum-notation › Balken pro Beat', () => {
+  it('Sechzehntel im Beat', () => {
+    const model = toNotation(patternOf([{ hits: { hihat: [1, 2, 3, 4] } }, { hits: { hihat: [1, 2, 3, 4] } }]));
+    const groups = model.measures[0]!.voices.up;
+    expect(groups).toHaveLength(2);
+    for (const group of groups) {
+      expect(group.beamed).toBe(true);
+      expect(summary(group.events)).toEqual(['16', '16', '16', '16']);
+    }
+  });
+
+  it('Einzelne Viertel wird nicht gebalkt', () => {
+    const model = toNotation(patternOf([{ hits: { snare: [1] } }]));
+    expect(model.measures[0]!.voices.up[0]!.beamed).toBe(false);
+  });
+});
+
+describe('Spec drum-notation › Triolen kennzeichnen', () => {
+  it('Achteltriole', () => {
+    const model = toNotation(patternOf([{}, {}, { sub: 3, hits: { snare: [1, 2, 3] } }, {}]));
+    const group = model.measures[0]!.voices.up[2] as BeatGroup;
+    expect(group.tuplet).toBe(3);
+    expect(group.beamed).toBe(true);
+    expect(summary(group.events)).toEqual(['8', '8', '8']);
+  });
+
+  it('Sechzehnteltriole', () => {
+    const model = toNotation(patternOf([{ sub: 6, hits: { snare: [1, 2, 3, 4, 5, 6] } }]));
+    expect(model.measures[0]!.voices.up[0]!.tuplet).toBe(6);
+  });
+
+  it('Gemischtes Pattern', () => {
+    const model = toNotation(
+      patternOf([
+        { hits: { hihat: [1, 3] } },
+        { hits: { hihat: [1, 3] } },
+        { sub: 3, hits: { hihat: [1, 2, 3], kick: [1] } },
+        { hits: { hihat: [1, 3] } },
+      ]),
+    );
+    const voices = model.measures[0]!.voices;
+    expect(voices.up.map((g) => g.tuplet)).toEqual([null, null, 3, null]);
+    expect(voices.down.map((g) => g.tuplet)).toEqual([null, null, 3, null]);
+  });
+
+  it('Stimme ohne Noten im Triolen-Beat bekommt keine Kennzeichnung', () => {
+    const model = toNotation(patternOf([{ sub: 3, hits: { snare: [1, 2, 3] } }]));
+    expect(model.measures[0]!.voices.down[0]!.tuplet).toBeNull();
+  });
+});
+
+describe('Spec drum-notation › Leeres Pattern', () => {
+  it('Neuer Groove', () => {
+    const model = toNotation(patternOf(emptyBeats(4)));
+    const { up, down } = model.measures[0]!.voices;
+    expect(up.flatMap((g) => summary(g.events))).toEqual(['qr', 'qr', 'qr', 'qr']);
+    expect(down.flatMap((g) => summary(g.events))).toEqual(['qr', 'qr', 'qr', 'qr']);
+  });
+});
