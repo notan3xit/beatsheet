@@ -10,6 +10,9 @@
 - Notenrendering: VexFlow
 - Persistenz: IndexedDB (`idb`), Dateiformat-Validierung mit `zod`
 - Tests: Vitest, Testing Library, jsdom, fake-indexeddb
+- Farben: Catppuccin, Latte (hell) bzw. Mocha (dunkel) nach Systemeinstellung, Werte aus `@catppuccin/palette` (`src/ui/theme.ts` erzeugt die Variablen `--ctp-<name>`)
+
+**Farbregel:** Im CSS stehen keine Farbliterale (Hex, `rgb()`, benannte Farben). Komponenten verwenden die semantischen Tokens aus `src/ui/styles.css` (`--bg`, `--surface`, `--text`, `--accent`, `--danger` …), und die Tokens verweisen auf `--ctp-*`. `red` ist für Fehler und destruktive Aktionen reserviert (`--danger`). `src/ui/styles.test.ts` prüft das.
 
 Aufbau unter `src/`: `domain` (reine Fachlogik), `notation` (Notationsmodell + Renderer), `persistence`, `state`, `ui`. `domain`, `notation/model` und die Format-/Merge-Logik in `persistence` haben keine Abhängigkeit zu React oder Browser-APIs.
 

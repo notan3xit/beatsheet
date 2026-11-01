@@ -14,6 +14,7 @@ const STEM: Record<VoiceName, number> = { up: 1, down: -1 };
 const BEAT_WIDTH = 72;
 const CLEF_WIDTH = 40;
 const STAVE_PADDING = 30;
+const INK = 'currentColor';
 const STAVE_HEIGHT = 210;
 const STAVE_TOP = 40;
 const MARGIN = 10;
@@ -29,6 +30,7 @@ function noteFor(event: NotationEvent, voice: VoiceName): StaveNote {
     clef: 'percussion',
     stemDirection: STEM[voice],
   });
+  note.setStemStyle({ strokeStyle: INK });
   if (event.duration === '8d') Dot.buildAndAttach([note], { all: true });
   if (event.keys.some((k) => k.open)) {
     note.addModifier(new Annotation('o').setVerticalJustification(Annotation.VerticalJustify.TOP), 0);
@@ -111,6 +113,11 @@ export function renderNotation(model: NotationModel, container: HTMLElement, max
   const renderer = new Renderer(container as HTMLDivElement, Renderer.Backends.SVG);
   renderer.resize(totalWidth, rows.length * STAVE_HEIGHT);
   const context = renderer.getContext();
+  // Alles in der Textfarbe der Umgebung zeichnen (Farbschema hell/dunkel)
+  context.setFillStyle(INK).setStrokeStyle(INK);
+  const svg = container.querySelector('svg');
+  svg?.setAttribute('fill', INK);
+  svg?.setAttribute('stroke', INK);
 
   rows.forEach((row, rowIndex) => {
     let x = MARGIN;
@@ -118,6 +125,8 @@ export function renderNotation(model: NotationModel, container: HTMLElement, max
       const width = staveWidth(measure, i === 0);
       const stave = new Stave(x, rowIndex * STAVE_HEIGHT + STAVE_TOP, width);
       if (i === 0) stave.addClef('percussion');
+      stave.setStyle({ fillStyle: INK, strokeStyle: INK });
+      stave.setDefaultLedgerLineStyle({ strokeStyle: INK, lineWidth: 2 });
       stave.setContext(context).draw();
 
       const { up, down, formatter } = measure;

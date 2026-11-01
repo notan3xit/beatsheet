@@ -18,6 +18,29 @@ describe('VexFlow-Adapter (Smoke-Test)', () => {
     expect(container.querySelector('svg')).not.toBeNull();
   });
 
+  it('Spec drum-notation › Keine fest vorgegebene Farbe', () => {
+    const pattern = patternOf([
+      { hits: { crash: [1], kick: [1, 4], hihat: [2, 3, 4] } },
+      { sub: 3, hits: { snare: [1, 2, 3], kick: [1] } },
+      { hits: { hihatOpen: [1], snare: [3] } },
+      { sub: 6, hits: { tom1: [1, 2, 3, 4, 5, 6] } },
+    ]);
+    const container = document.createElement('div');
+    renderNotation(toNotation(pattern), container);
+
+    const colors = new Set<string>();
+    for (const el of container.querySelectorAll('svg, svg *')) {
+      for (const attr of ['fill', 'stroke']) {
+        const value = el.getAttribute(attr);
+        if (value !== null) colors.add(value);
+      }
+      const style = el.getAttribute('style') ?? '';
+      for (const m of style.matchAll(/(?:^|;)\s*(?:fill|stroke)\s*:\s*([^;]+)/g)) colors.add(m[1]!.trim());
+    }
+    expect([...colors].filter((c) => c !== 'currentColor' && c !== 'none')).toEqual([]);
+    expect(colors).toContain('currentColor');
+  });
+
   it('ersetzt vorherigen Inhalt beim erneuten Rendern', () => {
     const container = document.createElement('div');
     renderNotation(toNotation(patternOf(emptyBeats(4))), container);

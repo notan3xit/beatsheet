@@ -3,8 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { connectStore, openRepository, requestPersistentStorage } from './persistence/repository';
 import { createLibraryStore, type LibraryStore } from './state/libraryStore';
 import { App } from './ui/App';
+import { installTheme } from './ui/theme';
 import './ui/styles.css';
 
+installTheme();
 const root = createRoot(document.getElementById('root')!);
 
 const renderApp = (store: LibraryStore, storagePersisted: boolean) =>

@@ -1,0 +1,44 @@
+# color-theme Specification
+
+## Purpose
+
+Legt das Farbschema der App fest: Catppuccin Latte bei heller und Mocha bei dunkler Systemeinstellung, mit allen Oberflächenfarben aus der Palette der aktiven Variante.
+
+## Requirements
+
+### Requirement: Farbschema folgt der Systemeinstellung
+Die App MUST bei heller Systemeinstellung (oder ohne Angabe) die Catppuccin-Variante Latte und bei dunkler Systemeinstellung die Variante Mocha verwenden. Ändert sich die Systemeinstellung, während die App geöffnet ist, MUST die App ohne Neuladen in die andere Variante wechseln.
+
+#### Scenario: Helle Systemeinstellung
+- **WHEN** die App bei heller Systemeinstellung geöffnet wird
+- **THEN** ist der Seitenhintergrund Latte „base“ und der Fließtext Latte „text“
+
+#### Scenario: Dunkle Systemeinstellung
+- **WHEN** die App bei dunkler Systemeinstellung geöffnet wird
+- **THEN** ist der Seitenhintergrund Mocha „base“ und der Fließtext Mocha „text“
+
+#### Scenario: Wechsel zur Laufzeit
+- **WHEN** die Systemeinstellung bei geöffneter App von hell auf dunkel wechselt
+- **THEN** zeigt die App ohne Neuladen die Mocha-Farben
+
+### Requirement: Farben ausschließlich aus der Palette
+Jede Farbe, die die App für Hintergründe, Flächen, Text, Rahmen, Zustände und Meldungen verwendet, MUST eine Farbe der aktiven Catppuccin-Variante sein. Transparente Abstufungen einer Palettenfarbe sind zulässig.
+
+#### Scenario: Oberfläche im Hellmodus
+- **WHEN** die App bei heller Systemeinstellung Bibliothek, Sequencer und Notenbild zeigt
+- **THEN** stammen alle verwendeten Farben aus der Latte-Palette
+
+#### Scenario: Oberfläche im Dunkelmodus
+- **WHEN** die App bei dunkler Systemeinstellung Bibliothek, Sequencer und Notenbild zeigt
+- **THEN** stammen alle verwendeten Farben aus der Mocha-Palette
+
+### Requirement: Rot nur für Fehler und destruktive Aktionen
+Die Palettenfarbe „red“ MUST ausschließlich für Fehlermeldungen und destruktive Aktionen verwendet werden. Andere Hervorhebungen, zum Beispiel gesetzte Sequencer-Zellen oder das ausgewählte Pattern, MUST NOT „red“ verwenden.
+
+#### Scenario: Löschen und Fehler
+- **WHEN** der „Löschen“-Button oder eine fehlgeschlagene Importmeldung angezeigt wird
+- **THEN** sind sie in „red“ der aktiven Variante gehalten
+
+#### Scenario: Gesetzte Sequencer-Zelle
+- **WHEN** im Sequencer ein Schlag gesetzt ist
+- **THEN** ist die Zelle in einer Akzentfarbe ungleich „red“ hervorgehoben

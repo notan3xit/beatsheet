@@ -1,15 +1,21 @@
+/* Farben nur über diese Tokens; Werte kommen aus der Catppuccin-Palette (theme.ts) */
 :root {
-  --bg: #f6f5f2;
-  --surface: #ffffff;
-  --text: #1f1d1a;
-  --muted: #6d6a64;
-  --border: #dedad3;
-  --accent: #c2410c;
-  --accent-soft: #fde4d6;
-  --beat-alt: #f3f1ec;
-  --step: #e9e6df;
-  --step-hover: #d8d3c9;
-  --danger: #b42318;
+  --bg: var(--ctp-base);
+  --surface: var(--ctp-mantle);
+  --beat-alt: var(--ctp-crust);
+  --step: var(--ctp-surface0);
+  --step-hover: var(--ctp-surface1);
+  --border: var(--ctp-surface1);
+  --text: var(--ctp-text);
+  --muted: var(--ctp-subtext0);
+  --accent: var(--ctp-peach);
+  --accent-soft: color-mix(in srgb, var(--accent) 25%, transparent);
+  --on-accent: var(--ctp-base);
+  --danger: var(--ctp-red);
+  --success: var(--ctp-green);
+  --warning: var(--ctp-yellow);
+  --backdrop: color-mix(in srgb, var(--ctp-crust) 60%, transparent);
+  --shadow: color-mix(in srgb, var(--ctp-crust) 35%, transparent);
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -28,6 +34,7 @@ button,
 select,
 input {
   font: inherit;
+  color: inherit;
 }
 
 button {
@@ -50,7 +57,7 @@ button:disabled {
 button.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 button.danger {
@@ -131,12 +138,12 @@ input {
 }
 
 .message.status {
-  background: #e3f2e5;
-  color: #1e5b2a;
+  background: color-mix(in srgb, var(--success) 20%, transparent);
+  color: var(--text);
 }
 
 .message.alert {
-  background: #fde8e6;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
   color: var(--danger);
 }
 
@@ -151,8 +158,8 @@ input {
   grid-column: 1 / -1;
   margin: 0;
   padding: 0.5rem 1.25rem;
-  background: #fff4d6;
-  color: #6b4e00;
+  background: color-mix(in srgb, var(--warning) 25%, transparent);
+  color: var(--text);
   font-size: 0.85rem;
   border-bottom: 1px solid var(--border);
 }
@@ -330,6 +337,7 @@ input {
 
 .notation {
   margin-top: 1rem;
+  color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -339,7 +347,7 @@ input {
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 0.3);
+  background: var(--backdrop);
   display: grid;
   place-items: center;
 }
@@ -349,7 +357,7 @@ input {
   border-radius: 10px;
   padding: 1.25rem;
   max-width: 26rem;
-  box-shadow: 0 10px 30px rgb(0 0 0 / 0.2);
+  box-shadow: 0 10px 30px var(--shadow);
 }
 
 .dialog-actions {
