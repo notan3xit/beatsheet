@@ -1,82 +1,121 @@
 import { describe, expect, it } from 'vitest';
+import { addPlaceholder, appendSegment, addAccent, setBarProps } from '../domain/structure';
+import type { Song } from '../domain/types';
 import { emptyBeats, patternOf } from '../test/patterns';
-import { exportFileName, parseLibraryFile, serializeLibrary } from './fileFormat';
+import { songWith } from '../test/songs';
+import { exportFileName, parseNotebookFile, serializeNotebook } from './fileFormat';
 
 const NOW = new Date('2026-11-01T12:00:00.000Z');
 
-function library() {
+/** Song mit Groove (Triole, offene HH), Fill, Struktur, Fill-Zuordnung und Akzent. */
+function richSong(title = 'Hysteria'): Song {
   const groove = patternOf([
     { hits: { kick: [1, 3], hihat: [1, 2, 3, 4] } },
     { sub: 3, hits: { snare: [1, 2, 3] } },
     { sub: 2, hits: { hihatOpen: [1] } },
     { sub: 6, hits: { tom1: [1, 6] } },
   ]);
-  groove.name = 'Verse';
-  groove.revision = 7;
-  const fill = patternOf(emptyBeats(2), 'fill');
-  return [groove, fill];
+  let song = songWith({ title, patterns: [{ ...groove, name: 'Verse', revision: 7 }] });
+  const fill = addPlaceholder(song, { kind: 'fill', name: 'Tom-Run', length: 2 });
+  song = appendSegment(fill.song, { name: 'Verse', bars: 4, grooveId: groove.id });
+  const bars = song.segments[0]!.blocks[0]!.bars;
+  song = setBarProps(song, [bars[3]!.id], { fillId: fill.pattern.id, beats: 3 });
+  return addAccent(song, bars[0]!.id, { instrument: 'crash', beat: 0, position: 0 });
 }
 
-function fileWith(overrides: Record<string, unknown>, patternOverrides: Record<string, unknown> = {}) {
-  const file = JSON.parse(serializeLibrary(library(), NOW));
-  file.patterns[0] = { ...file.patterns[0], ...patternOverrides };
-  return JSON.stringify({ ...file, ...overrides });
-}
+/** Exportdatei als Objekt, um einzelne Stellen gezielt zu verändern. */
+const fileOf = (songs: Song[]) => JSON.parse(serializeNotebook(songs, NOW));
 
 describe('Spec library-persistence › Export der Bibliothek', () => {
   it('Export herunterladen: Dateiname und Inhalt', () => {
     expect(exportFileName(NOW)).toBe('drumstuff-2026-11-01.drumbook.json');
-    const file = JSON.parse(serializeLibrary(library(), NOW));
-    expect(file.format).toBe('drumstuff.library');
-    expect(file.schemaVersion).toBe(1);
-    expect(file.exportedAt).toBe(NOW.toISOString());
-    expect(file.patterns).toHaveLength(2);
-    expect(Object.keys(file.patterns[0]).sort()).toEqual(
-      ['beats', 'createdAt', 'id', 'kind', 'name', 'revision', 'updatedAt'].sort(),
+    const file = fileOf([richSong(), songWith({ title: 'Leer' })]);
+    expect(file).toMatchObject({ format: 'drumstuff.library', schemaVersion: 2, exportedAt: NOW.toISOString() });
+    expect(file.songs.map((s: Song) => s.title)).toEqual(['Hysteria', 'Leer']);
+    expect(Object.keys(file.songs[0]).sort()).toEqual(
+      ['createdAt', 'id', 'patterns', 'revision', 'segments', 'title', 'updatedAt'].sort(),
     );
   });
 
   it('Export ist verlustfrei', () => {
-    const patterns = library();
-    const parsed = parseLibraryFile(serializeLibrary(patterns, NOW));
-    expect(parsed).toEqual({ ok: true, patterns });
+    const songs = [richSong(), songWith({ title: 'Leer' })];
+    expect(parseNotebookFile(serializeNotebook(songs, NOW))).toEqual({ ok: true, songs });
   });
 });
 
 describe('Spec library-persistence › Ungültige Importdateien', () => {
   it('Neuere Schemaversion', () => {
-    const result = parseLibraryFile(fileWith({ schemaVersion: 2 }));
-    expect(result.ok).toBe(false);
+    const result = parseNotebookFile(JSON.stringify({ ...fileOf([]), schemaVersion: 3 }));
     expect(!result.ok && result.error).toMatch(/neueren Version/);
   });
 
-  it('Beschädigte Datei: Länge 0', () => {
-    const result = parseLibraryFile(fileWith({}, { beats: [] }));
-    expect(result.ok).toBe(false);
+  it('Beschädigte Datei', () => {
+    const file = fileOf([richSong()]);
+    file.songs[0].patterns[0].beats = [];
+    expect(parseNotebookFile(JSON.stringify(file)).ok).toBe(false);
+    const result = parseNotebookFile(JSON.stringify(file));
     expect(!result.ok && result.error).toMatch(/beschädigt/);
   });
 
-  it('Kein gültiges JSON', () => {
-    const result = parseLibraryFile('{ nope');
-    expect(!result.ok && result.error).toMatch(/kein gültiges JSON/);
-  });
-
-  it('Fremde Formatkennung', () => {
-    const result = parseLibraryFile(JSON.stringify({ format: 'something.else', schemaVersion: 1, patterns: [] }));
-    expect(!result.ok && result.error).toMatch(/keine Drumstuff-Bibliothek/);
+  it('Verweis auf fremdes Pattern', () => {
+    const other = richSong('Anderer');
+    const file = fileOf([richSong(), other]);
+    file.songs[0].segments[0].blocks[0].bars[0].grooveId = other.patterns[0]!.id;
+    const result = parseNotebookFile(JSON.stringify(file));
+    expect(!result.ok && result.error).toMatch(/beschädigt/);
   });
 
   it.each([
-    ['Länge 17', { beats: Array.from({ length: 17 }, () => ({ subdivision: 4, hits: {} })) }],
-    ['unbekannte Unterteilung', { beats: [{ subdivision: 5, hits: {} }] }],
-    ['Position außerhalb des Rasters', { beats: [{ subdivision: 2, hits: { kick: [2] } }] }],
-    ['Position nicht ganzzahlig', { beats: [{ subdivision: 4, hits: { kick: [0.5] } }] }],
-    ['unbekanntes Instrument', { beats: [{ subdivision: 4, hits: { cowbell: [0] } }] }],
-    ['offene und geschlossene Hi-Hat zugleich', { beats: [{ subdivision: 4, hits: { hihat: [0], hihatOpen: [0] } }] }],
-    ['leerer Name', { name: '  ' }],
-    ['unbekannter Typ', { kind: 'solo' }],
-  ])('Strukturregel verletzt: %s', (_, override) => {
-    const result = parseLibraryFile(fileWith({}, override));
+    ['Groove-Verweis auf einen Fill', (f: any) => (f.songs[0].segments[0].blocks[0].bars[0].grooveId = f.songs[0].patterns[1].id)],
+    ['Fill-Verweis auf einen Groove', (f: any) => (f.songs[0].segments[0].blocks[0].bars[0].fillId = f.songs[0].patterns[0].id)],
+    ['Akzent außerhalb des Takts', (f: any) => (f.songs[0].segments[0].blocks[0].bars[0].accents[0].beat = 4)],
+    ['Taktlänge 0', (f: any) => (f.songs[0].segments[0].blocks[0].bars[0].beats = 0)],
+    ['unbekannte Farbe', (f: any) => (f.songs[0].patterns[0].color = 'red')],
+    ['leerer Songtitel', (f: any) => (f.songs[0].title = ' ')],
+  ])('Strukturregel verletzt: %s', (_, mutate) => {
+    const file = fileOf([richSong()]);
+    mutate(file);
+    const result = parseNotebookFile(JSON.stringify(file));
     expect(!result.ok && result.error).toMatch(/beschädigt/);
+  });
+
+  it('Kein gültiges JSON und fremde Formatkennung', () => {
+    expect(parseNotebookFile('{ nope')).toMatchObject({ ok: false, error: expect.stringMatching(/kein gültiges JSON/) });
+    expect(parseNotebookFile(JSON.stringify({ format: 'x', schemaVersion: 2, songs: [] }))).toMatchObject({
+      ok: false,
+      error: expect.stringMatching(/keine Drumstuff-Bibliothek/),
+    });
+  });
+});
+
+describe('Spec library-persistence › Import von Dateien der Schemaversion 1', () => {
+  it('Alte Exportdatei importieren', () => {
+    const patterns = [patternOf(emptyBeats(4)), patternOf(emptyBeats(4)), patternOf(emptyBeats(1), 'fill')];
+    const v1 = JSON.stringify({
+      format: 'drumstuff.library',
+      schemaVersion: 1,
+      exportedAt: NOW.toISOString(),
+      patterns: patterns.map(({ color: _color, ...rest }) => rest),
+    });
+    const result = parseNotebookFile(v1);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.songs).toHaveLength(1);
+    const [song] = result.songs;
+    expect(song!.title).toBe('Importierte Patterns');
+    expect(song!.segments).toEqual([]);
+    expect(song!.patterns.map((p) => p.id)).toEqual(patterns.map((p) => p.id));
+    expect(song!.patterns.map((p) => p.beats)).toEqual(patterns.map((p) => p.beats));
+    expect(new Set(song!.patterns.map((p) => p.color)).size).toBe(3);
+  });
+
+  it('Ungültige v1-Datei wird abgewiesen', () => {
+    const v1 = JSON.stringify({
+      format: 'drumstuff.library',
+      schemaVersion: 1,
+      exportedAt: NOW.toISOString(),
+      patterns: [{ ...patternOf(emptyBeats(4)), beats: [] }],
+    });
+    expect(parseNotebookFile(v1).ok).toBe(false);
   });
 });

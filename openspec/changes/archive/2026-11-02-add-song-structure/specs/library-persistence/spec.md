@@ -1,0 +1,98 @@
+# Spec Delta
+
+## MODIFIED Requirements
+
+### Requirement: Automatisches lokales Speichern
+Jede Änderung an Songs, ihren Patterns und ihrer Struktur MUST ohne eigene Speicheraktion des Nutzers lokal auf dem Gerät gespeichert werden und ein Neuladen oder Schließen der App überstehen.
+
+#### Scenario: Neuladen nach Änderung
+- **WHEN** der Nutzer einen Schlag setzt und die App anschließend neu lädt
+- **THEN** ist der Schlag weiterhin im Pattern vorhanden
+
+#### Scenario: Neuladen nach Strukturänderung
+- **WHEN** der Nutzer ein Segment anlegt und die App anschließend neu lädt
+- **THEN** ist das Segment mit seinen Takten weiterhin vorhanden
+
+#### Scenario: Erster Start
+- **WHEN** die App auf einem Gerät ohne gespeicherte Daten gestartet wird
+- **THEN** startet sie mit einer leeren Song-Liste
+
+### Requirement: Änderungsmetadaten
+Jeder Song und jedes Pattern MUST einen Erstellungszeitpunkt, einen Zeitpunkt der letzten Änderung und eine Revisionsnummer führen. Die Revisionsnummer eines Patterns MUST bei jeder Änderung des Patterns um 1 steigen, die eines Songs bei jeder Änderung am Song, seinen Patterns oder seiner Struktur.
+
+#### Scenario: Revision nach Änderung
+- **WHEN** der Nutzer an einem Pattern mit Revision 3 einen Schlag setzt
+- **THEN** hat das Pattern Revision 4 und einen aktualisierten Änderungszeitpunkt
+- **AND** die Revision seines Songs ist um 1 gestiegen
+
+#### Scenario: Revision nach Strukturänderung
+- **WHEN** der Nutzer in einem Song mit Revision 7 einen Takt einfügt
+- **THEN** hat der Song Revision 8
+
+### Requirement: Export der Bibliothek
+Der Nutzer MUST alle Songs als JSON-Datei exportieren können. Die Datei MUST eine Formatkennung, die Schemaversion 2 und alle Songs mit Titel, Struktur, Patterns und Änderungsmetadaten enthalten.
+
+#### Scenario: Export herunterladen
+- **WHEN** der Nutzer „Exportieren“ wählt
+- **THEN** erhält er eine Datei mit der Endung `.drumbook.json`, die alle Songs enthält
+
+#### Scenario: Export ist verlustfrei
+- **WHEN** alle Songs exportiert und auf einem leeren Gerät wieder importiert werden
+- **THEN** sind alle Songs mit identischen IDs, identischer Struktur und identischen Patterns vorhanden
+
+### Requirement: Import einer Bibliothek
+Der Nutzer MUST eine exportierte Datei importieren können. Songs mit unbekannter ID MUST hinzugefügt werden. Bei gleicher ID MUST der Song mit der höheren Revision vollständig gelten, bei gleicher Revision der mit dem späteren Änderungszeitpunkt. Nach dem Import MUST die App anzeigen, wie viele Songs hinzugefügt, aktualisiert und unverändert gelassen wurden.
+
+#### Scenario: Neue Patterns importieren
+- **WHEN** der Nutzer eine Datei mit zwei Songs samt ihren Patterns importiert, deren IDs lokal unbekannt sind
+- **THEN** enthält die Song-Liste beide Songs zusätzlich, jeweils mit ihren Patterns
+- **AND** die App meldet „2 hinzugefügt, 0 aktualisiert, 0 unverändert“
+
+#### Scenario: Neuere Fassung gewinnt
+- **WHEN** ein Song lokal Revision 2 hat und die Importdatei denselben Song mit Revision 5 enthält
+- **THEN** wird der lokale Song samt Struktur und Patterns durch die importierte Fassung ersetzt
+
+#### Scenario: Ältere Fassung wird ignoriert
+- **WHEN** ein Song lokal Revision 5 hat und die Importdatei denselben Song mit Revision 2 enthält
+- **THEN** bleibt der lokale Song unverändert
+
+### Requirement: Ungültige Importdateien
+Eine Datei, die kein gültiges JSON ist, eine fremde Formatkennung hat, eine unbekannte oder höhere Schemaversion trägt oder die Strukturregeln verletzt, MUST vollständig abgewiesen werden. Die Songs MUST dabei unverändert bleiben, und der Nutzer MUST eine verständliche Fehlermeldung erhalten.
+
+#### Scenario: Neuere Schemaversion
+- **WHEN** der Nutzer eine Datei mit Schemaversion 3 importiert
+- **THEN** wird der Import abgewiesen mit dem Hinweis, dass die Datei mit einer neueren Version erstellt wurde
+- **AND** die Songs bleiben unverändert
+
+#### Scenario: Beschädigte Datei
+- **WHEN** der Nutzer eine Datei importiert, in der ein Pattern die Länge 0 hat
+- **THEN** wird der gesamte Import abgewiesen und kein Song der Datei übernommen
+
+#### Scenario: Verweis auf fremdes Pattern
+- **WHEN** ein Takt in der Importdatei auf ein Pattern verweist, das nicht zu seinem Song gehört
+- **THEN** wird der gesamte Import abgewiesen
+
+## ADDED Requirements
+
+### Requirement: Import von Dateien der Schemaversion 1
+Eine gültige Datei der Schemaversion 1 MUST weiterhin importiert werden können. Ihre Patterns MUST in einem neuen Song „Importierte Patterns“ ohne Struktur landen, mit unveränderten Pattern-IDs und Inhalten.
+
+#### Scenario: Alte Exportdatei importieren
+- **WHEN** der Nutzer eine Datei mit Schemaversion 1 und drei Patterns importiert
+- **THEN** gibt es einen neuen Song „Importierte Patterns“ mit diesen drei Patterns
+- **AND** die App meldet „1 hinzugefügt, 0 aktualisiert, 0 unverändert“
+
+### Requirement: Übernahme lokaler Daten aus der Vorversion
+Beim ersten Start nach dem Update MUST die App lokal gespeicherte Patterns der Vorversion in einen neuen Song „Importierte Patterns“ übernehmen. Ohne alte Patterns MUST kein solcher Song entstehen. Die Übernahme MUST genau einmal erfolgen.
+
+#### Scenario: Vorhandene Patterns
+- **WHEN** die App mit zwei lokal gespeicherten Patterns der Vorversion startet
+- **THEN** enthält die Song-Liste „Importierte Patterns“ mit beiden Patterns
+
+#### Scenario: Keine alten Daten
+- **WHEN** die App auf einem Gerät ohne Patterns der Vorversion startet
+- **THEN** ist die Song-Liste leer
+
+#### Scenario: Zweiter Start
+- **WHEN** die App nach der Übernahme erneut gestartet wird
+- **THEN** gibt es weiterhin genau einen Song „Importierte Patterns“

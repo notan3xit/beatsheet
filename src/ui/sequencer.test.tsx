@@ -3,17 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { NotationModel } from '../notation/model';
 import * as renderer from '../notation/render/vexflow';
-import { createLibraryStore } from '../state/libraryStore';
+import { notebookWith } from '../test/notebook';
 import { emptyBeats, patternOf } from '../test/patterns';
 import type { Pattern } from '../domain/types';
 import { App } from './App';
 
+/** Pattern liegt in einem Song und ist im Pattern-Editor geöffnet. */
 function setup(pattern: Pattern) {
-  const store = createLibraryStore([pattern]);
-  store.select(pattern.id);
+  const { store, patternsNow } = notebookWith([pattern]);
   const user = userEvent.setup();
   render(<App store={store} />);
-  const current = () => store.getState().patterns[0]!;
+  const current = () => patternsNow()[0]!;
   return { store, user, current };
 }
 

@@ -2,8 +2,10 @@ import {
   DEFAULT_SUBDIVISION,
   MAX_LENGTH,
   MIN_LENGTH,
+  PATTERN_COLORS,
   type Beat,
   type Pattern,
+  type PatternColor,
   type PatternKind,
 } from './types';
 
@@ -21,6 +23,12 @@ export class ValidationError extends Error {}
 
 const KIND_LABELS: Record<PatternKind, string> = { groove: 'Groove', fill: 'Fill' };
 const DEFAULT_LENGTH: Record<PatternKind, number> = { groove: 4, fill: 1 };
+
+/** Erste noch freie Farbe der Reihenfolge; sind alle vergeben, zyklisch weiter. */
+export function nextColor(existing: readonly Pattern[]): PatternColor {
+  const used = new Set(existing.map((p) => p.color));
+  return PATTERN_COLORS.find((c) => !used.has(c)) ?? PATTERN_COLORS[existing.length % PATTERN_COLORS.length]!;
+}
 
 export function emptyBeat(): Beat {
   return { subdivision: DEFAULT_SUBDIVISION, hits: {} };
@@ -51,6 +59,7 @@ export function createPattern(
     id: deps.newId(),
     kind: input.kind,
     name,
+    color: nextColor(existing),
     beats: Array.from({ length }, emptyBeat),
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -78,12 +87,13 @@ export function resizePattern(pattern: Pattern, length: number): Pattern {
   return { ...pattern, beats };
 }
 
-export function duplicatePattern(pattern: Pattern, deps: Deps = defaultDeps): Pattern {
+export function duplicatePattern(pattern: Pattern, existing: readonly Pattern[], deps: Deps = defaultDeps): Pattern {
   const timestamp = deps.now().toISOString();
   return {
     ...structuredClone(pattern),
     id: deps.newId(),
     name: `${pattern.name} (Kopie)`,
+    color: nextColor(existing),
     createdAt: timestamp,
     updatedAt: timestamp,
     revision: 1,

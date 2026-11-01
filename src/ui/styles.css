@@ -74,15 +74,15 @@ input {
 
 .app {
   display: grid;
-  grid-template-columns: 17rem 1fr;
+  grid-template-columns: minmax(0, 1fr);
   /* Kopf, optionaler Speicherhinweis, Inhalt */
   grid-template-rows: auto auto 1fr;
   min-height: 100vh;
 }
 
-.library,
-.workspace {
+.app > main {
   grid-row: 3;
+  min-width: 0;
 }
 
 .app-header {
@@ -170,24 +170,377 @@ input {
   letter-spacing: 0.02em;
 }
 
-.library {
-  border-right: 1px solid var(--border);
-  padding: 1rem;
-  overflow-y: auto;
+/* Song-Liste */
+.song-list {
+  padding: 1.25rem;
+  max-width: 40rem;
 }
 
-.library-actions {
+.song-create {
   display: flex;
-  gap: 0.5rem;
+  align-items: end;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.songs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.song-item {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  padding: 0.6rem 0.4rem;
+}
+
+.song-item:hover {
+  background: var(--accent-soft);
+}
+
+.song-bars {
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+/* Doppelseite */
+.songbook {
+  padding: 1rem 1.25rem;
+}
+
+.songbook-header {
+  display: flex;
+  align-items: end;
+  gap: 1rem;
   margin-bottom: 1rem;
 }
 
-.library h2 {
-  font-size: 0.75rem;
+.songbook-header .danger {
+  margin-left: auto;
+}
+
+.pages {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.page {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  min-width: 0;
+}
+
+.page-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Linke Seite: Struktur, Breite = Länge (1 Beat = --beat) */
+.structure-page {
+  --beat: 2.25rem;
+  overflow-x: auto;
+}
+
+.segment + .segment {
+  margin-top: 1rem;
+}
+
+.segment-name {
+  font-size: 0.85rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: var(--muted);
-  margin: 1rem 0 0.4rem;
+  margin: 0 0 0.25rem;
+}
+
+.structure-row {
+  position: relative;
+  height: 3.6rem;
+  margin-top: 1rem;
+}
+
+.bar-frame {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding: 0;
+  border: none;
+  border-left: 1px solid var(--muted);
+  border-radius: 0;
+  background: transparent;
+}
+
+.bar-frame:last-of-type {
+  border-right: 1px solid var(--muted);
+}
+
+.bar-frame.block-start {
+  border-left-width: 3px;
+}
+
+.bar-frame[aria-pressed='true'] {
+  background: var(--accent-soft);
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.bar-number {
+  position: absolute;
+  bottom: 100%;
+  left: 2px;
+  font-size: 0.6rem;
+  color: var(--muted);
+}
+
+.item,
+.accent {
+  position: absolute;
+  pointer-events: none;
+}
+
+.item {
+  top: 0.35rem;
+  bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0 0.3rem;
+  overflow: hidden;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.item.groove {
+  margin-left: 2px;
+  background: color-mix(in srgb, var(--pc) 22%, transparent);
+  border-left: 3px solid var(--pc);
+}
+
+.start-beat {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.item.fill {
+  padding: 0;
+  justify-content: center;
+  background: color-mix(in srgb, var(--pc) 40%, transparent);
+  border: 1px solid var(--pc);
+}
+
+.item.fill .item-label {
+  padding: 0 0.3rem;
+}
+
+.item.fill.continues-left {
+  border-left-style: dashed;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.item.fill.continues-right {
+  border-right-style: dashed;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.inner-barline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dotted var(--text);
+  opacity: 0.45;
+}
+
+.notation-mini {
+  width: 100%;
+  height: 100%;
+  color: var(--text);
+}
+
+.accent {
+  top: -0.05rem;
+  transform: translateX(-2px);
+  font-size: 0.6rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0 2px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* Struktur-Editor */
+.structure-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.field input[type='number'] {
+  min-width: 0;
+  width: 4.5rem;
+}
+
+.field.narrow input,
+.field.narrow select {
+  min-width: 0;
+}
+
+.segment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.segment-header .segment-name {
+  margin: 0;
+}
+
+.segment-actions {
+  display: flex;
+  gap: 0.2rem;
+  opacity: 0.55;
+}
+
+.segment-header:hover .segment-actions,
+.segment-actions:focus-within {
+  opacity: 1;
+}
+
+.segment-actions button {
+  padding: 0.05rem 0.4rem;
+  font-size: 0.75rem;
+}
+
+.segment-rename {
+  font-size: 0.85rem;
+}
+
+.bar-inspector {
+  margin-top: 1.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.bar-inspector h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.inspector-fields,
+.inline-create,
+.inspector-actions,
+.accent-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.6rem;
+}
+
+.inline-create {
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 4px;
+}
+
+.accent-editor {
+  margin: 0.75rem 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.accent-editor legend {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.accent-list {
+  list-style: none;
+  margin: 0 0 0.4rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+}
+
+.accent-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--beat-alt);
+}
+
+button.link {
+  border: none;
+  background: transparent;
+  padding: 0 0.2rem;
+  color: var(--danger);
+}
+
+.inspector-actions {
+  margin-top: 0.75rem;
+}
+
+/* Rechte Seite: Patterns */
+.pattern-card {
+  border-left: 4px solid var(--pc);
+  padding: 0.25rem 0 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.pattern-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.pattern-card h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.pattern-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.pattern-edit {
+  margin-left: auto;
+  font-size: 0.8rem;
+}
+
+.pattern-card .notation {
+  margin-top: 0.5rem;
+}
+
+.back {
+  align-self: end;
+}
+
+.workspace .back {
+  margin-bottom: 1rem;
 }
 
 .pattern-list {

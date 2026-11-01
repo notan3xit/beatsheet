@@ -14,7 +14,15 @@
 
 **Farbregel:** Im CSS stehen keine Farbliterale (Hex, `rgb()`, benannte Farben). Komponenten verwenden die semantischen Tokens aus `src/ui/styles.css` (`--bg`, `--surface`, `--text`, `--accent`, `--danger` …), und die Tokens verweisen auf `--ctp-*`. `red` ist für Fehler und destruktive Aktionen reserviert (`--danger`). `src/ui/styles.test.ts` prüft das.
 
-Aufbau unter `src/`: `domain` (reine Fachlogik), `notation` (Notationsmodell + Renderer), `persistence`, `state`, `ui`. `domain`, `notation/model` und die Format-/Merge-Logik in `persistence` haben keine Abhängigkeit zu React oder Browser-APIs.
+Aufbau unter `src/`:
+- `domain`: reine Fachlogik. Datenmodell `Song` → `Segment` → `Block` → `Bar`, Patterns gehören zum Song. Dazu `pattern`/`sequencer` (Pattern-Inhalt), `structure` (Struktur-Operationen), `songPatterns` (Patterns im Song, Farben) und `timeline` (Groove-Fortlauf, Fill-Überdeckung).
+- `notation`: Notationsmodell und VexFlow-Renderer, inklusive Mini-Darstellung (`compact`)
+- `songbook`: Layout der linken Buchseite (`layout.ts`, Positionen in Beats)
+- `persistence`: Dateiformat (Schemaversion 2, v1 weiterhin lesbar), Merge pro Song, IndexedDB (ein Datensatz pro Song)
+- `state`: `notebookStore` (Songs, Navigation Liste/Doppelseite/Pattern-Editor, Undo im Pattern-Editor)
+- `ui`: React-Komponenten
+
+`domain`, `notation/model`, `songbook` und die Format-/Merge-Logik in `persistence` haben keine Abhängigkeit zu React oder Browser-APIs. Änderungen an einem Song laufen immer über reine Funktionen und `store.updateSong`, damit Revision und Speicherung stimmen.
 
 ## Umgebung (Windows 10)
 

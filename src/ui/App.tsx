@@ -1,25 +1,28 @@
-import type { LibraryStore } from '../state/libraryStore';
+import type { NotebookStore } from '../state/notebookStore';
 import { ConfirmProvider } from './ConfirmDialog';
 import { LibraryFileActions } from './LibraryFileActions';
-import { LibraryOverview } from './LibraryOverview';
 import { PatternEditor } from './PatternEditor';
-import { StoreContext, useLibrary } from './useLibrary';
+import { SongList } from './SongList';
+import { Songbook } from './Songbook';
+import { StoreContext, useNotebook, useOpenSong } from './useLibrary';
 
-function Workspace() {
-  const { patterns, selectedId } = useLibrary();
-  const selected = patterns.find((p) => p.id === selectedId);
-  return (
-    <main className="workspace">
-      {selected ? (
-        <PatternEditor pattern={selected} />
-      ) : (
-        <p className="hint">Wähle links ein Pattern aus oder lege ein neues an.</p>
-      )}
+function OpenPattern({ patternId }: { patternId: string }) {
+  const pattern = useOpenSong().patterns.find((p) => p.id === patternId);
+  return pattern ? (
+    <main className="workspace" aria-label="Pattern">
+      <PatternEditor pattern={pattern} />
     </main>
-  );
+  ) : null;
 }
 
-export function App({ store, storagePersisted = true }: { store: LibraryStore; storagePersisted?: boolean }) {
+function CurrentView() {
+  const { view } = useNotebook();
+  if (view.kind === 'book') return <Songbook />;
+  if (view.kind === 'pattern') return <OpenPattern patternId={view.patternId} />;
+  return <SongList />;
+}
+
+export function App({ store, storagePersisted = true }: { store: NotebookStore; storagePersisted?: boolean }) {
   return (
     <StoreContext.Provider value={store}>
       <ConfirmProvider>
@@ -34,8 +37,7 @@ export function App({ store, storagePersisted = true }: { store: LibraryStore; s
               regelmäßig über „Exportieren“.
             </p>
           )}
-          <LibraryOverview />
-          <Workspace />
+          <CurrentView />
         </div>
       </ConfirmProvider>
     </StoreContext.Provider>

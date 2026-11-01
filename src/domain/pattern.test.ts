@@ -108,7 +108,7 @@ describe('Spec pattern-library › Pattern duplizieren', () => {
   it('Groove duplizieren', () => {
     const original = groove('Verse');
     original.beats[0] = { subdivision: 4, hits: { kick: [0], hihat: [0, 2] } };
-    const copy = duplicatePattern(original, deps(['copy-id']));
+    const copy = duplicatePattern(original, [original], deps(['copy-id']));
     expect(copy.name).toBe('Verse (Kopie)');
     expect(copy.id).toBe('copy-id');
     expect(copy.kind).toBe('groove');

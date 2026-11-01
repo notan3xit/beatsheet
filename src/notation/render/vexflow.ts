@@ -11,13 +11,22 @@ function pitchOf(staffStep: number): string {
 const REST_KEY: Record<VoiceName, string> = { up: 'c/5', down: 'f/4' };
 const STEM: Record<VoiceName, number> = { up: 1, down: -1 };
 
-const BEAT_WIDTH = 72;
 const CLEF_WIDTH = 40;
-const STAVE_PADDING = 30;
 const INK = 'currentColor';
-const STAVE_HEIGHT = 210;
-const STAVE_TOP = 40;
-const MARGIN = 10;
+
+/** Maße in SVG-Einheiten; die Mini-Darstellung spart Ränder, damit sie beim Skalieren groß bleibt. */
+interface Sizing {
+  beatWidth: number;
+  /** Zuschlag auf die Mindestbreite des Formatters. */
+  spread: number;
+  stavePadding: number;
+  margin: number;
+  rowHeight: number;
+  rowTop: number;
+}
+
+const NORMAL: Sizing = { beatWidth: 72, spread: 1.4, stavePadding: 30, margin: 10, rowHeight: 210, rowTop: 40 };
+const COMPACT: Sizing = { beatWidth: 36, spread: 1.1, stavePadding: 12, margin: 2, rowHeight: 115, rowTop: 12 };
 
 function noteFor(event: NotationEvent, voice: VoiceName): StaveNote {
   const isRest = event.kind === 'rest';
@@ -78,53 +87,82 @@ interface BuiltMeasure {
   contentWidth: number;
 }
 
-function buildMeasure(measure: Measure): BuiltMeasure {
+function buildMeasure(measure: Measure, sizing: Sizing): BuiltMeasure {
   const up = buildVoice(measure.voices.up, 'up', measure.beatCount);
   const down = buildVoice(measure.voices.down, 'down', measure.beatCount);
   const formatter = new Formatter().joinVoices([up.voice, down.voice]);
   // Dichte Beats (Sechzehntel, Sextolen) brauchen mehr als die Grundbreite
   const minWidth = formatter.preCalculateMinTotalWidth([up.voice, down.voice]);
-  return { up, down, formatter, contentWidth: Math.max(measure.beatCount * BEAT_WIDTH, minWidth * 1.4) };
+  return {
+    up,
+    down,
+    formatter,
+    contentWidth: Math.max(measure.beatCount * sizing.beatWidth, minWidth * sizing.spread),
+  };
 }
 
-const staveWidth = (built: BuiltMeasure, withClef: boolean) =>
-  built.contentWidth + (withClef ? CLEF_WIDTH : 0) + STAVE_PADDING;
+const staveWidth = (built: BuiltMeasure, withClef: boolean, sizing: Sizing) =>
+  built.contentWidth + (withClef ? CLEF_WIDTH : 0) + sizing.stavePadding;
+
+export interface RenderOptions {
+  /** Maximale Zeilenbreite in px, danach Umbruch (nicht im Kompaktmodus). */
+  maxWidth?: number;
+  /**
+   * Mini-Darstellung für Fill-Blöcke (design.md D4): kein Schlüssel, eine Zeile, und das SVG
+   * skaliert über seine viewBox auf die Breite des Containers.
+   */
+  compact?: boolean;
+}
 
 /** Zeichnet das Notationsmodell als SVG in den Container (vorheriger Inhalt wird ersetzt). */
-export function renderNotation(model: NotationModel, container: HTMLElement, maxWidth = 900): void {
+export function renderNotation(model: NotationModel, container: HTMLElement, options: RenderOptions = {}): void {
+  const { maxWidth = 900, compact = false } = options;
   container.innerHTML = '';
-  const built = model.measures.map(buildMeasure);
+  const sizing = compact ? COMPACT : NORMAL;
+  const { margin, rowHeight, rowTop } = sizing;
+  const built = model.measures.map((m) => buildMeasure(m, sizing));
+  const withClef = (i: number) => !compact && i === 0;
 
-  // Takte zeilenweise umbrechen
+  // Takte zeilenweise umbrechen (kompakt: alles in einer Zeile)
   const rows: BuiltMeasure[][] = [];
   let rowWidth = 0;
   for (const measure of built) {
-    if (rows.length === 0 || rowWidth + staveWidth(measure, false) > maxWidth - 2 * MARGIN) {
+    if (rows.length === 0 || (!compact && rowWidth + staveWidth(measure, false, sizing) > maxWidth - 2 * margin)) {
       rows.push([]);
       rowWidth = 0;
     }
-    rowWidth += staveWidth(measure, rowWidth === 0);
+    rowWidth += staveWidth(measure, withClef(rows[rows.length - 1]!.length), sizing);
     rows[rows.length - 1]!.push(measure);
   }
 
   const totalWidth = Math.max(
-    ...rows.map((row) => row.reduce((sum, m, i) => sum + staveWidth(m, i === 0), 0) + 2 * MARGIN),
+    ...rows.map((row) => row.reduce((sum, m, i) => sum + staveWidth(m, withClef(i), sizing), 0) + 2 * margin),
   );
+  const totalHeight = rows.length * rowHeight;
   const renderer = new Renderer(container as HTMLDivElement, Renderer.Backends.SVG);
-  renderer.resize(totalWidth, rows.length * STAVE_HEIGHT);
+  renderer.resize(totalWidth, totalHeight);
   const context = renderer.getContext();
   // Alles in der Textfarbe der Umgebung zeichnen (Farbschema hell/dunkel)
   context.setFillStyle(INK).setStrokeStyle(INK);
   const svg = container.querySelector('svg');
   svg?.setAttribute('fill', INK);
   svg?.setAttribute('stroke', INK);
+  if (compact && svg) {
+    svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '100%');
+    // renderer.resize setzt zusätzlich feste Inline-Maße, die die viewBox-Skalierung aushebeln
+    svg.style.width = '100%';
+    svg.style.height = '100%';
+  }
 
   rows.forEach((row, rowIndex) => {
-    let x = MARGIN;
+    let x = margin;
     row.forEach((measure, i) => {
-      const width = staveWidth(measure, i === 0);
-      const stave = new Stave(x, rowIndex * STAVE_HEIGHT + STAVE_TOP, width);
-      if (i === 0) stave.addClef('percussion');
+      const width = staveWidth(measure, withClef(i), sizing);
+      const stave = new Stave(x, rowIndex * rowHeight + rowTop, width);
+      if (withClef(i)) stave.addClef('percussion');
       stave.setStyle({ fillStyle: INK, strokeStyle: INK });
       stave.setDefaultLedgerLineStyle({ strokeStyle: INK, lineWidth: 2 });
       stave.setContext(context).draw();

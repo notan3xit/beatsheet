@@ -1,3 +1,5 @@
+import type { AccentName } from '@catppuccin/palette';
+
 /** Instrumente in der Reihenfolge der Sequencer-Zeilen (oben nach unten). */
 export const INSTRUMENTS = [
   'crash',
@@ -45,16 +47,81 @@ export interface Beat {
 
 export type PatternKind = 'groove' | 'fill';
 
+/** Catppuccin-Akzent als Name; red ist für Fehler reserviert. */
+export type PatternColor = Exclude<AccentName, 'red'>;
+
+/** Vergabereihenfolge der Pattern-Farben (größtmöglicher Abstand zuerst). */
+export const PATTERN_COLORS: readonly PatternColor[] = [
+  'blue',
+  'green',
+  'peach',
+  'mauve',
+  'teal',
+  'yellow',
+  'pink',
+  'sapphire',
+  'maroon',
+  'lavender',
+  'sky',
+  'flamingo',
+  'rosewater',
+];
+
 export interface Pattern {
   id: string;
   kind: PatternKind;
   name: string;
+  color: PatternColor;
   /** Länge in Beats = beats.length (1..16). */
   beats: Beat[];
   createdAt: string;
   updatedAt: string;
   revision: number;
 }
+
+/** Zusätzlicher Schlag über Groove/Fill; Position im Sechzehntel-Raster des Takts. */
+export interface Accent {
+  instrument: Instrument;
+  /** Beat im Takt, 0-basiert. */
+  beat: number;
+  /** Sechzehntel im Beat, 0-basiert. */
+  position: 0 | 1 | 2 | 3;
+}
+
+export interface Bar {
+  id: string;
+  /** Länge in Beats (Viertel-Taktart), 1..16. */
+  beats: number;
+  grooveId: string | null;
+  /** Fill, der am Ende dieses Takts endet und nach links überdeckt. */
+  fillId: string | null;
+  accents: Accent[];
+}
+
+/** Logische Gruppierung von Takten; Grooves beginnen am Blockanfang neu. */
+export interface Block {
+  id: string;
+  bars: Bar[];
+}
+
+export interface Segment {
+  id: string;
+  name: string;
+  blocks: Block[];
+}
+
+export interface Song {
+  id: string;
+  title: string;
+  patterns: Pattern[];
+  segments: Segment[];
+  createdAt: string;
+  updatedAt: string;
+  revision: number;
+}
+
+export const MAX_BAR_BEATS = 16;
+export const MAX_SEGMENT_BARS = 64;
 
 export const MIN_LENGTH = 1;
 export const MAX_LENGTH = 16;

@@ -41,6 +41,23 @@ describe('VexFlow-Adapter (Smoke-Test)', () => {
     expect(colors).toContain('currentColor');
   });
 
+  it('Mini-Darstellung: ohne Schlüssel, skaliert über viewBox, nur Textfarbe', () => {
+    const container = document.createElement('div');
+    const normal = document.createElement('div');
+    const fill = patternOf([{ hits: { snare: [1, 2, 3, 4] } }, { sub: 3, hits: { tom1: [1], floorTom: [2, 3], kick: [1] } }], 'fill');
+    renderNotation(toNotation(fill), container, { compact: true });
+    renderNotation(toNotation(fill), normal);
+    const svg = container.querySelector('svg')!;
+    expect(svg.getAttribute('viewBox')).toMatch(/^0 0 \d+(\.\d+)? \d+$/);
+    expect(svg.getAttribute('width')).toBe('100%');
+    expect(container.querySelectorAll('.vf-clef').length).toBe(0);
+    expect(normal.querySelectorAll('.vf-clef').length).toBe(1);
+    const colors = new Set(
+      [...container.querySelectorAll('svg, svg *')].flatMap((el) => [el.getAttribute('fill'), el.getAttribute('stroke')]),
+    );
+    expect([...colors].filter((c) => c !== null && c !== 'currentColor' && c !== 'none')).toEqual([]);
+  });
+
   it('ersetzt vorherigen Inhalt beim erneuten Rendern', () => {
     const container = document.createElement('div');
     renderNotation(toNotation(patternOf(emptyBeats(4))), container);

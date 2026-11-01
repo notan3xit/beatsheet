@@ -1,32 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { resizeWouldRemoveHits } from '../domain/pattern';
 import { MAX_LENGTH, MIN_LENGTH, type Pattern } from '../domain/types';
+import { openSongOf } from '../state/notebookStore';
+import { CommitField } from './CommitField';
 import { useConfirm } from './ConfirmDialog';
 import { NotationView } from './NotationView';
 import { Sequencer } from './Sequencer';
-import { useLibrary, useStore } from './useLibrary';
+import { useNotebook, useStore } from './useLibrary';
 
 const LENGTHS = Array.from({ length: MAX_LENGTH - MIN_LENGTH + 1 }, (_, i) => i + MIN_LENGTH);
 
 function NameField({ pattern }: { pattern: Pattern }) {
   const store = useStore();
-  const [draft, setDraft] = useState(pattern.name);
-
-  const commit = () => {
-    store.rename(pattern.id, draft);
-    setDraft(store.getState().patterns.find((p) => p.id === pattern.id)?.name ?? pattern.name);
-  };
-
   return (
-    <label className="field">
-      Name
-      <input
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-      />
-    </label>
+    <CommitField
+      label="Name"
+      value={pattern.name}
+      onCommit={(draft) => {
+        store.rename(pattern.id, draft);
+        return openSongOf(store.getState())?.patterns.find((p) => p.id === pattern.id)?.name ?? pattern.name;
+      }}
+    />
   );
 }
 
@@ -51,7 +45,7 @@ function useUndoShortcuts() {
 
 export function PatternEditor({ pattern }: { pattern: Pattern }) {
   const store = useStore();
-  const { canUndo, canRedo } = useLibrary();
+  const { canUndo, canRedo } = useNotebook();
   const confirm = useConfirm();
   useUndoShortcuts();
 
@@ -66,11 +60,19 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
   };
 
   const remove = async () => {
-    if (await confirm(`„${pattern.name}“ wirklich löschen?`)) store.remove(pattern.id);
+    const used = store.usage(pattern.id);
+    const message =
+      used > 0
+        ? `„${pattern.name}“ wird in ${used === 1 ? '1 Takt' : `${used} Takten`} verwendet. Diese Takte haben danach keinen ${pattern.kind === 'groove' ? 'Groove' : 'Fill'} mehr. Trotzdem löschen?`
+        : `„${pattern.name}“ wirklich löschen?`;
+    if (await confirm(message)) store.remove(pattern.id);
   };
 
   return (
     <section className="editor" aria-label="Pattern bearbeiten">
+      <button type="button" className="back" onClick={() => store.backToBook()}>
+        Zurück zum Song
+      </button>
       <div className="editor-header">
         <NameField key={pattern.id} pattern={pattern} />
         <label className="field">

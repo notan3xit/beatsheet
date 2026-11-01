@@ -1,18 +1,19 @@
 import { useState, type ChangeEvent } from 'react';
-import { exportFileName, parseLibraryFile, serializeLibrary } from '../persistence/fileFormat';
+import { exportFileName, parseNotebookFile, serializeNotebook } from '../persistence/fileFormat';
 import { mergeImport } from '../persistence/merge';
 import { downloadFile } from './download';
 import { useStore } from './useLibrary';
 
 type Message = { kind: 'status' | 'alert'; text: string };
 
+/** Export und Import aller Songs. */
 export function LibraryFileActions() {
   const store = useStore();
   const [message, setMessage] = useState<Message | null>(null);
 
   const exportLibrary = () => {
     const now = new Date();
-    downloadFile(exportFileName(now), serializeLibrary(store.getState().patterns, now));
+    downloadFile(exportFileName(now), serializeNotebook(store.getState().songs, now));
   };
 
   const importLibrary = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -20,16 +21,16 @@ export function LibraryFileActions() {
     const file = input.files?.[0];
     input.value = '';
     if (!file) return;
-    const parsed = parseLibraryFile(await file.text());
+    const parsed = parseNotebookFile(await file.text());
     if (!parsed.ok) {
       setMessage({ kind: 'alert', text: `Import fehlgeschlagen: ${parsed.error}` });
       return;
     }
-    const { changed, summary } = mergeImport(store.getState().patterns, parsed.patterns);
-    store.importPatterns(changed);
+    const { changed, summary } = mergeImport(store.getState().songs, parsed.songs);
+    store.importSongs(changed);
     setMessage({
       kind: 'status',
-      text: `Import abgeschlossen: ${summary.added} hinzugefügt, ${summary.updated} aktualisiert, ${summary.unchanged} unverändert.`,
+      text: `Import abgeschlossen (Songs): ${summary.added} hinzugefügt, ${summary.updated} aktualisiert, ${summary.unchanged} unverändert.`,
     });
   };
 
