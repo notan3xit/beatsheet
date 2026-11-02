@@ -84,3 +84,21 @@ describe('Spec color-theme › Akzentflächen je nach Variante tonal oder voll',
     expect(token('control')).toBe('var(--ctp-surface0)');
   });
 });
+
+describe('Spec songbook-view › Kompakte Zeilen (Stylesheet)', () => {
+  const rem = (rule: string, prop: string) => {
+    const value = rule.match(new RegExp(`(?:^|;)\\s*${prop}:\\s*([\\d.]+)rem`))?.[1];
+    return value === undefined ? undefined : Number(value);
+  };
+  const structureRow = css.match(/(?:^|\})\s*\.structure-row\s*\{([^}]*)\}/)?.[1] ?? '';
+
+  it('Popover wird nicht abgeschnitten: Strukturseite ohne eigenen Scrollbereich', () => {
+    const page = css.match(/(?:^|\})\s*\.structure-page\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(page).not.toMatch(/overflow/);
+  });
+
+  it('Zeilenmaße: höchstens 1,5rem hoch, höchstens 0,5rem Abstand', () => {
+    expect(rem(structureRow, 'height')).toBeLessThanOrEqual(1.5);
+    expect(rem(structureRow, 'margin-top')).toBeLessThanOrEqual(0.5);
+  });
+});

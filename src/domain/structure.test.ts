@@ -4,18 +4,23 @@ import { allBars } from './songPatterns';
 import {
   addAccent,
   addPlaceholder,
-  appendBar,
-  appendBlock,
+  appendBlockLike,
   appendSegment,
+  assignPlaceholder,
+  canChangeBarLength,
+  changeBarLength,
   deleteBar,
   deleteSegment,
   duplicateSegment,
   insertBarAfter,
+  insertBarBefore,
+  insertSegmentAfter,
   moveSegment,
   removeAccent,
   renameSegment,
   setBarProps,
 } from './structure';
+import { nextColor, ValidationError } from './pattern';
 import type { Song } from './types';
 
 const names = (song: Song) => song.segments.map((s) => s.name);
@@ -32,20 +37,26 @@ function withGrooves(...grooveNames: string[]) {
   return { song, ids };
 }
 
-describe('Spec song-structure › Segmente anlegen', () => {
-  it('Intro anlegen', () => {
-    const { song, ids } = withGrooves('A');
-    const after = appendSegment(song, { name: 'Intro', bars: 4, beats: 4, grooveId: ids[0]! });
-    const intro = after.segments.at(-1)!;
-    expect(intro.name).toBe('Intro');
-    expect(intro.blocks).toHaveLength(1);
-    expect(intro.blocks[0]!.bars.map((b) => [b.beats, b.grooveId])).toEqual(Array(4).fill([4, ids[0]]));
+describe('Spec song-structure › Segmente einfügen', () => {
+  it('Erstes Segment', () => {
+    const after = insertSegmentAfter(songWith({}), null);
+    expect(names(after)).toEqual(['Segment 1']);
+    expect(after.segments[0]!.blocks).toHaveLength(1);
+    expect(barsOf(after).map((b) => [b.beats, b.grooveId, b.fillId])).toEqual(Array(4).fill([4, null, null]));
   });
 
-  it('Segment ohne Groove', () => {
-    const after = appendSegment(songWith({}), { name: 'Break', bars: 2 });
-    expect(barsOf(after).map((b) => b.grooveId)).toEqual([null, null]);
-    expect(barsOf(after).every((b) => b.beats === 4)).toBe(true);
+  it('Segment dazwischen einfügen', () => {
+    const song = ['Intro', 'Chorus'].reduce((s, name) => appendSegment(s, { name, bars: 1 }), songWith({}));
+    expect(names(insertSegmentAfter(song, song.segments[0]!.id))).toEqual(['Intro', 'Segment 3', 'Chorus']);
+  });
+});
+
+describe('appendSegment (Testhilfe)', () => {
+  it('legt einen Block mit gleich langen Takten an', () => {
+    const { song, ids } = withGrooves('A');
+    const after = appendSegment(song, { name: 'Intro', bars: 4, beats: 3, grooveId: ids[0]! });
+    expect(after.segments.at(-1)!.blocks).toHaveLength(1);
+    expect(barsOf(after).map((b) => [b.beats, b.grooveId])).toEqual(Array(4).fill([3, ids[0]]));
   });
 
   it.each([0, 65])('ungültige Taktzahl %i', (bars) => {
@@ -105,27 +116,57 @@ describe('Spec song-structure › Blöcke und Takte bearbeiten', () => {
     expect(block.bars[2]).toMatchObject({ beats: 3, grooveId: ids[1], fillId: null, accents: [] });
   });
 
+  it('Takt davor einfügen', () => {
+    const { song: base, ids } = withGrooves('A');
+    let song = appendSegment(base, { name: 'Verse', bars: 2, beats: 3, grooveId: ids[0]! });
+    const first = barsOf(song)[0]!;
+    const fill = addPlaceholder(song, { kind: 'fill', name: 'f', length: 1 });
+    song = addAccent(setBarProps(fill.song, [first.id], { fillId: fill.pattern.id }), first.id, { instrument: 'crash', beat: 0, position: 0 });
+    const after = insertBarBefore(song, first.id);
+    const bars = barsOf(after);
+    expect(bars).toHaveLength(3);
+    expect(bars[0]).toMatchObject({ beats: 3, grooveId: ids[0], fillId: null, accents: [] });
+    expect(bars[0]!.id).not.toBe(first.id);
+    expect(bars[1]!.id).toBe(first.id);
+  });
+
+  it('Block unten anfügen', () => {
+    const { song: base, ids } = withGrooves('A', 'B');
+    let song = appendSegment(base, { name: 'Verse', bars: 2, grooveId: ids[0]! });
+    song = appendBlockLike(song, song.segments[0]!.id);
+    song = setBarProps(song, song.segments[0]!.blocks[1]!.bars.map((b) => b.id), { grooveId: ids[1]! });
+    // letzter Block: 8 Takte, der letzte mit Groove B und Fill
+    for (let i = 0; i < 6; i++) song = insertBarAfter(song, song.segments[0]!.blocks[1]!.bars.at(-1)!.id);
+    const fill = addPlaceholder(song, { kind: 'fill', name: 'f', length: 1 });
+    song = setBarProps(fill.song, [fill.song.segments[0]!.blocks[1]!.bars.at(-1)!.id], { fillId: fill.pattern.id });
+    expect(song.segments[0]!.blocks[1]!.bars).toHaveLength(8);
+
+    const after = appendBlockLike(song, song.segments[0]!.id);
+    const added = after.segments[0]!.blocks[2]!;
+    expect(after.segments[0]!.blocks).toHaveLength(3);
+    expect(added.bars.map((b) => [b.beats, b.grooveId, b.fillId])).toEqual(Array(8).fill([4, ids[1], null]));
+  });
+
+  it('Block an Segment ohne Blöcke', () => {
+    let song = appendSegment(songWith({}), { name: 'Verse', bars: 1 });
+    song = deleteBar(song, barsOf(song)[0]!.id);
+    expect(song.segments[0]!.blocks).toHaveLength(0);
+    const after = appendBlockLike(song, song.segments[0]!.id);
+    expect(after.segments[0]!.blocks).toHaveLength(1);
+    expect(barsOf(after).map((b) => [b.beats, b.grooveId])).toEqual(Array(4).fill([4, null]));
+  });
+
   it('Letzten Takt eines Blocks löschen', () => {
-    let song = appendSegment(songWith({}), { name: 'Verse', bars: 2 });
-    song = appendBlock(song, song.segments[0]!.id, { bars: 1 });
+    let song = appendSegment(songWith({}), { name: 'Verse', bars: 1 });
+    song = appendBlockLike(song, song.segments[0]!.id);
     const lonely = song.segments[0]!.blocks[1]!.bars[0]!;
     const after = deleteBar(song, lonely.id);
     expect(after.segments).toHaveLength(1);
     expect(after.segments[0]!.blocks).toHaveLength(1);
 
-    const empty = deleteBar(deleteBar(after, barsOf(after)[0]!.id), barsOf(after)[1]!.id);
+    const empty = deleteBar(after, barsOf(after)[0]!.id);
     expect(empty.segments).toHaveLength(1);
     expect(empty.segments[0]!.blocks).toHaveLength(0);
-  });
-
-  it('Takt am Ende anfügen übernimmt Länge und Groove des letzten Takts', () => {
-    const { song: base, ids } = withGrooves('A');
-    const song = appendSegment(base, { name: 'V', bars: 1, beats: 3, grooveId: ids[0]! });
-    const after = appendBar(song, song.segments[0]!.blocks[0]!.id);
-    expect(barsOf(after).map((b) => [b.beats, b.grooveId])).toEqual([
-      [3, ids[0]],
-      [3, ids[0]],
-    ]);
   });
 });
 
@@ -140,8 +181,44 @@ describe('Spec song-structure › Takteigenschaften setzen', () => {
 
   it('Taktlänge ändern', () => {
     const song = appendSegment(songWith({}), { name: 'Verse', bars: 3 });
-    const after = setBarProps(song, [barsOf(song)[1]!.id], { beats: 2 });
+    const id = barsOf(song)[1]!.id;
+    const after = changeBarLength(changeBarLength(song, [id], -1), [id], -1);
     expect(barsOf(after).map((b) => b.beats)).toEqual([4, 2, 4]);
+  });
+
+  it('Länge gemischter Auswahl erhöhen', () => {
+    let song = appendSegment(songWith({}), { name: 'Verse', bars: 2 });
+    song = setBarProps(song, [barsOf(song)[1]!.id], { beats: 3 });
+    const ids = barsOf(song).map((b) => b.id);
+    expect(canChangeBarLength(song, ids, 1)).toBe(true);
+    expect(barsOf(changeBarLength(song, ids, 1)).map((b) => b.beats)).toEqual([5, 4]);
+  });
+
+  it('Grenze in gemischter Auswahl', () => {
+    let song = appendSegment(songWith({}), { name: 'Verse', bars: 2 });
+    song = setBarProps(song, [barsOf(song)[0]!.id], { beats: 16 });
+    const ids = barsOf(song).map((b) => b.id);
+    expect(canChangeBarLength(song, ids, 1)).toBe(false);
+    expect(() => changeBarLength(song, ids, 1)).toThrow(ValidationError);
+    expect(barsOf(song).map((b) => b.beats)).toEqual([16, 4]);
+    const one = appendSegment(songWith({}), { name: 'V', bars: 1, beats: 1 });
+    expect(canChangeBarLength(one, [barsOf(one)[0]!.id], -1)).toBe(false);
+  });
+
+  it('Kürzen entfernt Akzente außerhalb des Takts', () => {
+    let song = appendSegment(songWith({}), { name: 'V', bars: 1 });
+    const id = barsOf(song)[0]!.id;
+    song = addAccent(song, id, { instrument: 'crash', beat: 3, position: 0 });
+    expect(barsOf(changeBarLength(song, [id], -1))[0]!.accents).toEqual([]);
+  });
+
+  it('Fill setzen und entfernen', () => {
+    const song = appendSegment(songWith({}), { name: 'V', bars: 4 });
+    const fill = addPlaceholder(song, { kind: 'fill', name: 'f1', length: 1 });
+    const id = barsOf(fill.song)[3]!.id;
+    const withFill = setBarProps(fill.song, [id], { fillId: fill.pattern.id });
+    expect(barsOf(withFill)[3]!.fillId).toBe(fill.pattern.id);
+    expect(barsOf(setBarProps(withFill, [id], { fillId: null }))[3]!.fillId).toBeNull();
   });
 
   it('Nur Grooves als Groove und nur Fills als Fill', () => {
@@ -156,21 +233,26 @@ describe('Spec song-structure › Takteigenschaften setzen', () => {
 
 describe('Spec song-structure › Platzhalter aus der Struktur anlegen', () => {
   it('Neuer Groove als Platzhalter', () => {
-    const r = addPlaceholder(songWith({}), { kind: 'groove', name: 'Verse-Beat' });
-    const song = appendSegment(r.song, { name: 'Verse', bars: 2, grooveId: r.pattern.id });
-    expect(r.pattern).toMatchObject({ kind: 'groove', name: 'Verse-Beat' });
-    expect(r.pattern.beats).toHaveLength(4);
-    expect(r.pattern.beats.every((b) => Object.keys(b.hits).length === 0)).toBe(true);
-    expect(barsOf(song).every((b) => b.grooveId === r.pattern.id)).toBe(true);
+    const { song: base } = withGrooves('');
+    expect(base.patterns.map((p) => p.name)).toEqual(['Groove 1']);
+    const song = appendSegment(base, { name: 'Verse', bars: 8 });
+    const color = nextColor(song.patterns);
+    const after = assignPlaceholder(song, barsOf(song).slice(0, 4).map((b) => b.id), 'groove');
+    const groove = after.patterns.at(-1)!;
+    expect(groove).toMatchObject({ kind: 'groove', name: 'Groove 2', color });
+    expect(groove.beats).toHaveLength(4);
+    expect(groove.beats.every((b) => Object.keys(b.hits).length === 0)).toBe(true);
+    expect(barsOf(after).map((b) => b.grooveId)).toEqual([...Array(4).fill(groove.id), ...Array(4).fill(null)]);
   });
 
   it('Neuer Fill als Platzhalter', () => {
-    let song = appendSegment(songWith({}), { name: 'Verse', bars: 8 });
-    const r = addPlaceholder(song, { kind: 'fill', name: 'Tom-Run', length: 2 });
-    song = setBarProps(r.song, [barsOf(r.song)[7]!.id], { fillId: r.pattern.id });
-    expect(r.pattern).toMatchObject({ kind: 'fill', name: 'Tom-Run' });
-    expect(r.pattern.beats).toHaveLength(2);
-    expect(barsOf(song)[7]!.fillId).toBe(r.pattern.id);
+    const song = appendSegment(songWith({}), { name: 'Verse', bars: 8 });
+    const after = assignPlaceholder(song, [barsOf(song)[7]!.id], 'fill');
+    const fill = after.patterns.at(-1)!;
+    expect(fill).toMatchObject({ kind: 'fill', name: 'Fill 1' });
+    expect(fill.beats).toHaveLength(1);
+    expect(barsOf(after)[7]!.fillId).toBe(fill.id);
+    expect(barsOf(after).slice(0, 7).every((b) => b.fillId === null)).toBe(true);
   });
 });
 

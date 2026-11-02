@@ -78,8 +78,55 @@ describe('Spec songbook-view › Struktur-Darstellung (UI)', () => {
     }));
     const page = structurePage();
     expect(within(page).getAllByRole('button', { name: /^Takt \d+/ })).toHaveLength(4);
-    // Auswahloptionen der Struktur-Toolbar zählen nicht als Darstellung
-    expect(within(page).getAllByText('A', { ignore: 'option' })).toHaveLength(4);
-    expect(within(page).getByText('f1', { ignore: 'option' })).toBeInTheDocument();
+    expect(within(page).getAllByText('A')).toHaveLength(4);
+    expect(within(page).getByText('f1')).toBeInTheDocument();
+  });
+});
+
+describe('Spec songbook-view › Fill-Blöcke (UI)', () => {
+  it('Kurzer Fill', async () => {
+    const patterns = seed({ kind: 'groove', name: 'A' }, { kind: 'fill', name: 'f1', length: 1 });
+    const { store, user } = setup(patterns);
+    // Fill mit Schlägen, damit sichtbar wird, dass trotzdem keine Noten erscheinen
+    await user.click(within(patternPage()).getByRole('button', { name: 'f1 bearbeiten' }));
+    await user.click(screen.getByRole('button', { name: 'Snare, Beat 1, Position 1' }));
+    await user.click(screen.getByRole('button', { name: 'Zurück zum Song' }));
+    act(() => store.updateSong((song) => {
+      const withSegment = appendSegment(song, { name: 'Verse', bars: 4, grooveId: patterns[0]!.id });
+      const last = withSegment.segments[0]!.blocks[0]!.bars[3]!;
+      return setBarProps(withSegment, [last.id], { fillId: patterns[1]!.id });
+    }));
+    expect(within(structurePage()).getByText('f1')).toBeInTheDocument();
+    expect(within(structurePage()).queryByRole('img')).not.toBeInTheDocument();
+  });
+});
+
+describe('Spec songbook-view › Kompakte Zeilen (UI)', () => {
+  it('Langer Groove-Name', () => {
+    const patterns = seed({ kind: 'groove', name: 'Verse-Beat mit Ghost Notes' });
+    const { store } = setup(patterns);
+    act(() => store.updateSong((song) => appendSegment(song, { name: 'Verse', bars: 1, beats: 2, grooveId: patterns[0]!.id })));
+    expect(within(structurePage()).getByTitle('Verse-Beat mit Ghost Notes')).toHaveTextContent('Verse-Beat mit Ghost Notes');
+  });
+});
+
+describe('Spec songbook-view › Leseansicht ohne Bedienelemente', () => {
+  it('Song mit Struktur ohne Auswahl', () => {
+    const { store } = setup(seed({ kind: 'groove', name: 'A' }));
+    act(() => store.updateSong((song) => appendSegment(appendSegment(song, { name: 'Intro', bars: 2 }), { name: 'Verse', bars: 3 })));
+    const page = structurePage();
+    for (const role of ['textbox', 'combobox', 'spinbutton', 'checkbox', 'dialog'] as const) {
+      expect(within(page).queryAllByRole(role)).toEqual([]);
+    }
+    const buttons = within(page).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent);
+    expect(buttons).toEqual(['Intro', 'Takt 1', 'Takt 2', 'Verse', 'Takt 3', 'Takt 4', 'Takt 5']);
+  });
+
+  it('Leerer Song', () => {
+    setup([]);
+    const buttons = within(structurePage()).getAllByRole('button');
+    expect(buttons.map((b) => b.textContent)).toEqual(['Erstes Segment anlegen']);
+    expect(within(structurePage()).queryAllByRole('textbox')).toEqual([]);
+    expect(within(structurePage()).queryAllByRole('combobox')).toEqual([]);
   });
 });

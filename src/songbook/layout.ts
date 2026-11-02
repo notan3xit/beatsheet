@@ -18,7 +18,14 @@ export const ACCENT_LABELS: Record<Instrument, string> = {
 };
 
 // Alle Positionen und Breiten in Beats, relativ zum Zeilenanfang.
-export interface GrooveItem {
+
+/** Ob Anfang bzw. Ende eines Balkens auf einer Taktgrenze liegt (sonst grenzt dort Groove an Fill im selben Takt). */
+export interface BarEdges {
+  atBarStart: boolean;
+  atBarEnd: boolean;
+}
+
+export interface GrooveItem extends BarEdges {
   kind: 'groove';
   x: number;
   width: number;
@@ -37,15 +44,13 @@ export interface EmptyItem {
   barId: string;
 }
 
-export interface FillItem {
+export interface FillItem extends BarEdges {
   kind: 'fill';
   x: number;
   width: number;
   patternId: string;
   color: PatternColor;
   label: string;
-  /** Fill ist kürzer als der Takt, in dem er endet: verkleinerte Noten im Block. */
-  mini: boolean;
   continuesLeft: boolean;
   continuesRight: boolean;
   /** Taktstriche innerhalb des Fill-Blocks (Zeilenposition). */
@@ -67,10 +72,12 @@ export interface BarFrame {
   index: number;
   x: number;
   width: number;
-  blockStart: boolean;
 }
 
 export interface Row {
+  blockId: string;
+  /** Erste Zeile eines Blocks, der nicht der erste des Segments ist. */
+  blockStart: boolean;
   width: number;
   bars: BarFrame[];
   items: Item[];
@@ -87,11 +94,10 @@ interface FillInstance {
   /** Globale Beats [start, end) des sichtbaren Fills. */
   start: number;
   end: number;
-  mini: boolean;
 }
 
 /** Fill-Abschnitte zu zusammenhängenden Instanzen zusammenfassen (über Takte hinweg). */
-function fillInstances(resolved: ResolvedBar[], lengths: Map<string, number>): FillInstance[] {
+function fillInstances(resolved: ResolvedBar[]): FillInstance[] {
   const instances: FillInstance[] = [];
   for (const bar of resolved) {
     for (const span of bar.fills) {
@@ -101,32 +107,28 @@ function fillInstances(resolved: ResolvedBar[], lengths: Map<string, number>): F
       if (last && last.patternId === span.patternId && last.end === start && span.fillOffset > 0) {
         last.end = end;
       } else {
-        instances.push({ patternId: span.patternId, start, end, mini: false });
+        instances.push({ patternId: span.patternId, start, end });
       }
     }
-  }
-  // mini: Fill ist insgesamt kürzer als der Takt, in dem er endet
-  for (const instance of instances) {
-    const endBar = resolved.find((b) => b.start < instance.end && instance.end <= b.start + b.beats);
-    instance.mini = (lengths.get(instance.patternId) ?? 0) < (endBar?.beats ?? 0);
   }
   return instances;
 }
 
-/** Layout der linken Buchseite (design.md D3). */
+/** Layout der linken Buchseite: Zeilen zu höchstens 4 Takten, jeder Block beginnt eine neue Zeile. */
 export function layoutStructure(song: Song): SegmentLayout[] {
   const resolved = resolveSong(song);
   const patterns = new Map(song.patterns.map((p) => [p.id, p]));
-  const lengths = new Map(song.patterns.map((p) => [p.id, p.beats.length]));
-  const fills = fillInstances(resolved, lengths);
-  const blockStarts = new Set(song.segments.flatMap((s) => s.blocks.map((b) => b.bars[0]?.id)));
+  const fills = fillInstances(resolved);
 
   return song.segments.map((segment) => {
-    const bars = resolved.filter((b) => b.segmentId === segment.id);
     const rows: Row[] = [];
-    for (let i = 0; i < bars.length; i += BARS_PER_ROW) {
-      rows.push(layoutRow(bars.slice(i, i + BARS_PER_ROW), patterns, fills, blockStarts));
-    }
+    segment.blocks.forEach((block, b) => {
+      const bars = resolved.filter((r) => r.blockId === block.id);
+      for (let i = 0; i < bars.length; i += BARS_PER_ROW) {
+        const row = layoutRow(bars.slice(i, i + BARS_PER_ROW), patterns, fills);
+        rows.push({ blockId: block.id, blockStart: b > 0 && i === 0, ...row });
+      }
+    });
     return { segmentId: segment.id, name: segment.name, rows };
   });
 }
@@ -135,16 +137,16 @@ function layoutRow(
   bars: ResolvedBar[],
   patterns: Map<string, Pattern>,
   fills: FillInstance[],
-  blockStarts: Set<string | undefined>,
-): Row {
+): Omit<Row, 'blockId' | 'blockStart'> {
   const rowStart = bars[0]!.start;
   const rowEnd = bars.at(-1)!.start + bars.at(-1)!.beats;
   const frames: BarFrame[] = [];
   const items: Item[] = [];
+  const barEdges = new Set(bars.flatMap((b) => [b.start - rowStart, b.start + b.beats - rowStart]));
 
   for (const bar of bars) {
     const x = bar.start - rowStart;
-    frames.push({ barId: bar.barId, index: bar.index, x, width: bar.beats, blockStart: blockStarts.has(bar.barId) });
+    frames.push({ barId: bar.barId, index: bar.index, x, width: bar.beats });
 
     const visible = bar.coveredFrom ?? bar.beats;
     const groove = bar.groove ? patterns.get(bar.groove.patternId) : undefined;
@@ -158,6 +160,8 @@ function layoutRow(
         color: groove.color,
         label: groove.name,
         startBeat: groove.beats.length > bar.beats ? bar.groove.offset + 1 : null,
+        atBarStart: true,
+        atBarEnd: visible === bar.beats,
       });
     } else if (visible > 0) {
       items.push({ kind: 'empty', x, width: visible, barId: bar.barId });
@@ -176,7 +180,8 @@ function layoutRow(
       patternId: pattern.id,
       color: pattern.color,
       label: pattern.name,
-      mini: fill.mini,
+      atBarStart: barEdges.has(from - rowStart),
+      atBarEnd: barEdges.has(to - rowStart),
       continuesLeft: fill.start < rowStart,
       continuesRight: fill.end > rowEnd,
       barlines: bars.map((b) => b.start).filter((start) => start > from && start < to).map((start) => start - rowStart),

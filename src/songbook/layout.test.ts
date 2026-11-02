@@ -45,13 +45,23 @@ describe('Spec songbook-view › Maßstabsgetreue Struktur', () => {
     expect(layout.map((s) => s.rows.map((r) => r.bars.length))).toEqual([[2], [1]]);
   });
 
-  it('Takte tragen ihre laufende Nummer und markieren Blockanfänge', () => {
-    const [segment] = layoutStructure(song([], [[barOf(), barOf()], [barOf()]]));
-    expect(segment!.rows[0]!.bars.map((b) => [b.index, b.blockStart])).toEqual([
-      [0, true],
-      [1, false],
-      [2, true],
+  it('Neuer Block in neuer Zeile', () => {
+    const [segment] = layoutStructure(song([], [[barOf(), barOf()], [barOf(), barOf(), barOf(), barOf()]]));
+    expect(segment!.rows.map((r) => [r.bars.length, r.blockId, r.blockStart])).toEqual([
+      [2, 'block-0-0', false],
+      [4, 'block-0-1', true],
     ]);
+    expect(segment!.rows[1]!.bars[0]!.x).toBe(0);
+  });
+
+  it('Takte tragen ihre laufende Nummer; Zeilenumbruch im Block ist kein Blockanfang', () => {
+    const [segment] = layoutStructure(song([], [[barOf(), barOf(), barOf(), barOf(), barOf()], [barOf()]]));
+    expect(segment!.rows.map((r) => [r.bars.map((b) => b.index), r.blockStart])).toEqual([
+      [[0, 1, 2, 3], false],
+      [[4], false],
+      [[5], true],
+    ]);
+    expect(segment!.rows[0]!.bars[0]).not.toHaveProperty('blockStart');
   });
 });
 
@@ -86,8 +96,13 @@ describe('Spec songbook-view › Fill-Blöcke', () => {
     const items = segment!.rows[0]!.items;
     expect(ofKind(items, 'groove').at(-1)).toMatchObject({ x: 12, width: 3 });
     expect(ofKind(items, 'fill')).toEqual([
-      expect.objectContaining({ x: 15, width: 1, label: 'f1', color: f.color, mini: true, barlines: [], continuesLeft: false, continuesRight: false }),
+      expect.objectContaining({ x: 15, width: 1, label: 'f1', color: f.color, barlines: [], continuesLeft: false, continuesRight: false }),
     ]);
+    expect(ofKind(items, 'fill')[0]).not.toHaveProperty('mini');
+    // Fill übernimmt von rechts: an der Grenze Groove/Fill liegt keine Taktgrenze
+    expect(ofKind(items, 'groove').at(-1)).toMatchObject({ atBarStart: true, atBarEnd: false });
+    expect(ofKind(items, 'fill')[0]).toMatchObject({ atBarStart: false, atBarEnd: true });
+    expect(ofKind(items, 'groove')[0]).toMatchObject({ atBarStart: true, atBarEnd: true });
   });
 
   it('Fill über Taktgrenze', () => {
@@ -96,7 +111,9 @@ describe('Spec songbook-view › Fill-Blöcke', () => {
     const bars = [barOf({ grooveId: a.id }), barOf({ grooveId: a.id }), barOf({ grooveId: a.id }), barOf({ grooveId: a.id, fillId: f.id })];
     const [segment] = layoutStructure(song([a, f], [bars]));
     const items = segment!.rows[0]!.items;
-    expect(ofKind(items, 'fill')).toEqual([expect.objectContaining({ x: 10, width: 6, mini: false, barlines: [12] })]);
+    expect(ofKind(items, 'fill')).toEqual([expect.objectContaining({ x: 10, width: 6, barlines: [12] })]);
+    expect(ofKind(items, 'fill')[0]).toMatchObject({ atBarStart: false, atBarEnd: true });
+    expect(ofKind(items, 'groove').at(-1)).toMatchObject({ x: 8, width: 2, atBarStart: true, atBarEnd: false });
     expect(ofKind(items, 'groove').map((g) => [g.x, g.width])).toEqual([
       [0, 4],
       [4, 4],
@@ -113,11 +130,19 @@ describe('Spec songbook-view › Fill-Blöcke', () => {
     expect(second).toEqual([expect.objectContaining({ x: 0, width: 4, continuesLeft: true, continuesRight: false })]);
   });
 
-  it('Reiner Fill-Takt ist nicht mini', () => {
+  it('Reiner Fill-Takt', () => {
     const f = fill(4, 'f', []);
     const [segment] = layoutStructure(song([f], [[barOf({ fillId: f.id })]]));
-    expect(ofKind(segment!.rows[0]!.items, 'fill')).toEqual([expect.objectContaining({ width: 4, mini: false })]);
+    expect(ofKind(segment!.rows[0]!.items, 'fill')).toEqual([expect.objectContaining({ width: 4 })]);
     expect(ofKind(segment!.rows[0]!.items, 'empty')).toEqual([]);
+  });
+
+  it('Fill über Blockgrenze wird an der Zeile geteilt', () => {
+    const f = fill(6, 'Build', []);
+    const [segment] = layoutStructure(song([f], [[barOf(), barOf()], [barOf({ fillId: f.id })]]));
+    const [first, second] = segment!.rows.map((r) => ofKind(r.items, 'fill'));
+    expect(first).toEqual([expect.objectContaining({ x: 6, width: 2, continuesRight: true })]);
+    expect(second).toEqual([expect.objectContaining({ x: 0, width: 4, continuesLeft: true })]);
   });
 });
 
