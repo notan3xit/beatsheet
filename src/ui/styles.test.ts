@@ -41,3 +41,46 @@ describe('Spec color-theme › Rot nur für Fehler und destruktive Aktionen', ()
     expect(css).toMatch(/\.step\[aria-pressed='true'\]\s*\{[^}]*var\(--accent\)/);
   });
 });
+
+describe('Spec color-theme › Akzentflächen je nach Variante tonal oder voll', () => {
+  const darkBlock = css.match(/@media \(prefers-color-scheme: dark\)\s*\{\s*:root\s*\{([^}]*)\}/)?.[1] ?? '';
+  const dark = (name: string) => darkBlock.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1]?.trim();
+  const rule = (selector: string) =>
+    css.match(new RegExp(`(?:^|\\})\\s*${selector.replace(/[.[\]()'*]/g, '\\$&')}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+  const percent = (v: string | undefined) => Number(v?.replace('%', ''));
+
+  it('Hauptbutton im Hellmodus: 25 % Akzent mit base gemischt, Beschriftung text, kein Rahmen', () => {
+    expect(rule('button.primary')).toMatch(
+      /background:\s*color-mix\(in srgb, var\(--accent\) var\(--accent-fill-mix\), var\(--bg\)\)/,
+    );
+    expect(rule('button.primary')).toMatch(/color:\s*var\(--on-accent-fill\)/);
+    expect(token('accent-fill-mix')).toBe('25%');
+    expect(token('on-accent-fill')).toBe('var(--text)');
+    expect(token('bg')).toBe('var(--ctp-base)');
+    expect(token('text')).toBe('var(--ctp-text)');
+    expect(rule('button.primary')).not.toMatch(/border/);
+    expect(rule('button')).toMatch(/border:\s*none/);
+  });
+
+  it('Hauptbutton im Dunkelmodus: voll in der Akzentfarbe, Beschriftung base', () => {
+    expect(dark('accent-fill-mix')).toBe('100%');
+    expect(dark('on-accent-fill')).toBe('var(--on-accent)');
+    expect(token('on-accent')).toBe('var(--ctp-base)');
+    expect(dark('step-on-mix')).toBe('100%');
+  });
+
+  it('Gesetzte Sequencer-Zelle im Hellmodus: gemischt, kräftiger als der Hauptbutton', () => {
+    expect(rule(".step[aria-pressed='true']")).toMatch(
+      /background:\s*color-mix\(in srgb, var\(--accent\) var\(--step-on-mix\), var\(--bg\)\)/,
+    );
+    const step = percent(token('step-on-mix'));
+    expect(step).toBeGreaterThan(percent(token('accent-fill-mix')));
+    expect(step).toBeLessThan(100);
+  });
+
+  it('Standard-Schaltfläche: kein Rahmen, Fläche surface0', () => {
+    expect(rule('button')).toMatch(/border:\s*none/);
+    expect(rule('button')).toMatch(/background:\s*var\(--control\)/);
+    expect(token('control')).toBe('var(--ctp-surface0)');
+  });
+});

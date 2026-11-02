@@ -11,6 +11,14 @@
   --accent: var(--ctp-peach);
   --accent-soft: color-mix(in srgb, var(--accent) 25%, transparent);
   --on-accent: var(--ctp-base);
+  /* Flächen für Schaltflächen (ohne Rand) */
+  --control: var(--ctp-surface0);
+  --control-hover: var(--ctp-surface1);
+  /* Hauptbutton und gesetzte Sequencer-Zelle: im Hellmodus tonal (Akzent mit --bg gemischt), im Dunkelmodus voll */
+  --accent-fill-mix: 25%;
+  --accent-fill-hover-mix: 35%;
+  --on-accent-fill: var(--text);
+  --step-on-mix: 60%;
   --danger: var(--ctp-red);
   --success: var(--ctp-green);
   --warning: var(--ctp-yellow);
@@ -19,6 +27,15 @@
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--text);
   background: var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --accent-fill-mix: 100%;
+    --accent-fill-hover-mix: 85%;
+    --on-accent-fill: var(--on-accent);
+    --step-on-mix: 100%;
+  }
 }
 
 * {
@@ -38,15 +55,16 @@ input {
 }
 
 button {
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: none;
+  background: var(--control);
   border-radius: 6px;
-  padding: 0.35rem 0.75rem;
+  padding: 0.4rem 0.8rem;
   cursor: pointer;
 }
 
-button:hover:not(:disabled) {
-  border-color: var(--muted);
+/* Hover nur für Buttons mit Standardfläche; Buttons mit eigener Fläche (Sequencer, Takte …) regeln das selbst */
+:where(button:not([class]), button.back, button.danger):hover:not(:disabled) {
+  background: var(--control-hover);
 }
 
 button:disabled {
@@ -55,9 +73,12 @@ button:disabled {
 }
 
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  background: color-mix(in srgb, var(--accent) var(--accent-fill-mix), var(--bg));
+  color: var(--on-accent-fill);
+}
+
+button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) var(--accent-fill-hover-mix), var(--bg));
 }
 
 button.danger {
@@ -106,16 +127,16 @@ input {
 }
 
 .button-like {
-  border: 1px solid var(--border);
-  background: var(--surface);
+  border: none;
+  background: var(--control);
   border-radius: 6px;
-  padding: 0.35rem 0.75rem;
+  padding: 0.4rem 0.8rem;
   cursor: pointer;
 }
 
 .button-like:hover,
 .button-like:focus-within {
-  border-color: var(--muted);
+  background: var(--control-hover);
 }
 
 .visually-hidden {
@@ -685,7 +706,7 @@ button.link {
 }
 
 .step[aria-pressed='true'] {
-  background: var(--accent);
+  background: color-mix(in srgb, var(--accent) var(--step-on-mix), var(--bg));
 }
 
 .notation {

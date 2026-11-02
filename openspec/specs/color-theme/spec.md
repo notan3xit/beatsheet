@@ -22,7 +22,7 @@ Die App MUST bei heller Systemeinstellung (oder ohne Angabe) die Catppuccin-Vari
 - **THEN** zeigt die App ohne Neuladen die Mocha-Farben
 
 ### Requirement: Farben ausschließlich aus der Palette
-Jede Farbe, die die App für Hintergründe, Flächen, Text, Rahmen, Zustände und Meldungen verwendet, MUST eine Farbe der aktiven Catppuccin-Variante sein. Transparente Abstufungen einer Palettenfarbe sind zulässig.
+Jede Farbe, die die App für Hintergründe, Flächen, Text, Rahmen, Zustände und Meldungen verwendet, MUST eine Farbe der aktiven Catppuccin-Variante sein. Transparente Abstufungen einer Palettenfarbe und Mischungen einer Palettenfarbe mit „base“ der aktiven Variante sind zulässig.
 
 #### Scenario: Oberfläche im Hellmodus
 - **WHEN** die App bei heller Systemeinstellung Bibliothek, Sequencer und Notenbild zeigt
@@ -42,3 +42,25 @@ Die Palettenfarbe „red“ MUST ausschließlich für Fehlermeldungen und destru
 #### Scenario: Gesetzte Sequencer-Zelle
 - **WHEN** im Sequencer ein Schlag gesetzt ist
 - **THEN** ist die Zelle in einer Akzentfarbe ungleich „red“ hervorgehoben
+
+### Requirement: Akzentflächen je nach Variante tonal oder voll
+Schaltflächen MUST ohne Rahmen dargestellt werden und sich über ihre Fläche abheben (Standard: „surface0“). Im Hellmodus MUST der Hauptbutton tonal sein (Akzent zu 25 % mit „base“ gemischt, Beschriftung „text“) und gesetzte Sequencer-Zellen gedämpft, aber kräftiger als der Hauptbutton. Im Dunkelmodus MUST beide voll in der Akzentfarbe gefüllt sein, Beschriftung „base“.
+
+#### Scenario: Hauptbutton im Hellmodus
+- **WHEN** die App bei heller Systemeinstellung den Button „Song anlegen“ zeigt
+- **THEN** ist seine Fläche die Akzentfarbe zu 25 % mit Latte „base“ gemischt
+- **AND** seine Beschriftung ist Latte „text“
+- **AND** er hat keinen Rahmen
+
+#### Scenario: Hauptbutton im Dunkelmodus
+- **WHEN** die App bei dunkler Systemeinstellung den Button „Song anlegen“ zeigt
+- **THEN** ist seine Fläche voll in der Akzentfarbe
+- **AND** seine Beschriftung ist Mocha „base“
+
+#### Scenario: Gesetzte Sequencer-Zelle im Hellmodus
+- **WHEN** im Sequencer bei heller Systemeinstellung ein Schlag gesetzt ist
+- **THEN** ist die Zelle in der mit „base“ gemischten Akzentfarbe gefüllt, kräftiger als der Hauptbutton
+
+#### Scenario: Standard-Schaltfläche
+- **WHEN** eine Schaltfläche ohne besondere Rolle angezeigt wird, zum Beispiel „Abbrechen“
+- **THEN** hat sie keinen Rahmen und eine Fläche in „surface0“
