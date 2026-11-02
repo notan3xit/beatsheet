@@ -51,7 +51,18 @@ function FillBlock({ item, highlighted }: { item: FillItem; highlighted: boolean
           style={{ left: `calc(var(--beat) * ${x - item.x} - var(--item-gap) * ${item.atBarStart ? 1 : 0})` }}
         />
       ))}
-      <span className="item-label">{item.label}</span>
+      {/* Kurzschrift statt Name (Name als Tooltip); wie die Taktstriche relativ zur Taktgrenze */}
+      <span className="shorthand" aria-hidden="true">
+        {item.marks.map((m, i) => (
+          <span
+            key={i}
+            className={`mark level-${m.level}`}
+            style={{ left: `calc(var(--beat) * ${m.x} - var(--item-gap) * ${item.atBarStart ? 1 : 0})` }}
+          >
+            {m.char}
+          </span>
+        ))}
+      </span>
     </div>
   );
 }

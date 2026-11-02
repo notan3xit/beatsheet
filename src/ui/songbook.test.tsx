@@ -83,7 +83,8 @@ describe('Spec songbook-view › Struktur-Darstellung (UI)', () => {
     expect(within(page).getAllByRole('button', { name: /^Takt \d+/ })).toHaveLength(4);
     // Name nur am ersten Takt des Segments (Groove-Kennzeichnung: Name nur bei Wechsel)
     expect(within(page).getAllByText('A')).toHaveLength(1);
-    expect(within(page).getByText('f1')).toBeInTheDocument();
+    expect(within(page).queryByText('f1')).not.toBeInTheDocument();
+    expect(page.querySelector('.item.fill')).toHaveAttribute('title', 'f1');
   });
 
   it('Folgetakt mit Tooltip', () => {
@@ -111,8 +112,27 @@ describe('Spec songbook-view › Fill-Blöcke (UI)', () => {
       const last = withSegment.segments[0]!.blocks[0]!.bars[3]!;
       return setBarProps(withSegment, [last.id], { fillId: patterns[1]!.id });
     }));
-    expect(within(structurePage()).getByText('f1')).toBeInTheDocument();
+    const block = structurePage().querySelector('.item.fill')!;
+    expect(block).toHaveAttribute('title', 'f1');
+    expect(within(structurePage()).queryByText('f1')).not.toBeInTheDocument();
+    // Kurzschrift statt Noten: Snare auf Position 1 -> „s“
+    expect([...block.querySelectorAll('.mark')].map((m) => m.textContent)).toEqual(['s']);
     expect(within(structurePage()).queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('Fill über Zeilenumbruch', async () => {
+    const patterns = seed({ kind: 'groove', name: 'A' }, { kind: 'fill', name: 'Build', length: 8 });
+    const { store, user } = setup(patterns);
+    await user.click(within(patternPage()).getByRole('button', { name: 'Build bearbeiten' }));
+    for (const beat of [1, 8]) await user.click(screen.getByRole('button', { name: `Snare, Beat ${beat}, Position 1` }));
+    await user.click(within(screen.getByRole('navigation', { name: 'Pfad' })).getAllByRole('button').at(-1)!);
+    act(() => store.updateSong((song) => {
+      const withSegment = appendSegment(song, { name: 'Verse', bars: 5, grooveId: patterns[0]!.id });
+      const last = withSegment.segments[0]!.blocks[0]!.bars[4]!;
+      return setBarProps(withSegment, [last.id], { fillId: patterns[1]!.id });
+    }));
+    const parts = [...structurePage().querySelectorAll('.item.fill')];
+    expect(parts.map((p) => [...p.querySelectorAll('.mark')].map((m) => m.textContent))).toEqual([['s'], ['s']]);
   });
 });
 

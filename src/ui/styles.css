@@ -497,6 +497,40 @@ input {
   border: 1px solid var(--pc);
 }
 
+/* Fill-Kurzschrift: Buchstaben in drei Höhenstufen, oben und unten über den Block hinaus */
+.item.fill {
+  overflow: visible;
+}
+
+.shorthand {
+  position: absolute;
+  inset: 0;
+  z-index: 2; /* über Nachbarzeilen und Akzenten, in die die Stufen hineinragen */
+  pointer-events: none;
+}
+
+.shorthand .mark {
+  position: absolute;
+  transform: translateX(-50%);
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+
+.shorthand .level-0 {
+  top: -6px;
+}
+
+.shorthand .level-1 {
+  top: 4px;
+}
+
+.shorthand .level-2 {
+  top: 14px;
+}
+
 /* Hervorhebung von Auswahl und Ablegeziel: voller Rahmen in der Patternfarbe, kräftigere Füllung */
 .item.highlighted {
   border: 2px solid var(--pc);

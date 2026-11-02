@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createPattern } from '../domain/pattern';
 import type { Bar, Pattern, Song } from '../domain/types';
 import { barOf, songWith } from '../test/songs';
+import { patternOf } from '../test/patterns';
 import { layoutStructure, patternPageOrder, type FillItem, type Item } from './layout';
 
 const groove = (beats: number, name: string, existing: Pattern[] = []) =>
@@ -266,6 +267,46 @@ describe('Fills ihren Takten zuordnen (selection-highlight D2)', () => {
     expect(parts).toEqual([
       [bars[3]!.id, bars[4]!.id],
       [bars[3]!.id, bars[4]!.id],
+    ]);
+  });
+});
+
+describe('Spec songbook-view › Fill-Kurzschrift (Layout)', () => {
+  /** Fill mit Schlägen; Positionen 1-basiert wie in patternOf. */
+  const fillWith = (beats: Parameters<typeof patternOf>[0]) => ({ ...patternOf(beats, 'fill'), name: 'F' });
+
+  it('kurzer Fill: Zeichen mittig im Rasterplatz', () => {
+    const f = fillWith([{ sub: 2, hits: { snare: [1], tom1: [2] } }]);
+    const bars = [barOf({ fillId: f.id })];
+    const [segment] = layoutStructure(song([f], [bars]));
+    expect(ofKind(segment!.rows[0]!.items, 'fill')[0]!.marks).toEqual([
+      { x: 0.25, level: 1, char: 's' },
+      { x: 0.75, level: 0, char: 't' },
+    ]);
+  });
+
+  it('über den Zeilenumbruch geteilt: jeder Teil zeigt seine Zeichen', () => {
+    const f = fillWith([...Array.from({ length: 4 }, () => ({ hits: { snare: [1] } })), ...Array.from({ length: 4 }, () => ({ hits: { kick: [1] } }))]);
+    const bars = [barOf(), barOf(), barOf(), barOf(), barOf({ fillId: f.id })];
+    const [segment] = layoutStructure(song([f], [bars]));
+    const parts = segment!.rows.map((r) => ofKind(r.items, 'fill')[0]!.marks.map((m) => [m.x, m.char]));
+    expect(parts).toEqual([
+      [[0.125, 's'], [1.125, 's'], [2.125, 's'], [3.125, 's']],
+      [[0.125, 'k'], [1.125, 'k'], [2.125, 'k'], [3.125, 'k']],
+    ]);
+  });
+
+  it('am Songanfang abgeschnitten: nur der sichtbare Teil', () => {
+    const f = fillWith([{ hits: { snare: [1] } }, { hits: { snare: [1] } }, { hits: { tom1: [1] } }, { hits: { floorTom: [1] } }, { hits: { kick: [1] } }, { hits: { crash: [1] } }]);
+    const bars = [barOf({ fillId: f.id })];
+    const [segment] = layoutStructure(song([f], [bars]));
+    const fillItem = ofKind(segment!.rows[0]!.items, 'fill')[0]!;
+    expect(fillItem.width).toBe(4);
+    expect(fillItem.marks.map((m) => [m.x, m.char])).toEqual([
+      [0.125, 't'],
+      [1.125, 'f'],
+      [2.125, 'k'],
+      [3.125, "'"],
     ]);
   });
 });

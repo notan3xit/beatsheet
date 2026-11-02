@@ -1,4 +1,5 @@
 import { resolveSong, type ResolvedBar } from '../domain/timeline';
+import { shorthand } from '../notation/shorthand';
 import type { Instrument, Pattern, PatternColor, Song } from '../domain/types';
 
 /** Höchstens so viele Beats pro Zeile (vier 4/4-Takte). Takte werden nie geteilt. */
@@ -59,6 +60,14 @@ export interface FillItem extends BarEdges {
   barlines: number[];
   /** Takt, zu dem der Fill gehört, und alle Takte, die er ganz überdeckt (für die Hervorhebung). */
   barIds: string[];
+  /** Kurzschrift des sichtbaren Abschnitts; x in Beats relativ zum Block (Mitte des Rasterplatzes). */
+  marks: ShorthandMarkItem[];
+}
+
+export interface ShorthandMarkItem {
+  x: number;
+  level: 0 | 1 | 2;
+  char: string;
 }
 
 export interface AccentItem {
@@ -101,6 +110,8 @@ interface FillInstance {
   start: number;
   end: number;
   barIds: string[];
+  /** Beat des Fill-Patterns, der bei `start` spielt (> 0, wenn der Anfang abgeschnitten ist). */
+  offset: number;
 }
 
 /** Fill-Abschnitte zu zusammenhängenden Instanzen zusammenfassen (über Takte hinweg). */
@@ -114,7 +125,7 @@ function fillInstances(resolved: ResolvedBar[]): FillInstance[] {
       if (last && last.patternId === span.patternId && last.end === start && span.fillOffset > 0) {
         last.end = end;
       } else {
-        instances.push({ patternId: span.patternId, start, end, barIds: [] });
+        instances.push({ patternId: span.patternId, start, end, barIds: [], offset: span.fillOffset });
       }
     }
   }
@@ -170,6 +181,14 @@ function splitIntoRows(bars: ResolvedBar[]): ResolvedBar[][] {
   return rows;
 }
 
+const shorthandCache = new WeakMap<Pattern, ReturnType<typeof shorthand>>();
+/** Kurzschrift je Pattern-Objekt nur einmal berechnen (Patterns sind unveränderlich). */
+function shorthandOf(pattern: Pattern) {
+  let marks = shorthandCache.get(pattern);
+  if (!marks) shorthandCache.set(pattern, (marks = shorthand(pattern)));
+  return marks;
+}
+
 function layoutRow(
   bars: ResolvedBar[],
   patterns: Map<string, Pattern>,
@@ -212,6 +231,12 @@ function layoutRow(
     const to = Math.min(fill.end, rowEnd);
     const pattern = patterns.get(fill.patternId);
     if (from >= to || !pattern) continue;
+    // Kurzschrift: Pattern-Zeit auf globale Beats abbilden, nur der sichtbare Abschnitt [from, to)
+    const patternStart = fill.start - fill.offset;
+    const marks = shorthandOf(pattern)
+      .map((m) => ({ global: patternStart + m.time, m }))
+      .filter(({ global }) => global >= from && global < to)
+      .map(({ global, m }) => ({ x: global - from + m.slot / 2, level: m.level, char: m.char }));
     items.push({
       kind: 'fill',
       x: from - rowStart,
@@ -225,6 +250,7 @@ function layoutRow(
       continuesRight: fill.end > rowEnd,
       barlines: bars.map((b) => b.start).filter((start) => start > from && start < to).map((start) => start - rowStart),
       barIds: fill.barIds,
+      marks,
     });
   }
 
