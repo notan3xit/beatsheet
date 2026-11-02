@@ -1,5 +1,20 @@
-import { Annotation, Beam, Dot, Formatter, GhostNote, Renderer, Stave, StaveNote, Tuplet, Voice } from 'vexflow';
-import type { BeatGroup, Measure, NotationEvent, NotationModel, VoiceName } from '../model';
+import {
+  Annotation,
+  Beam,
+  Dot,
+  Formatter,
+  GhostNote,
+  GraceNote,
+  GraceNoteGroup,
+  ModifierPosition,
+  Parenthesis,
+  Renderer,
+  Stave,
+  StaveNote,
+  Tuplet,
+  Voice,
+} from 'vexflow';
+import type { BeatGroup, Measure, NotationEvent, NotationModel, NoteKey, VoiceName } from '../model';
 
 // Systemschritt 0 = Linie 1 = e/4 (Percussion-Schlüssel wie Violinschlüssel)
 const STEP_NAMES = ['c', 'd', 'e', 'f', 'g', 'a', 'b'];
@@ -37,11 +52,12 @@ export const CARD_SCALE = 0.55;
 /** Rand um das zugeschnittene Notenbild der Karten, in SVG-Einheiten. */
 const CARD_TRIM_MARGIN = 4;
 
-function noteFor(event: NotationEvent, voice: VoiceName): StaveNote {
+const vexKey = (k: NoteKey) => `${pitchOf(k.staffStep)}${k.notehead === 'x' ? '/x2' : ''}`;
+
+/** Exportiert für Tests der Spielweisen (Modifier lassen sich im SVG nicht stabil prüfen). */
+export function noteFor(event: NotationEvent, voice: VoiceName): StaveNote {
   const isRest = event.kind === 'rest';
-  const keys = isRest
-    ? [event.duration === 'w' ? WHOLE_REST_KEY : REST_KEY[voice]]
-    : event.keys.map((k) => `${pitchOf(k.staffStep)}${k.notehead === 'x' ? '/x2' : ''}`);
+  const keys = isRest ? [event.duration === 'w' ? WHOLE_REST_KEY : REST_KEY[voice]] : event.keys.map(vexKey);
   const note = new StaveNote({
     keys,
     duration: `${event.duration}${isRest ? 'r' : ''}`,
@@ -55,7 +71,39 @@ function noteFor(event: NotationEvent, voice: VoiceName): StaveNote {
   if (event.keys.some((k) => k.open)) {
     note.addModifier(new Annotation('o').setVerticalJustification(Annotation.VerticalJustify.TOP), 0);
   }
+  addArticulations(note, event, voice);
   return note;
+}
+
+/**
+ * VexFlow setzt Vorschläge an den linken Rand des für sie reservierten Platzes, ein gutes Stück vor die
+ * Hauptnote. Für Flams rückt der Vorschlag dicht an die Hauptnote (hit-articulations D4); der reservierte
+ * Platz davor bleibt und hält Abstand zur vorigen Note.
+ */
+const GRACE_NUDGE = 8;
+
+function tightenGraceNotes(voice: Voice): void {
+  for (const tickable of voice.getTickables()) {
+    if (!(tickable instanceof StaveNote)) continue;
+    for (const group of tickable.getModifiersByType(GraceNoteGroup.CATEGORY)) {
+      group.setSpacingFromNextModifier(group.getSpacingFromNextModifier() + GRACE_NUDGE);
+    }
+  }
+}
+
+/** Flam als durchgestrichener Vorschlag, Ghost Note als Notenkopf in Klammern, jeweils nur für die betroffenen Köpfe. */
+function addArticulations(note: StaveNote, event: NotationEvent, voice: VoiceName): void {
+  event.keys.forEach((k, index) => {
+    if (k.articulation !== 'ghost') return;
+    note.addModifier(new Parenthesis(ModifierPosition.LEFT), index);
+    note.addModifier(new Parenthesis(ModifierPosition.RIGHT), index);
+  });
+  const flams = event.keys.filter((k) => k.articulation === 'flam');
+  if (flams.length === 0) return;
+  const grace = new GraceNote({ keys: flams.map(vexKey), duration: '8', slash: true, clef: 'percussion', stemDirection: STEM[voice] });
+  grace.setStyle({ fillStyle: INK, strokeStyle: INK });
+  grace.setStemStyle({ strokeStyle: INK });
+  note.addModifier(new GraceNoteGroup([grace], true), 0); // mit Bogen unter beiden Köpfen
 }
 
 interface BuiltVoice {
@@ -190,6 +238,7 @@ export function renderNotation(model: NotationModel, container: HTMLElement, opt
 
       const { up, down, formatter } = measure;
       formatter.formatToStave([up.voice, down.voice], stave);
+      for (const built of [up, down]) tightenGraceNotes(built.voice);
       for (const built of [up, down]) {
         built.voice.draw(context, stave);
         built.beams.forEach((beam) => beam.setContext(context).draw());

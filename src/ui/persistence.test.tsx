@@ -76,7 +76,7 @@ describe('Spec library-persistence › Ungültige Importdateien (UI)', () => {
   it('Neuere Schemaversion', async () => {
     const local = [songWith({ title: 'Lokal' })];
     const { store, user } = setup(local);
-    const file = JSON.stringify({ ...JSON.parse(serializeNotebook([], new Date())), schemaVersion: 3 });
+    const file = JSON.stringify({ ...JSON.parse(serializeNotebook([], new Date())), schemaVersion: 4 });
     await user.upload(screen.getByLabelText('Importieren'), fileOf(file));
     expect(await screen.findByRole('alert')).toHaveTextContent(/neueren Version/);
     expect(store.getState().songs).toEqual(local);

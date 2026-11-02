@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBeats, patternOf } from '../test/patterns';
-import { changeSubdivision, toggleHit } from './sequencer';
+import { articulationAt, changeSubdivision, cycleArticulation, toggleHit } from './sequencer';
+import type { Beat, Pattern } from './types';
 
 describe('Spec pattern-sequencer › Schläge setzen und entfernen', () => {
   it('Schlag setzen', () => {
@@ -85,5 +86,61 @@ describe('Spec pattern-sequencer › Schläge beim Wechsel der Unterteilung', ()
   it('Instrumente ohne verbleibende Schläge verschwinden', () => {
     const { pattern } = changeSubdivision(patternOf([{ hits: { kick: [2] } }]), 0, 3);
     expect(pattern.beats[0]!.hits).toEqual({});
+  });
+});
+
+/** Beat mit Spielweisen (Positionen 0-basiert). */
+function withArticulations(pattern: Pattern, beat: number, articulations: Beat['articulations']): Pattern {
+  return { ...pattern, beats: pattern.beats.map((b, i) => (i === beat ? { ...b, articulations } : b)) };
+}
+
+describe('Spec pattern-sequencer › Schläge setzen und entfernen (Spielweisen)', () => {
+  it('Flam entfernen und neu setzen', () => {
+    let p = withArticulations(patternOf([{ hits: { snare: [1] } }]), 0, { snare: { 0: 'flam' } });
+    p = toggleHit(p, 0, 'snare', 0);
+    p = toggleHit(p, 0, 'snare', 0);
+    expect(p.beats[0]).toEqual({ subdivision: 4, hits: { snare: [0] } });
+  });
+});
+
+describe('Spec pattern-sequencer › Spielweise eines Schlags', () => {
+  it('Spielweise durchschalten', () => {
+    let p = patternOf([{ hits: { snare: [1] } }]);
+    const seen: (string | undefined)[] = [];
+    for (let i = 0; i < 3; i++) {
+      p = cycleArticulation(p, 0, 'snare', 0);
+      seen.push(articulationAt(p.beats[0]!, 'snare', 0));
+    }
+    expect(seen).toEqual(['flam', 'ghost', undefined]);
+    expect(p.beats[0]).toEqual({ subdivision: 4, hits: { snare: [0] } });
+  });
+
+  it('Flam auf leerer Zelle', () => {
+    const p = cycleArticulation(patternOf(emptyBeats(1)), 0, 'tom1', 2);
+    expect(p.beats[0]!.hits).toEqual({ tom1: [2] });
+    expect(articulationAt(p.beats[0]!, 'tom1', 2)).toBe('flam');
+  });
+
+  it('Shift-Klick auf der Hi-Hat', () => {
+    const set = patternOf([{ hits: { hihat: [1] } }]);
+    const empty = patternOf(emptyBeats(1));
+    expect(cycleArticulation(set, 0, 'hihat', 0)).toEqual(set);
+    expect(cycleArticulation(empty, 0, 'hihat', 1)).toEqual(empty);
+  });
+});
+
+describe('Spec pattern-sequencer › Schläge beim Wechsel der Unterteilung (Spielweisen)', () => {
+  it('Spielweise folgt dem Schlag', () => {
+    const p = withArticulations(patternOf([{ hits: { snare: [3] } }]), 0, { snare: { 2: 'ghost' } });
+    const { pattern } = changeSubdivision(p, 0, 2);
+    expect(pattern.beats[0]!.hits).toEqual({ snare: [1] });
+    expect(articulationAt(pattern.beats[0]!, 'snare', 1)).toBe('ghost');
+  });
+
+  it('verlorener Schlag verliert seine Spielweise', () => {
+    const p = withArticulations(patternOf([{ hits: { snare: [1, 2] } }]), 0, { snare: { 0: 'flam', 1: 'ghost' } });
+    const { pattern, lost } = changeSubdivision(p, 0, 3);
+    expect(lost).toEqual([{ instrument: 'snare', position: 1 }]);
+    expect(pattern.beats[0]).toEqual({ subdivision: 3, hits: { snare: [0] }, articulations: { snare: { 0: 'flam' } } });
   });
 });

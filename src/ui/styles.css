@@ -929,6 +929,38 @@ button.link {
   background: color-mix(in srgb, var(--accent) var(--step-on-mix), var(--bg));
 }
 
+/* Spielweisen: Flam als kleiner Vorschlag-Punkt links oben, Ghost Note blass mit Klammern */
+.step[data-articulation] {
+  position: relative;
+}
+
+.step[data-articulation='flam']::before {
+  content: '';
+  position: absolute;
+  top: 0.2rem;
+  left: 0.2rem;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--text);
+}
+
+.step[data-articulation='ghost'] {
+  background: color-mix(in srgb, var(--accent) 30%, var(--bg));
+}
+
+.step[data-articulation='ghost']::before {
+  content: '( )';
+  font-size: 0.75rem;
+  line-height: 1.6rem;
+  color: var(--text);
+}
+
+/* Shift-Klick soll keinen Text markieren */
+.sequencer {
+  user-select: none;
+}
+
 .notation {
   margin-top: 1rem;
   color: var(--text);

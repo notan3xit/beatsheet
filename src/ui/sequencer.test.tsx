@@ -137,3 +137,62 @@ describe('Spec pattern-sequencer › Notenvorschau beim Bearbeiten', () => {
     spy.mockRestore();
   });
 });
+
+describe('Spec pattern-sequencer › Spielweise eines Schlags (UI)', () => {
+  /** Zelle unabhängig vom Namenszusatz der Spielweise. */
+  const cellAt = (instrument: string, beat: number, position: number) =>
+    within(grid()).getByRole('button', { name: new RegExp(`^${instrument}, Beat ${beat}, Position ${position}(,|$)`) });
+  const shiftClick = async (user: ReturnType<typeof userEvent.setup>, el: HTMLElement) => {
+    await user.keyboard('{Shift>}');
+    await user.click(el);
+    await user.keyboard('{/Shift}');
+  };
+
+  it('Spielweise durchschalten', async () => {
+    const { user, current } = setup(patternOf([{ hits: { snare: [1] } }]));
+    const seen: [string | null, string][] = [];
+    for (let i = 0; i < 3; i++) {
+      await shiftClick(user, cellAt('Snare', 1, 1));
+      const el = cellAt('Snare', 1, 1);
+      seen.push([el.getAttribute('data-articulation'), el.getAttribute('aria-label')!]);
+    }
+    expect(seen).toEqual([
+      ['flam', 'Snare, Beat 1, Position 1, Flam'],
+      ['ghost', 'Snare, Beat 1, Position 1, Ghost Note'],
+      [null, 'Snare, Beat 1, Position 1'],
+    ]);
+    expect(current().beats[0]!.hits.snare).toEqual([0]);
+  });
+
+  it('Flam auf leerer Zelle', async () => {
+    const { user, current } = setup(patternOf(emptyBeats(1)));
+    await shiftClick(user, cellAt('Tom 1', 1, 3));
+    expect(current().beats[0]!.hits).toEqual({ tom1: [2] });
+    expect(cellAt('Tom 1', 1, 3)).toHaveAttribute('aria-pressed', 'true');
+    expect(cellAt('Tom 1', 1, 3)).toHaveAttribute('data-articulation', 'flam');
+  });
+
+  it('Shift-Klick auf der Hi-Hat', async () => {
+    const { user, current } = setup(patternOf([{ hits: { hihat: [1] } }]));
+    const before = current();
+    await shiftClick(user, cellAt('Hi-Hat \\(geschlossen\\)', 1, 1));
+    await shiftClick(user, cellAt('Hi-Hat \\(geschlossen\\)', 1, 2));
+    expect(current()).toBe(before);
+  });
+
+  it('Anzeige in der Zelle', async () => {
+    const { user } = setup(patternOf([{ hits: { snare: [1] } }]));
+    await shiftClick(user, cellAt('Snare', 1, 1));
+    await shiftClick(user, cellAt('Snare', 1, 1));
+    expect(cellAt('Snare', 1, 1)).toHaveAccessibleName(/Ghost Note$/);
+    expect(cellAt('Snare', 1, 1)).toHaveAttribute('data-articulation', 'ghost');
+  });
+
+  it('Rückgängig nach Shift-Klick', async () => {
+    const { user, current } = setup(patternOf([{ hits: { snare: [1] } }]));
+    await shiftClick(user, cellAt('Snare', 1, 1));
+    await user.click(screen.getByRole('button', { name: 'Rückgängig' }));
+    expect(current().beats[0]).toEqual({ subdivision: 4, hits: { snare: [0] } });
+    expect(cellAt('Snare', 1, 1)).not.toHaveAttribute('data-articulation');
+  });
+});

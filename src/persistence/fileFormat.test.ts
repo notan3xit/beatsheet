@@ -30,7 +30,7 @@ describe('Spec library-persistence › Export der Bibliothek', () => {
   it('Export herunterladen: Dateiname und Inhalt', () => {
     expect(exportFileName(NOW)).toBe('drumstuff-2026-11-01.drumbook.json');
     const file = fileOf([richSong(), songWith({ title: 'Leer' })]);
-    expect(file).toMatchObject({ format: 'drumstuff.library', schemaVersion: 2, exportedAt: NOW.toISOString() });
+    expect(file).toMatchObject({ format: 'drumstuff.library', schemaVersion: 3, exportedAt: NOW.toISOString() });
     expect(file.songs.map((s: Song) => s.title)).toEqual(['Hysteria', 'Leer']);
     expect(Object.keys(file.songs[0]).sort()).toEqual(
       ['createdAt', 'id', 'patterns', 'revision', 'segments', 'title', 'updatedAt'].sort(),
@@ -45,7 +45,7 @@ describe('Spec library-persistence › Export der Bibliothek', () => {
 
 describe('Spec library-persistence › Ungültige Importdateien', () => {
   it('Neuere Schemaversion', () => {
-    const result = parseNotebookFile(JSON.stringify({ ...fileOf([]), schemaVersion: 3 }));
+    const result = parseNotebookFile(JSON.stringify({ ...fileOf([]), schemaVersion: 4 }));
     expect(!result.ok && result.error).toMatch(/neueren Version/);
   });
 
@@ -117,5 +117,47 @@ describe('Spec library-persistence › Import von Dateien der Schemaversion 1', 
       patterns: [{ ...patternOf(emptyBeats(4)), beats: [] }],
     });
     expect(parseNotebookFile(v1).ok).toBe(false);
+  });
+});
+
+/** Song mit Snare-Flam und Ghost Note im ersten Beat des Grooves. */
+function songWithArticulations(): Song {
+  const groove = patternOf([{ hits: { snare: [1, 2], hihat: [1, 3] } }, ...emptyBeats(3)]);
+  groove.beats[0] = { ...groove.beats[0]!, articulations: { snare: { 0: 'flam', 1: 'ghost' } } };
+  return songWith({ title: 'Ghosts', patterns: [groove] });
+}
+
+describe('Spec library-persistence › Spielweisen (Schemaversion 3)', () => {
+  it('Spielweisen im Export', () => {
+    const songs = [songWithArticulations()];
+    const result = parseNotebookFile(serializeNotebook(songs, NOW));
+    expect(result).toEqual({ ok: true, songs });
+    expect(result.ok && result.songs[0]!.patterns[0]!.beats[0]!.articulations).toEqual({ snare: { 0: 'flam', 1: 'ghost' } });
+  });
+
+  it('Spielweise ohne Schlag', () => {
+    const file = fileOf([songWithArticulations()]);
+    file.songs[0].patterns[0].beats[0].articulations = { snare: { 3: 'flam' } };
+    expect(parseNotebookFile(JSON.stringify(file)).ok).toBe(false);
+  });
+
+  it('Spielweise auf der Hi-Hat', () => {
+    const file = fileOf([songWithArticulations()]);
+    file.songs[0].patterns[0].beats[0].articulations = { hihat: { 0: 'flam' } };
+    expect(parseNotebookFile(JSON.stringify(file)).ok).toBe(false);
+  });
+
+  it('Unbekannte Spielweise', () => {
+    const file = fileOf([songWithArticulations()]);
+    file.songs[0].patterns[0].beats[0].articulations = { snare: { 0: 'drag' } };
+    expect(parseNotebookFile(JSON.stringify(file)).ok).toBe(false);
+  });
+});
+
+describe('Spec library-persistence › Import von Dateien der Schemaversion 2', () => {
+  it('Export der Vorversion importieren', () => {
+    const songs = [richSong()];
+    const result = parseNotebookFile(JSON.stringify({ ...fileOf(songs), schemaVersion: 2 }));
+    expect(result).toEqual({ ok: true, songs });
   });
 });

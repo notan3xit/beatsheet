@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBeats, patternOf } from '../test/patterns';
+import type { Beat } from '../domain/types';
 import { toNotation, type BeatGroup, type NotationEvent } from './model';
 
 const summary = (events: NotationEvent[]) => events.map((e) => (e.kind === 'rest' ? `${e.duration}r` : e.duration));
@@ -209,5 +210,40 @@ describe('Spec drum-notation › Leeres Pattern', () => {
     const { up, down } = model.measures[0]!.voices;
     expect(up.map((g) => summary(g.events))).toEqual([['qr'], ['qr']]);
     expect(down.map((g) => g.events)).toEqual([[], []]);
+  });
+});
+
+describe('Spec drum-notation › Flam und Ghost Note (Modell)', () => {
+  const withArt = (pattern: ReturnType<typeof patternOf>, articulations: Beat['articulations']) => ({
+    ...pattern,
+    beats: pattern.beats.map((b, i) => (i === 0 ? { ...b, articulations } : b)),
+  });
+  const keysAt = (model: ReturnType<typeof toNotation>, event = 0) =>
+    model.measures[0]!.voices.up[0]!.events[event]!.keys.map((k) => [k.instrument, k.articulation]);
+
+  it('Flam auf der Snare', () => {
+    const model = toNotation(withArt(patternOf([{ hits: { snare: [1] } }]), { snare: { 0: 'flam' } }));
+    expect(keysAt(model)).toEqual([['snare', 'flam']]);
+  });
+
+  it('Flam im Akkord', () => {
+    const model = toNotation(withArt(patternOf([{ hits: { snare: [1], hihat: [1] } }]), { snare: { 0: 'flam' } }));
+    expect(keysAt(model)).toEqual([
+      ['snare', 'flam'],
+      ['hihat', undefined],
+    ]);
+  });
+
+  it('Ghost Note auf der Snare', () => {
+    const model = toNotation(withArt(patternOf([{ hits: { snare: [2] } }]), { snare: { 1: 'ghost' } }));
+    expect(keysAt(model, 1)).toEqual([['snare', 'ghost']]);
+  });
+
+  it('Ghost Note im Akkord', () => {
+    const model = toNotation(withArt(patternOf([{ hits: { snare: [2], hihat: [2] } }]), { snare: { 1: 'ghost' } }));
+    expect(keysAt(model, 1)).toEqual([
+      ['snare', 'ghost'],
+      ['hihat', undefined],
+    ]);
   });
 });

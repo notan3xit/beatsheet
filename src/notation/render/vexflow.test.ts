@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBeats, patternOf } from '../../test/patterns';
 import { toNotation } from '../model';
-import { CARD_SCALE, renderNotation } from './vexflow';
+import type { NotationEvent } from '../model';
+import { CARD_SCALE, noteFor, renderNotation } from './vexflow';
 
 describe('VexFlow-Adapter (Smoke-Test)', () => {
   it('rendert ein gemischtes Pattern ohne Fehler als SVG', () => {
@@ -118,6 +119,84 @@ describe('VexFlow-Adapter (Smoke-Test)', () => {
         { hits: { snare: [1], kick: [1] } },
       ]);
       expect(notesOf(pattern)).toBe(4 + 3);
+    });
+  });
+
+  describe('Spec drum-notation › Flam und Ghost Note (Renderer)', () => {
+    const event = (...keys: [instrument: 'snare' | 'hihat', staffStep: number, articulation?: 'flam' | 'ghost'][]): NotationEvent => ({
+      kind: 'note',
+      duration: '8',
+      keys: keys.map(([instrument, staffStep, articulation]) => ({
+        instrument,
+        staffStep,
+        notehead: instrument === 'hihat' ? 'x' : 'normal',
+        ...(articulation ? { articulation } : {}),
+      })),
+    });
+    const modifiers = (note: ReturnType<typeof noteFor>, category: string) =>
+      note.getModifiersByType(category).map((m) => m.checkIndex());
+
+    it('Flam auf der Snare: ein durchgestrichener Vorschlag', () => {
+      const note = noteFor(event(['snare', 5, 'flam']), 'up');
+      const groups = note.getModifiersByType('GraceNoteGroup') as unknown as { getGraceNotes(): { slash: boolean; keys: string[] }[] }[];
+      expect(groups).toHaveLength(1);
+      const graces = groups[0]!.getGraceNotes();
+      expect(graces).toHaveLength(1);
+      expect(graces[0]!.slash).toBe(true);
+      expect(graces[0]!.keys).toEqual([note.keys[0]]);
+    });
+
+    it('Flam im Akkord: Vorschlag nur für die Snare', () => {
+      const note = noteFor(event(['snare', 5, 'flam'], ['hihat', 9]), 'up');
+      const groups = note.getModifiersByType('GraceNoteGroup') as unknown as { getGraceNotes(): { keys: string[] }[] }[];
+      expect(groups[0]!.getGraceNotes()[0]!.keys).toEqual([note.keys[0]]);
+    });
+
+    it('Ghost Note: Klammern nur um den Snare-Kopf', () => {
+      expect(modifiers(noteFor(event(['snare', 5, 'ghost']), 'up'), 'Parenthesis')).toEqual([0, 0]);
+      expect(modifiers(noteFor(event(['snare', 5, 'ghost'], ['hihat', 9]), 'up'), 'Parenthesis')).toEqual([0, 0]);
+    });
+
+    it('Flam: Bogen unter Vorschlag und Hauptnote', () => {
+      const pattern = patternOf([{ hits: { snare: [1], hihat: [1] } }]);
+      pattern.beats[0] = { ...pattern.beats[0]!, articulations: { snare: { 0: 'flam' } } };
+      const container = document.createElement('div');
+      renderNotation(toNotation(pattern), container);
+      const ties = container.querySelectorAll('.vf-stavetie');
+      expect(ties).toHaveLength(1);
+      // Bogen unter den Köpfen: seine Kurve liegt unterhalb (größeres y) des Snare-Kopfs
+      const snareY = Math.max(
+        ...[...container.querySelectorAll('text')].filter((t) => t.textContent === '\u{E0A4}').map((t) => Number(t.getAttribute('y'))),
+      );
+      const ys = [...(ties[0]!.querySelector('path')!.getAttribute('d') ?? '').matchAll(/[\d.]+[ ,]([\d.]+)/g)].map((m) => Number(m[1]));
+      expect(Math.max(...ys)).toBeGreaterThan(snareY);
+    });
+
+    it('Vorschlag steht dicht vor der Hauptnote', () => {
+      const pattern = patternOf([{ hits: { snare: [1] } }]);
+      pattern.beats[0] = { ...pattern.beats[0]!, articulations: { snare: { 0: 'flam' } } };
+      const container = document.createElement('div');
+      renderNotation(toNotation(pattern), container);
+      // Schwarze Notenköpfe (SMuFL U+E0A4) der Snare: klein (Vorschlag) und normal
+      const heads = [...container.querySelectorAll('text')]
+        .filter((t) => t.textContent === '\u{E0A4}')
+        .map((t) => Number(t.getAttribute('x')));
+      const [grace, main] = heads.length === 2 ? heads.sort((a, b) => a - b) : [NaN, NaN];
+      // VexFlow allein: 24 Einheiten; dicht heißt höchstens 16 (Kopf ca. 8 breit, Fähnchen frei von der Hauptnote)
+      expect(main! - grace!).toBeLessThanOrEqual(16);
+    });
+
+    it('rendert Flam und Ghost Note ohne Fehler, nur in Textfarbe', () => {
+      const pattern = {
+        ...patternOf([{ hits: { snare: [1, 2], hihat: [1, 3] } }]),
+      };
+      pattern.beats[0] = { ...pattern.beats[0]!, articulations: { snare: { 0: 'flam', 1: 'ghost' } } };
+      const container = document.createElement('div');
+      renderNotation(toNotation(pattern), container);
+      const colors = new Set(
+        [...container.querySelectorAll('svg, svg *')].flatMap((el) => [el.getAttribute('fill'), el.getAttribute('stroke')]),
+      );
+      expect([...colors].filter((c) => c !== null && c !== 'currentColor' && c !== 'none')).toEqual([]);
     });
   });
 

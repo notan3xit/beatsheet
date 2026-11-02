@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { nextColor, type Deps } from '../domain/pattern';
 import {
+  ARTICULATED,
+  ARTICULATIONS,
   INSTRUMENTS,
   MAX_BAR_BEATS,
   MAX_LENGTH,
@@ -12,7 +14,7 @@ import {
 } from '../domain/types';
 
 export const FORMAT_ID = 'drumstuff.library';
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export const IMPORTED_SONG_TITLE = 'Importierte Patterns';
 
 const nonEmpty = (what: string) => z.string().refine((value) => value.trim().length > 0, `leerer ${what}`);
@@ -22,9 +24,19 @@ const beatSchema = z
   .object({
     subdivision: z.union(SUBDIVISIONS.map((s) => z.literal(s))),
     hits: z.partialRecord(z.enum(INSTRUMENTS), positions),
+    /** Seit Schemaversion 3: Spielweise je Instrument und Position (Schlüssel = Position als Ziffernfolge). */
+    articulations: z
+      .partialRecord(z.enum(ARTICULATED as [string, ...string[]]), z.record(z.string().regex(/^\d+$/), z.enum(ARTICULATIONS)))
+      .optional(),
   })
   .strict()
   .superRefine((beat, ctx) => {
+    for (const [instrument, byPosition] of Object.entries(beat.articulations ?? {})) {
+      const set = beat.hits[instrument as keyof typeof beat.hits] ?? [];
+      if (Object.keys(byPosition ?? {}).some((p) => !set.includes(Number(p)))) {
+        ctx.addIssue({ code: 'custom', message: `${instrument}: Spielweise ohne Schlag` });
+      }
+    }
     for (const [instrument, list] of Object.entries(beat.hits)) {
       if (list?.some((p) => p >= beat.subdivision)) {
         ctx.addIssue({ code: 'custom', message: `${instrument}: Position außerhalb des Rasters` });
@@ -99,9 +111,10 @@ const songSchema = z
     }
   });
 
+/** Schemaversion 2 und 3 teilen die Form; Version 2 enthält nur keine Spielweisen. */
 const fileSchemaV2 = z.object({
   format: z.literal(FORMAT_ID),
-  schemaVersion: z.literal(2),
+  schemaVersion: z.union([z.literal(2), z.literal(3)]),
   exportedAt: z.iso.datetime(),
   songs: z.array(songSchema),
 });

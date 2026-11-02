@@ -39,10 +39,24 @@ export const SUBDIVISION_LABELS: Record<Subdivision, string> = {
   6: 'Sechzehnteltriolen',
 };
 
+/** Spielweise eines Schlags; fehlt sie, wird normal gespielt. */
+export const ARTICULATIONS = ['flam', 'ghost'] as const;
+export type Articulation = (typeof ARTICULATIONS)[number];
+
+export const ARTICULATION_LABELS: Record<Articulation, string> = { flam: 'Flam', ghost: 'Ghost Note' };
+
+/** Instrumente, deren Schläge eine Spielweise haben können. */
+export const ARTICULATED: readonly Instrument[] = ['snare', 'tom1', 'tom2', 'floorTom'];
+
 export interface Beat {
   subdivision: Subdivision;
   /** 0-basierte Positionen je Instrument, sortiert und eindeutig. */
   hits: Partial<Record<Instrument, number[]>>;
+  /**
+   * Spielweise je Instrument und Position (nur für gesetzte Schläge aus ARTICULATED).
+   * Fehlt das Feld oder ein Eintrag, wird normal gespielt; leere Einträge werden entfernt.
+   */
+  articulations?: Partial<Record<Instrument, Record<number, Articulation>>>;
 }
 
 export type PatternKind = 'groove' | 'fill';

@@ -1,4 +1,4 @@
-import { INSTRUMENTS, type Beat, type Instrument, type Pattern, type Subdivision } from '../domain/types';
+import { INSTRUMENTS, type Articulation, type Beat, type Instrument, type Pattern, type Subdivision } from '../domain/types';
 
 /** Systemschritt: 0 = Linie 1 (unten), 1 = Zwischenraum 1, ... 8 = Linie 5; negativ = unter dem System. */
 export interface NoteKey {
@@ -6,6 +6,8 @@ export interface NoteKey {
   staffStep: number;
   notehead: 'x' | 'normal';
   open?: true;
+  /** Flam oder Ghost Note; fehlt bei normal gespieltem Schlag. */
+  articulation?: Articulation;
 }
 
 /** 'h' und 'w' kommen nur als Pausen über leere Beats vor (Halbe, Ganze). */
@@ -76,9 +78,10 @@ function split(units: number, subdivision: Subdivision): Duration[] {
   return result;
 }
 
-function keyFor(instrument: Instrument): NoteKey {
+function keyFor(instrument: Instrument, articulation?: Articulation): NoteKey {
   const { staffStep, notehead } = STAFF[instrument];
-  return instrument === 'hihatOpen' ? { instrument, staffStep, notehead, open: true } : { instrument, staffStep, notehead };
+  const key: NoteKey = instrument === 'hihatOpen' ? { instrument, staffStep, notehead, open: true } : { instrument, staffStep, notehead };
+  return articulation ? { ...key, articulation } : key;
 }
 
 function beatGroup(beat: Beat, index: number, voice: VoiceName): BeatGroup {
@@ -87,7 +90,7 @@ function beatGroup(beat: Beat, index: number, voice: VoiceName): BeatGroup {
     if (STAFF[instrument].voice !== voice) continue;
     for (const position of beat.hits[instrument] ?? []) {
       const keys = byPosition.get(position) ?? [];
-      keys.push(keyFor(instrument));
+      keys.push(keyFor(instrument, beat.articulations?.[instrument]?.[position]));
       byPosition.set(position, keys);
     }
   }

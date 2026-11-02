@@ -1,5 +1,6 @@
-import { changeSubdivision, toggleHit } from '../domain/sequencer';
+import { articulationAt, changeSubdivision, cycleArticulation, toggleHit } from '../domain/sequencer';
 import {
+  ARTICULATION_LABELS,
   INSTRUMENT_LABELS,
   INSTRUMENTS,
   SUBDIVISION_LABELS,
@@ -61,14 +62,22 @@ export function Sequencer({ pattern }: { pattern: Pattern }) {
             <div role="gridcell" key={b} className={`beat-cells${b % 2 ? ' odd' : ''}`}>
               {Array.from({ length: beat.subdivision }, (_, position) => {
                 const active = beat.hits[instrument]?.includes(position) ?? false;
+                const articulation = articulationAt(beat, instrument, position);
+                const label = `${INSTRUMENT_LABELS[instrument]}, Beat ${b + 1}, Position ${position + 1}`;
                 return (
                   <button
                     type="button"
                     key={position}
                     className={`step${position === 0 ? ' downbeat' : ''}`}
                     aria-pressed={active}
-                    aria-label={`${INSTRUMENT_LABELS[instrument]}, Beat ${b + 1}, Position ${position + 1}`}
-                    onClick={() => store.update(pattern.id, (p) => toggleHit(p, b, instrument, position))}
+                    aria-label={articulation ? `${label}, ${ARTICULATION_LABELS[articulation]}` : label}
+                    data-articulation={articulation}
+                    // Klick: Schlag an/aus; Shift-Klick: Spielweise durchschalten (nur Snare und Toms)
+                    onClick={(e) =>
+                      store.update(pattern.id, (p) =>
+                        e.shiftKey ? cycleArticulation(p, b, instrument, position) : toggleHit(p, b, instrument, position),
+                      )
+                    }
                   />
                 );
               })}
