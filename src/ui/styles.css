@@ -698,35 +698,82 @@ button.link {
 }
 
 /* Rechte Seite: Patterns */
+/* Zwei Spalten; Patterns über 4 Beats belegen beide (Reihenfolge bleibt, daher kein dense) */
+.pattern-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Zeilenabstand wie zwischen den Segmenten der Struktur (.segment + .segment) */
+  gap: 1rem 0.75rem;
+  align-items: start;
+}
+
 .pattern-card {
-  border-left: 4px solid var(--pc);
-  padding: 0.25rem 0 0.5rem 0.75rem;
-  margin-bottom: 1rem;
+  border-left: 3px solid var(--pc);
+  padding-left: 0.5rem;
+  min-width: 0;
+}
+
+.pattern-card.wide {
+  grid-column: 1 / -1;
 }
 
 .pattern-card-header {
   display: flex;
   align-items: baseline;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  line-height: 1.2;
+  font-size: 0.85rem;
 }
 
 .pattern-card h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: inherit;
+  min-width: 0;
+}
+
+/* Name als Knopf zum Bearbeiten: ohne Fläche, in der Patternfarbe (mit Text gemischt, damit lesbar) */
+.pattern-name {
+  padding: 0;
+  background: none;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--pc) 65%, var(--text));
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.pattern-name:hover {
+  text-decoration: underline;
 }
 
 .pattern-meta {
   font-size: 0.75rem;
   color: var(--muted);
+  white-space: nowrap;
 }
 
-.pattern-edit {
-  margin-left: auto;
+/* Noten in Kartengröße: Breite und Höhe kommen aus dem Renderer, zu breite Takte schrumpfen */
+.notation-card {
+  margin-top: 0.15rem;
+  color: var(--text);
+  line-height: 0;
+}
+
+.notation-card svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.pattern-page .page-actions {
+  margin-bottom: 0.5rem;
+}
+
+.add-pattern {
   font-size: 0.8rem;
+  padding: 0.15rem 0.5rem;
 }
 
-.pattern-card .notation {
-  margin-top: 0.5rem;
+.add-pattern:hover:not(:disabled) {
+  background: var(--control-hover);
 }
 
 .back {

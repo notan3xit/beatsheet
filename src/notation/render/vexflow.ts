@@ -27,6 +27,13 @@ interface Sizing {
 
 const NORMAL: Sizing = { beatWidth: 72, spread: 1.4, stavePadding: 30, margin: 10, rowHeight: 210, rowTop: 40 };
 const COMPACT: Sizing = { beatWidth: 36, spread: 1.1, stavePadding: 12, margin: 2, rowHeight: 115, rowTop: 12 };
+/** Patternkarten: Maße wie NORMAL, aber engere Notenzeilen; Höhe wird nach dem Zeichnen zugeschnitten. */
+const CARD: Sizing = { ...NORMAL, rowHeight: 130, rowTop: 10 };
+
+/** Pixel pro SVG-Einheit in den Patternkarten, für alle Karten gleich (gleicher Maßstab). */
+export const CARD_SCALE = 0.55;
+/** Rand um das zugeschnittene Notenbild der Karten, in SVG-Einheiten. */
+const CARD_TRIM_MARGIN = 4;
 
 function noteFor(event: NotationEvent, voice: VoiceName): StaveNote {
   const isRest = event.kind === 'rest';
@@ -112,13 +119,21 @@ export interface RenderOptions {
    * skaliert über seine viewBox auf die Breite des Containers.
    */
   compact?: boolean;
+  /**
+   * Patternkarten (compact-pattern-page D1/D2): mit Schlüssel und Umbruch, feste Skalierung
+   * CARD_SCALE, Höhe auf das Notenbild zugeschnitten. `compact` hat Vorrang.
+   */
+  card?: boolean;
 }
 
 /** Zeichnet das Notationsmodell als SVG in den Container (vorheriger Inhalt wird ersetzt). */
 export function renderNotation(model: NotationModel, container: HTMLElement, options: RenderOptions = {}): void {
   const { maxWidth = 900, compact = false } = options;
+  const card = !compact && options.card === true;
   container.innerHTML = '';
-  const sizing = compact ? COMPACT : NORMAL;
+  const sizing = compact ? COMPACT : card ? CARD : NORMAL;
+  // Umbruchgrenze in SVG-Einheiten
+  const rowLimit = card ? maxWidth / CARD_SCALE : maxWidth;
   const { margin, rowHeight, rowTop } = sizing;
   const built = model.measures.map((m) => buildMeasure(m, sizing));
   const withClef = (i: number) => !compact && i === 0;
@@ -127,7 +142,7 @@ export function renderNotation(model: NotationModel, container: HTMLElement, opt
   const rows: BuiltMeasure[][] = [];
   let rowWidth = 0;
   for (const measure of built) {
-    if (rows.length === 0 || (!compact && rowWidth + staveWidth(measure, false, sizing) > maxWidth - 2 * margin)) {
+    if (rows.length === 0 || (!compact && rowWidth + staveWidth(measure, false, sizing) > rowLimit - 2 * margin)) {
       rows.push([]);
       rowWidth = 0;
     }
@@ -177,4 +192,26 @@ export function renderNotation(model: NotationModel, container: HTMLElement, opt
       x += width;
     });
   });
+
+  if (card && svg) fitCard(svg, totalWidth, totalHeight);
+}
+
+/** Skaliert das Karten-SVG mit CARD_SCALE und schneidet die Höhe auf das Notenbild zu (ohne getBBox: volle Höhe). */
+function fitCard(svg: SVGSVGElement, totalWidth: number, totalHeight: number): void {
+  let top = 0;
+  let height = totalHeight;
+  if (typeof svg.getBBox === 'function') {
+    const box = svg.getBBox();
+    if (box.height > 0) {
+      top = Math.max(0, box.y - CARD_TRIM_MARGIN);
+      height = Math.min(totalHeight, box.y + box.height + CARD_TRIM_MARGIN) - top;
+    }
+  }
+  svg.setAttribute('viewBox', `0 ${top} ${totalWidth} ${height}`);
+  svg.setAttribute('width', String(totalWidth * CARD_SCALE));
+  svg.setAttribute('height', String(height * CARD_SCALE));
+  // Feste Inline-Maße von renderer.resize ersetzen; die Höhe folgt per CSS (height: auto) der viewBox,
+  // damit ein zu breiter Takt mit max-width proportional schrumpft
+  svg.style.width = `${totalWidth * CARD_SCALE}px`;
+  svg.style.height = '';
 }

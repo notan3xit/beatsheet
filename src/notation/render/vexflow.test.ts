@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyBeats, patternOf } from '../../test/patterns';
 import { toNotation } from '../model';
-import { renderNotation } from './vexflow';
+import { CARD_SCALE, renderNotation } from './vexflow';
 
 describe('VexFlow-Adapter (Smoke-Test)', () => {
   it('rendert ein gemischtes Pattern ohne Fehler als SVG', () => {
@@ -56,6 +56,38 @@ describe('VexFlow-Adapter (Smoke-Test)', () => {
       [...container.querySelectorAll('svg, svg *')].flatMap((el) => [el.getAttribute('fill'), el.getAttribute('stroke')]),
     );
     expect([...colors].filter((c) => c !== null && c !== 'currentColor' && c !== 'none')).toEqual([]);
+  });
+
+  it('Spec songbook-view › Kompakte Pattern-Karten › Gleicher Maßstab', () => {
+    const quarters = (n: number) => patternOf(Array.from({ length: n }, () => ({ hits: { snare: [1] } })));
+    const scaleOf = (beats: number) => {
+      const container = document.createElement('div');
+      renderNotation(toNotation(quarters(beats)), container, { card: true });
+      const svg = container.querySelector('svg')!;
+      expect(container.querySelectorAll('.vf-clef').length).toBe(1);
+      const viewBox = svg.getAttribute('viewBox')!.split(' ').map(Number);
+      return Number.parseFloat(svg.getAttribute('width')!) / viewBox[2]!;
+    };
+    expect(scaleOf(4)).toBeCloseTo(CARD_SCALE, 3);
+    expect(scaleOf(8)).toBeCloseTo(CARD_SCALE, 3);
+  });
+
+  it('Karten-Darstellung bricht nach der verfügbaren Breite um', () => {
+    const pattern = patternOf(Array.from({ length: 8 }, () => ({ hits: { snare: [1] } })));
+    const single = () => {
+      const c = document.createElement('div');
+      renderNotation(toNotation(patternOf(Array.from({ length: 4 }, () => ({ hits: { snare: [1] } })))), c, { card: true });
+      return c;
+    };
+    const wide = document.createElement('div');
+    const narrow = document.createElement('div');
+    // 400 px reichen im Kartenmaßstab für zwei 4/4-Takte, in Originalgröße nicht
+    renderNotation(toNotation(pattern), wide, { card: true, maxWidth: 400 });
+    renderNotation(toNotation(pattern), narrow, { card: true, maxWidth: 250 });
+    const rows = (c: HTMLElement) =>
+      new Set([...c.querySelectorAll('.vf-stave path')].map((p) => p.getAttribute('d')!.match(/^M[\d.]+ ([\d.]+)/)?.[1])).size;
+    expect(rows(narrow)).toBeGreaterThan(rows(wide));
+    expect(rows(wide)).toBe(rows(single()));
   });
 
   it('ersetzt vorherigen Inhalt beim erneuten Rendern', () => {

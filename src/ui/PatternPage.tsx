@@ -1,4 +1,3 @@
-import { beatHasHits } from '../domain/pattern';
 import { useDragSource } from './dragPattern';
 import type { Pattern } from '../domain/types';
 import { patternPageOrder } from '../songbook/layout';
@@ -6,28 +5,32 @@ import { beatsLabel, patternStyle } from './patternStyle';
 import { NotationView } from './NotationView';
 import { useOpenSong, useStore } from './useLibrary';
 
-export const isEmptyPattern = (pattern: Pattern) => !pattern.beats.some(beatHasHits);
+/** Patterns mit mehr Beats belegen beide Spalten der Patternseite. */
+const BEATS_PER_COLUMN = 4;
 
 function PatternCard({ pattern }: { pattern: Pattern }) {
   const store = useStore();
   const headingId = `pattern-${pattern.id}`;
   const drag = useDragSource({ kind: 'pattern', patternId: pattern.id });
   return (
-    <article className="pattern-card" aria-labelledby={headingId} style={patternStyle(pattern.color)}>
+    <article
+      className={pattern.beats.length > BEATS_PER_COLUMN ? 'pattern-card wide' : 'pattern-card'}
+      aria-labelledby={headingId} style={patternStyle(pattern.color)}>
       <header className="pattern-card-header" {...drag}>
-        <h3 id={headingId}>{pattern.name}</h3>
-        <span className="pattern-meta">{pattern.kind === 'groove' ? 'Groove' : 'Fill'}</span>
+        <h3 id={headingId}>
+          <button
+            type="button"
+            className="pattern-name"
+            data-drag-handle=""
+            aria-label={`${pattern.name} bearbeiten`}
+            onClick={() => store.openPattern(pattern.id)}
+          >
+            {pattern.name}
+          </button>
+        </h3>
         <span className="pattern-meta">{beatsLabel(pattern.beats.length)}</span>
-        <button
-          type="button"
-          className="pattern-edit"
-          aria-label={`${pattern.name} bearbeiten`}
-          onClick={() => store.openPattern(pattern.id)}
-        >
-          Bearbeiten
-        </button>
       </header>
-      {isEmptyPattern(pattern) ? <p className="hint">noch leer</p> : <NotationView pattern={pattern} />}
+      <NotationView pattern={pattern} size="card" />
     </article>
   );
 }
@@ -41,17 +44,19 @@ export function PatternPage() {
   return (
     <section className="page pattern-page" aria-label="Patterns">
       <div className="page-actions">
-        <button type="button" {...newGroove} onClick={() => store.createPattern('groove')}>
-          Neuer Groove
+        <button type="button" className="add-pattern" aria-label="Neuer Groove" {...newGroove} onClick={() => store.createPattern('groove')}>
+          + Groove
         </button>
-        <button type="button" {...newFill} onClick={() => store.createPattern('fill')}>
-          Neuer Fill
+        <button type="button" className="add-pattern" aria-label="Neuer Fill" {...newFill} onClick={() => store.createPattern('fill')}>
+          + Fill
         </button>
       </div>
       {song.patterns.length === 0 && <p className="hint">Noch keine Patterns. Lege Grooves und Fills hier oder beim Aufbau der Struktur an.</p>}
-      {patternPageOrder(song).map((p) => (
-        <PatternCard key={p.id} pattern={p} />
-      ))}
+      <div className="pattern-grid">
+        {patternPageOrder(song).map((p) => (
+          <PatternCard key={p.id} pattern={p} />
+        ))}
+      </div>
     </section>
   );
 }

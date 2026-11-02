@@ -100,9 +100,11 @@ export function DragProvider({ children }: { children: ReactNode }) {
   const begin = useCallback(
     (payload: DragPayload, e: ReactPointerEvent) => {
       if (e.button !== 0 || e.pointerType === 'touch') return;
-      // Knöpfe innerhalb einer Quelle (z. B. „Bearbeiten“ in der Karte) starten kein Ziehen
+      // Knöpfe innerhalb einer Quelle starten kein Ziehen, außer sie sind als Griff markiert (Name der Karte)
       const button = (e.target as Element).closest('button');
-      if (button && button !== e.currentTarget && e.currentTarget.contains(button)) return;
+      if (button && button !== e.currentTarget && e.currentTarget.contains(button) && !button.hasAttribute('data-drag-handle')) {
+        return;
+      }
       const start = { x: e.clientX, y: e.clientY };
       let state: DragState | null = null;
 

@@ -35,13 +35,12 @@ describe('Spec songbook-view › Doppelseite', () => {
 
   it('Pattern bearbeiten', async () => {
     const { user } = setup(seed({ kind: 'groove', name: 'Verse-Beat' }));
-    expect(within(patternCards()[0]!).getByText('noch leer')).toBeInTheDocument();
+    const before = within(patternCards()[0]!).getByRole('img', { name: 'Noten: Verse-Beat' }).innerHTML;
     await user.click(within(patternPage()).getByRole('button', { name: 'Verse-Beat bearbeiten' }));
     await user.click(screen.getByRole('button', { name: 'Snare, Beat 1, Position 1' }));
     await user.click(screen.getByRole('button', { name: 'Zurück zum Song' }));
     const card = patternCards()[0]!;
-    expect(within(card).queryByText('noch leer')).not.toBeInTheDocument();
-    expect(within(card).getByRole('img', { name: 'Noten: Verse-Beat' })).toBeInTheDocument();
+    expect(within(card).getByRole('img', { name: 'Noten: Verse-Beat' }).innerHTML).not.toBe(before);
   });
 });
 
@@ -62,8 +61,12 @@ describe('Spec songbook-view › Patternseite (UI)', () => {
     setup(seed({ kind: 'groove', name: 'Verse-Beat' }));
     const card = patternCards()[0]!;
     expect(within(card).getByRole('heading')).toHaveTextContent('Verse-Beat');
-    expect(within(card).getByText('noch leer')).toBeInTheDocument();
     expect(within(card).getByText('4 Beats')).toBeInTheDocument();
+    expect(within(card).queryByText('noch leer')).not.toBeInTheDocument();
+    const notes = within(card).getByRole('img', { name: 'Noten: Verse-Beat' });
+    // Leeres System mit Pausen für 4 Beats
+    expect(notes.querySelectorAll('.vf-stave')).toHaveLength(1);
+    expect(notes.querySelectorAll('.vf-stavenote').length).toBeGreaterThanOrEqual(4);
   });
 });
 

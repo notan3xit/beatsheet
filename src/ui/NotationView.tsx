@@ -16,19 +16,34 @@ function useWidth(ref: React.RefObject<HTMLElement | null>): number | undefined 
   return width;
 }
 
-export function NotationView({ pattern, compact = false }: { pattern: Pattern; compact?: boolean }) {
+/** normal: Pattern-Editor; compact: Mini-Darstellung in Fill-Blöcken; card: Patternkarten der Doppelseite. */
+export type NotationSize = 'normal' | 'compact' | 'card';
+
+const CLASS: Record<NotationSize, string> = { normal: 'notation', compact: 'notation-mini', card: 'notation-card' };
+
+export function NotationView({
+  pattern,
+  compact = false,
+  size = compact ? 'compact' : 'normal',
+}: {
+  pattern: Pattern;
+  compact?: boolean;
+  size?: NotationSize;
+}) {
   const container = useRef<HTMLDivElement>(null);
   const model = useMemo(() => toNotation(pattern), [pattern]);
   const width = useWidth(container);
 
   useEffect(() => {
-    if (container.current) renderNotation(model, container.current, { compact, maxWidth: width });
-  }, [model, compact, width]);
+    if (container.current) {
+      renderNotation(model, container.current, { compact: size === 'compact', card: size === 'card', maxWidth: width });
+    }
+  }, [model, size, width]);
 
   return (
     <div
       ref={container}
-      className={compact ? 'notation-mini' : 'notation'}
+      className={CLASS[size]}
       role="img"
       aria-label={`Noten: ${pattern.name}`}
     />
