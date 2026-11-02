@@ -11,6 +11,8 @@
   --accent: var(--ctp-peach);
   --accent-soft: color-mix(in srgb, var(--accent) 25%, transparent);
   --on-accent: var(--ctp-base);
+  /* Schatten-Groove eines ausgewählten leeren Takts */
+  --ghost: var(--ctp-overlay0);
   /* Flächen für Schaltflächen (ohne Rand) */
   --control: var(--ctp-surface0);
   --control-hover: var(--ctp-surface1);
@@ -449,11 +451,7 @@ input {
   pointer-events: none;
 }
 
-.bar-frame[aria-pressed='true'] {
-  background: var(--accent-soft);
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
+/* Auswahl und Ablegeziel zeigen sich an den Balken (.item.highlighted, .item.ghost), nicht am Takt */
 
 .item,
 .accent {
@@ -497,6 +495,23 @@ input {
   justify-content: center;
   background: color-mix(in srgb, var(--pc) 40%, transparent);
   border: 1px solid var(--pc);
+}
+
+/* Hervorhebung von Auswahl und Ablegeziel: voller Rahmen in der Patternfarbe, kräftigere Füllung */
+.item.highlighted {
+  border: 2px solid var(--pc);
+  background: color-mix(in srgb, var(--pc) 42%, transparent);
+  font-weight: 600;
+}
+
+.item.fill.highlighted {
+  background: color-mix(in srgb, var(--pc) 62%, transparent);
+}
+
+/* Ausgewählter leerer Takt: grauer Schatten-Groove */
+.item.ghost {
+  border: 2px solid var(--ghost);
+  background: color-mix(in srgb, var(--ghost) 14%, transparent);
 }
 
 .item.fill.continues-left {
@@ -618,11 +633,6 @@ input {
 }
 
 /* Ziel beim Ziehen: gestrichelt, damit es sich von der Auswahl (durchgezogen) unterscheidet */
-.bar-frame.drop-target {
-  background: var(--accent-soft);
-  outline: 2px dashed var(--accent);
-  outline-offset: -2px;
-}
 
 body.dragging-pattern,
 body.dragging-pattern * {
@@ -706,9 +716,22 @@ body.dragging-pattern * {
   background: color-mix(in srgb, var(--pc, var(--muted)) 22%, transparent);
 }
 
+/* Gewählter Chip: in der eigenen Farbe gefüllt, mit Haken */
 .chip[aria-pressed='true'] {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  background: var(--pc, var(--text));
+  border-left-color: var(--pc, var(--text));
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.chip.none[aria-pressed='true'] {
+  background: var(--text);
+  border-left-color: var(--text);
+  color: var(--bg);
+}
+
+.chip-check {
+  margin-right: 0.2rem;
 }
 
 .chip.new {

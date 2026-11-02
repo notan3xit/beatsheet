@@ -242,3 +242,30 @@ describe('Spec songbook-view › Groove-Kennzeichnung im Takt (Name nur bei Wech
     expect(shown(layout)).toEqual([['A', ...Array(9).fill('-')]]);
   });
 });
+
+describe('Fills ihren Takten zuordnen (selection-highlight D2)', () => {
+  it('Fill über einen Teil des Vortakts gehört nur zu seinem Takt', () => {
+    const f = fill(6, 'f', []);
+    const bars = [barOf(), barOf({ fillId: f.id })];
+    const [segment] = layoutStructure(song([f], [bars]));
+    expect(ofKind(segment!.rows[0]!.items, 'fill')[0]!.barIds).toEqual([bars[1]!.id]);
+  });
+
+  it('Fill, der den Vortakt ganz überdeckt, gehört zu beiden', () => {
+    const f = fill(8, 'f', []);
+    const bars = [barOf(), barOf({ fillId: f.id })];
+    const [segment] = layoutStructure(song([f], [bars]));
+    expect(ofKind(segment!.rows[0]!.items, 'fill')[0]!.barIds).toEqual([bars[0]!.id, bars[1]!.id]);
+  });
+
+  it('über einen Zeilenumbruch tragen beide Teile alle Takte', () => {
+    const f = fill(8, 'Build', []);
+    const bars = [barOf(), barOf(), barOf(), barOf(), barOf({ fillId: f.id })];
+    const [segment] = layoutStructure(song([f], [bars]));
+    const parts = segment!.rows.map((r) => ofKind(r.items, 'fill')[0]!.barIds);
+    expect(parts).toEqual([
+      [bars[3]!.id, bars[4]!.id],
+      [bars[3]!.id, bars[4]!.id],
+    ]);
+  });
+});

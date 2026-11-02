@@ -57,6 +57,8 @@ export interface FillItem extends BarEdges {
   continuesRight: boolean;
   /** Taktstriche innerhalb des Fill-Blocks (Zeilenposition). */
   barlines: number[];
+  /** Takt, zu dem der Fill gehört, und alle Takte, die er ganz überdeckt (für die Hervorhebung). */
+  barIds: string[];
 }
 
 export interface AccentItem {
@@ -98,6 +100,7 @@ interface FillInstance {
   /** Globale Beats [start, end) des sichtbaren Fills. */
   start: number;
   end: number;
+  barIds: string[];
 }
 
 /** Fill-Abschnitte zu zusammenhängenden Instanzen zusammenfassen (über Takte hinweg). */
@@ -111,7 +114,7 @@ function fillInstances(resolved: ResolvedBar[]): FillInstance[] {
       if (last && last.patternId === span.patternId && last.end === start && span.fillOffset > 0) {
         last.end = end;
       } else {
-        instances.push({ patternId: span.patternId, start, end });
+        instances.push({ patternId: span.patternId, start, end, barIds: [] });
       }
     }
   }
@@ -123,6 +126,12 @@ export function layoutStructure(song: Song): SegmentLayout[] {
   const resolved = resolveSong(song);
   const patterns = new Map(song.patterns.map((p) => [p.id, p]));
   const fills = fillInstances(resolved);
+  // Fill gehört zum Takt, an dessen Ende er endet; dazu alle Takte, die er ganz überdeckt
+  for (const fill of fills) {
+    fill.barIds = resolved
+      .filter((b) => (b.start >= fill.start && b.start + b.beats <= fill.end) || b.start + b.beats === fill.end)
+      .map((b) => b.barId);
+  }
 
   return song.segments.map((segment) => {
     const rows: Row[] = [];
@@ -215,6 +224,7 @@ function layoutRow(
       continuesLeft: fill.start < rowStart,
       continuesRight: fill.end > rowEnd,
       barlines: bars.map((b) => b.start).filter((start) => start > from && start < to).map((start) => start - rowStart),
+      barIds: fill.barIds,
     });
   }
 

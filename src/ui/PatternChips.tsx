@@ -54,6 +54,11 @@ export function PatternChips({
             style={patternStyle(p.color)}
             onClick={() => set(p.id)}
           >
+            {common === p.id && (
+              <span className="chip-check" aria-hidden="true">
+                ✓
+              </span>
+            )}
             {short(p.name)}
           </button>
         ))}

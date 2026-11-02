@@ -165,7 +165,7 @@ Das Popover ausgewählter Takte MUST anbieten: den Groove und den Fill setzen, d
 - **THEN** ist „Taktlänge verringern“ deaktiviert
 
 ### Requirement: Pattern-Chips
-Groove und Fill MUST im Takt-Popover als Chips in der Farbe des jeweiligen Patterns wählbar sein, ergänzt um „neu“ und „kein“. Der Chip „neu“ MUST die Farbe zeigen, die ein neues Pattern erhalten würde. Ein Chip MUST als gewählt erscheinen, wenn alle ausgewählten Takte dieses Pattern haben.
+Groove und Fill MUST im Takt-Popover als Chips in der Farbe des jeweiligen Patterns wählbar sein, ergänzt um „neu“ und „kein“. Der Chip „neu“ MUST die Farbe zeigen, die ein neues Pattern erhalten würde. Ein Chip MUST als gewählt erscheinen, wenn alle ausgewählten Takte dieses Pattern haben. Ein gewählter Chip MUST in seiner Patternfarbe gefüllt sein und einen Haken zeigen, ohne zusätzlichen Rahmen in einer anderen Farbe.
 
 #### Scenario: Groove-Chips
 - **WHEN** der Song die Grooves A (blau) und B (grün) hat und der Nutzer Takte mit Groove A auswählt
@@ -174,6 +174,10 @@ Groove und Fill MUST im Takt-Popover als Chips in der Farbe des jeweiligen Patte
 #### Scenario: Gemischte Auswahl
 - **WHEN** der Nutzer einen Takt mit Groove A und einen Takt mit Groove B auswählt
 - **THEN** erscheint keiner der Groove-Chips als gewählt
+
+#### Scenario: Gewählter Chip mit Haken
+- **WHEN** der Nutzer Takte mit Groove A auswählt
+- **THEN** zeigt der Chip A einen Haken und die anderen Groove-Chips nicht
 
 ### Requirement: Takt einfügen beim Überfahren
 Befindet sich der Mauszeiger über einer Zeile, MUST an jeder Taktgrenze dieser Zeile ein Einfüge-Knopf erscheinen, der dort einen Takt mit Länge und Groove des linken Nachbarn einfügt. Am Anfang der ersten Zeile eines Blocks MUST der Knopf einen Takt vor dem ersten Takt einfügen, mit dessen Länge und Groove. Bei Touch-Bedienung MUST kein Einfüge-Knopf erscheinen.
@@ -272,3 +276,23 @@ Die Noten auf der Patternseite MUST verkleinert und in allen Karten im gleichen 
 #### Scenario: Anlegen-Knöpfe
 - **WHEN** der Nutzer einen Song öffnet
 - **THEN** zeigt die rechte Seite die Knöpfe „+ Groove“ und „+ Fill“, die wie „Neuer Groove“ und „Neuer Fill“ funktionieren
+
+### Requirement: Hervorhebung von Auswahl und Ablegeziel
+Ausgewählte Takte und Ablegeziele beim Ziehen MUST über ihre Balken hervorgehoben werden: Groove- und Fill-Balken mit vollem Rahmen in der Patternfarbe und kräftigerer Füllung. Ein Fill MUST hervorgehoben sein, wenn sein Takt oder ein von ihm ganz überdeckter Takt hervorgehoben ist. Ein Takt ohne Groove MUST einen grauen Schatten-Groove zeigen. Der Takt selbst MUST NOT umrahmt werden; gestrichelte Linien MUST NOT vorkommen.
+
+#### Scenario: Ausgewählte Takte
+- **WHEN** der Nutzer die Takte 2 bis 3 eines Blocks mit Groove A auswählt
+- **THEN** sind genau die Groove-Balken von Takt 2 und 3 hervorgehoben
+
+#### Scenario: Fill im ausgewählten Takt
+- **WHEN** Takt 4 Groove A und den Fill f1 hat und der Nutzer Takt 4 auswählt
+- **THEN** sind der Groove-Balken von Takt 4 und der Fill f1 hervorgehoben
+
+#### Scenario: Leerer Takt
+- **WHEN** der Nutzer einen Takt ohne Groove auswählt
+- **THEN** zeigt dieser Takt einen grauen Schatten-Groove
+- **AND** nicht ausgewählte Takte ohne Groove zeigen keinen
+
+#### Scenario: Ablegeziel beim Ziehen
+- **WHEN** der Nutzer Groove B über Takt 6 hält, der nicht ausgewählt ist
+- **THEN** ist der Groove-Balken von Takt 6 hervorgehoben wie bei einer Auswahl

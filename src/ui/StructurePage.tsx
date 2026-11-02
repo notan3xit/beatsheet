@@ -29,8 +29,14 @@ const placeInset = (item: { x: number; width: number } & BarEdges): CSSPropertie
   };
 };
 
-function FillBlock({ item }: { item: FillItem }) {
-  const classes = ['item', 'fill', item.continuesLeft && 'continues-left', item.continuesRight && 'continues-right'];
+function FillBlock({ item, highlighted }: { item: FillItem; highlighted: boolean }) {
+  const classes = [
+    'item',
+    'fill',
+    item.continuesLeft && 'continues-left',
+    item.continuesRight && 'continues-right',
+    highlighted && 'highlighted',
+  ];
   return (
     <div
       className={classes.filter(Boolean).join(' ')}
@@ -50,11 +56,17 @@ function FillBlock({ item }: { item: FillItem }) {
   );
 }
 
-function RowItem({ item }: { item: Item }) {
+/** Hervorhebung von Auswahl und Ablegeziel an den Balken selbst (selection-highlight D1–D3). */
+function RowItem({ item, isHighlighted }: { item: Item; isHighlighted: (barId: string) => boolean }) {
   switch (item.kind) {
     case 'groove':
       return (
-        <div className="item groove" style={{ ...placeInset(item), ...patternStyle(item.color) }} title={item.label}>
+        <div
+          className={`item groove${isHighlighted(item.barId) ? ' highlighted' : ''}`}
+          data-bar-id={item.barId}
+          style={{ ...placeInset(item), ...patternStyle(item.color) }}
+          title={item.label}
+        >
           {/* Name nur am Segmentanfang und bei Groove-Wechsel, sonst nur als Tooltip */}
           {item.showLabel && <span className="item-label">{item.label}</span>}
           {item.startBeat !== null && (
@@ -65,10 +77,18 @@ function RowItem({ item }: { item: Item }) {
         </div>
       );
     case 'empty':
-      // unsichtbar, nur Platzhalter für die Taktbreite
-      return <div className="item empty" style={place(item.x, item.width)} />;
+      // unsichtbar, nur Platzhalter für die Taktbreite; hervorgehoben als grauer Schatten-Groove
+      return isHighlighted(item.barId) ? (
+        <div
+          className="item ghost"
+          data-bar-id={item.barId}
+          style={placeInset({ ...item, atBarStart: true, atBarEnd: true })}
+        />
+      ) : (
+        <div className="item empty" style={place(item.x, item.width)} />
+      );
     case 'fill':
-      return <FillBlock item={item} />;
+      return <FillBlock item={item} highlighted={item.barIds.some(isHighlighted)} />;
     case 'accent':
       return (
         <span className="accent" style={place(item.x)}>
@@ -172,6 +192,7 @@ const barSelected = (selection: StructureSelection, barId: string) =>
 function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
   const key = rowKey(row);
   const { hover, setHover } = selection;
+  const isHighlighted = (barId: string) => barSelected(selection.current, barId) || selection.dropTargets.has(barId);
   const ref = useMouseHover<HTMLDivElement>(
     () => setHover((h) => ({ ...h, rowKey: key })),
     () => setHover((h) => (h.rowKey === key ? { ...h, rowKey: null } : h)),
@@ -200,7 +221,7 @@ function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
       {/* Schlussstrich als linke Kante bei x = Zeilenbreite, damit er auf derselben Linie liegt wie die Trennstriche */}
       <span className="row-end" style={place(row.width)} aria-hidden="true" />
       {row.items.map((item, i) => (
-        <RowItem key={i} item={item} />
+        <RowItem key={i} item={item} isHighlighted={isHighlighted} />
       ))}
       {hover.rowKey === key && <BarInsertButtons row={row} />}
       {selection.barPopover(row)}
