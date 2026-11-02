@@ -199,3 +199,46 @@ describe('Fill-Element enthält alle Angaben für die Darstellung', () => {
     expect(item.patternId).toBe(f.id);
   });
 });
+
+describe('Spec songbook-view › Groove-Kennzeichnung im Takt (Name nur bei Wechsel)', () => {
+  const shown = (segments: ReturnType<typeof layoutStructure>) =>
+    segments.map((s) => s.rows.flatMap((r) => ofKind(r.items, 'groove').map((g) => (g.showLabel ? g.label : '-'))));
+
+  it('Zweitaktiger Groove', () => {
+    const a = groove(8, 'A');
+    const layout = layoutStructure(song([a], [Array.from({ length: 4 }, () => barOf({ grooveId: a.id }))]));
+    expect(shown(layout)).toEqual([['A', '-', '-', '-']]);
+  });
+
+  it('Eintaktiger Groove', () => {
+    const a = groove(4, 'A');
+    expect(shown(layoutStructure(song([a], [[barOf({ grooveId: a.id })]])))).toEqual([['A']]);
+  });
+
+  it('Groove-Wechsel', () => {
+    const a = groove(4, 'A');
+    const b = groove(4, 'B', [a]);
+    const ids = [a, a, b, b, a].map((p) => p.id);
+    const layout = layoutStructure(song([a, b], [ids.map((grooveId) => barOf({ grooveId }))]));
+    expect(shown(layout)).toEqual([['A', '-', 'B', '-', 'A']]);
+  });
+
+  it('Neues Segment', () => {
+    const a = groove(4, 'A');
+    const layout = layoutStructure(song([a], [[barOf({ grooveId: a.id })]], [[barOf({ grooveId: a.id })]]));
+    expect(shown(layout)).toEqual([['A'], ['A']]);
+  });
+
+  it('Takt ohne Groove dazwischen', () => {
+    const a = groove(4, 'A');
+    const layout = layoutStructure(song([a], [[barOf({ grooveId: a.id }), barOf(), barOf({ grooveId: a.id })]]));
+    expect(shown(layout)).toEqual([['A', 'A']]);
+  });
+
+  it('Zeilen- und Blockgrenze im selben Segment zählen nicht als Wechsel', () => {
+    const a = groove(4, 'A');
+    const bars = () => Array.from({ length: 5 }, () => barOf({ grooveId: a.id }));
+    const layout = layoutStructure(song([a], [bars(), bars()]));
+    expect(shown(layout)).toEqual([['A', ...Array(9).fill('-')]]);
+  });
+});

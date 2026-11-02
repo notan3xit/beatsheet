@@ -55,7 +55,8 @@ function RowItem({ item }: { item: Item }) {
     case 'groove':
       return (
         <div className="item groove" style={{ ...placeInset(item), ...patternStyle(item.color) }} title={item.label}>
-          <span className="item-label">{item.label}</span>
+          {/* Name nur am Segmentanfang und bei Groove-Wechsel, sonst nur als Tooltip */}
+          {item.showLabel && <span className="item-label">{item.label}</span>}
           {item.startBeat !== null && (
             <span className="start-beat" title={`Takt beginnt mit Beat ${item.startBeat} des Grooves`}>
               ab {item.startBeat}

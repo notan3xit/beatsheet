@@ -33,6 +33,8 @@ export interface GrooveItem extends BarEdges {
   patternId: string;
   color: PatternColor;
   label: string;
+  /** Name sichtbar zeigen: erster Takt des Segments oder Groove-Wechsel zum vorigen Takt (sonst nur Tooltip). */
+  showLabel: boolean;
   /** Startbeat im Groove (1-basiert), nur wenn der Groove länger als der Takt ist. */
   startBeat: number | null;
 }
@@ -124,10 +126,17 @@ export function layoutStructure(song: Song): SegmentLayout[] {
 
   return song.segments.map((segment) => {
     const rows: Row[] = [];
+    // Groove-Name nur am Segmentanfang und bei Wechsel; maßgeblich ist die Zuordnung, nicht die Sichtbarkeit
+    const labeled = new Set<string>();
+    let previous: string | null | undefined;
+    for (const bar of segment.blocks.flatMap((b) => b.bars)) {
+      if (bar.grooveId !== previous) labeled.add(bar.id);
+      previous = bar.grooveId;
+    }
     segment.blocks.forEach((block, b) => {
       const bars = resolved.filter((r) => r.blockId === block.id);
       splitIntoRows(bars).forEach((rowBars, i) => {
-        const row = layoutRow(rowBars, patterns, fills);
+        const row = layoutRow(rowBars, patterns, fills, labeled);
         rows.push({ blockId: block.id, blockStart: b > 0 && i === 0, firstInBlock: i === 0, ...row });
       });
     });
@@ -156,6 +165,7 @@ function layoutRow(
   bars: ResolvedBar[],
   patterns: Map<string, Pattern>,
   fills: FillInstance[],
+  labeled: ReadonlySet<string>,
 ): Omit<Row, 'blockId' | 'blockStart' | 'firstInBlock'> {
   const rowStart = bars[0]!.start;
   const rowEnd = bars.at(-1)!.start + bars.at(-1)!.beats;
@@ -178,6 +188,7 @@ function layoutRow(
         patternId: groove.id,
         color: groove.color,
         label: groove.name,
+        showLabel: labeled.has(bar.barId),
         startBeat: groove.beats.length > bar.beats ? bar.groove.offset + 1 : null,
         atBarStart: true,
         atBarEnd: visible === bar.beats,

@@ -81,8 +81,20 @@ describe('Spec songbook-view › Struktur-Darstellung (UI)', () => {
     }));
     const page = structurePage();
     expect(within(page).getAllByRole('button', { name: /^Takt \d+/ })).toHaveLength(4);
-    expect(within(page).getAllByText('A')).toHaveLength(4);
+    // Name nur am ersten Takt des Segments (Groove-Kennzeichnung: Name nur bei Wechsel)
+    expect(within(page).getAllByText('A')).toHaveLength(1);
     expect(within(page).getByText('f1')).toBeInTheDocument();
+  });
+
+  it('Folgetakt mit Tooltip', () => {
+    const patterns = seed({ kind: 'groove', name: 'A' });
+    const { store } = setup(patterns);
+    act(() => store.updateSong((song) => appendSegment(song, { name: 'Verse', bars: 2, grooveId: patterns[0]!.id })));
+    const grooves = [...structurePage().querySelectorAll('.item.groove')];
+    expect(grooves.map((g) => [g.getAttribute('title'), g.textContent])).toEqual([
+      ['A', 'A'],
+      ['A', ''],
+    ]);
   });
 });
 
