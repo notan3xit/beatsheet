@@ -108,8 +108,33 @@ describe('Spec drum-notation › Notenwerte und Pausen aus dem Raster', () => {
   });
 
   it('Leerer Beat für die Füße', () => {
-    const model = toNotation(patternOf([{ hits: { snare: [1] } }]));
-    expect(summary(model.measures[0]!.voices.down[0]!.events)).toEqual(['qr']);
+    const model = toNotation(patternOf([{ hits: { kick: [1] } }, {}, { hits: { kick: [1] } }, {}]));
+    expect(model.measures[0]!.voices.down.map((g) => summary(g.events))).toEqual([['q'], ['qr'], ['q'], ['qr']]);
+  });
+
+  it('Stimme ohne Schläge im Takt', () => {
+    const model = toNotation(patternOf(Array.from({ length: 4 }, () => ({ hits: { hihat: [1, 3] } }))));
+    expect(model.measures[0]!.voices.down.map((g) => g.events)).toEqual([[], [], [], []]);
+  });
+
+  it('Halbe Pause', () => {
+    const model = toNotation(patternOf([{}, {}, { hits: { kick: [1] } }, { hits: { kick: [1] } }]));
+    expect(model.measures[0]!.voices.down.map((g) => summary(g.events))).toEqual([['hr'], [], ['q'], ['q']]);
+  });
+
+  it('Halbe Pause auf 3 und 4', () => {
+    const model = toNotation(patternOf([{ hits: { snare: [1] } }, {}, {}, {}]));
+    expect(model.measures[0]!.voices.up.map((g) => summary(g.events))).toEqual([['q'], ['qr'], ['hr'], []]);
+  });
+
+  it('Taktmitte bleibt sichtbar', () => {
+    const model = toNotation(patternOf([{ hits: { kick: [1] } }, {}, {}, { hits: { kick: [1] } }]));
+    expect(model.measures[0]!.voices.down.map((g) => summary(g.events))).toEqual([['q'], ['qr'], ['qr'], ['q']]);
+  });
+
+  it('Unvollständiger Takt', () => {
+    const model = toNotation(patternOf([...emptyBeats(4), {}, { hits: { kick: [1] } }]));
+    expect(model.measures[1]!.voices.down.map((g) => summary(g.events))).toEqual([['qr'], ['q']]);
   });
 
   it('Sechzehntel-Figuren', () => {
@@ -175,7 +200,14 @@ describe('Spec drum-notation › Leeres Pattern', () => {
   it('Neuer Groove', () => {
     const model = toNotation(patternOf(emptyBeats(4)));
     const { up, down } = model.measures[0]!.voices;
-    expect(up.flatMap((g) => summary(g.events))).toEqual(['qr', 'qr', 'qr', 'qr']);
-    expect(down.flatMap((g) => summary(g.events))).toEqual(['qr', 'qr', 'qr', 'qr']);
+    expect(up.map((g) => summary(g.events))).toEqual([['wr'], [], [], []]);
+    expect(down.map((g) => g.events)).toEqual([[], [], [], []]);
+  });
+
+  it('Leerer kurzer Fill', () => {
+    const model = toNotation(patternOf(emptyBeats(2), 'fill'));
+    const { up, down } = model.measures[0]!.voices;
+    expect(up.map((g) => summary(g.events))).toEqual([['qr'], ['qr']]);
+    expect(down.map((g) => g.events)).toEqual([[], []]);
   });
 });

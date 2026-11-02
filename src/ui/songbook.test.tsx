@@ -64,9 +64,9 @@ describe('Spec songbook-view › Patternseite (UI)', () => {
     expect(within(card).getByText('4 Beats')).toBeInTheDocument();
     expect(within(card).queryByText('noch leer')).not.toBeInTheDocument();
     const notes = within(card).getByRole('img', { name: 'Noten: Verse-Beat' });
-    // Leeres System mit Pausen für 4 Beats
+    // Leeres System mit einer Ganzen Pause
     expect(notes.querySelectorAll('.vf-stave')).toHaveLength(1);
-    expect(notes.querySelectorAll('.vf-stavenote').length).toBeGreaterThanOrEqual(4);
+    expect(notes.querySelectorAll('.vf-stavenote')).toHaveLength(1);
   });
 });
 

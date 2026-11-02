@@ -56,7 +56,7 @@ Bassdrum und Hi-Hat-Pedal MUST als untere Stimme mit Hälsen nach unten notiert 
 - **AND** die Bassdrum steht in der unteren Stimme mit Hals nach unten
 
 ### Requirement: Notenwerte und Pausen aus dem Raster
-Notenwerte MUST sich aus der Unterteilung des Beats und dem Abstand zum nächsten Schlag derselben Stimme im selben Beat ergeben. Lücken vor dem ersten Schlag einer Stimme im Beat MUST durch Pausen gefüllt werden. Ein Beat ohne Schläge einer Stimme MUST für diese Stimme eine Viertelpause zeigen.
+Notenwerte MUST sich aus der Unterteilung des Beats und dem Abstand zum nächsten Schlag derselben Stimme im selben Beat ergeben. Lücken vor dem ersten Schlag einer Stimme im Beat MUST durch Pausen gefüllt werden. Hat eine Stimme in einem Takt keinen Schlag, MUST sie dort keine Pausen zeigen. Sonst MUST ein leerer Beat eine Viertelpause zeigen; in einem 4-Beat-Takt MUST stattdessen eine Halbe Pause stehen, wenn die Beats 1 und 2 oder 3 und 4 leer sind.
 
 #### Scenario: Achtel aus Sechzehntel-Raster
 - **WHEN** ein Beat in Sechzehnteln Hi-Hat-Schläge auf den Positionen 1 und 3 hat
@@ -67,8 +67,24 @@ Notenwerte MUST sich aus der Unterteilung des Beats und dem Abstand zum nächste
 - **THEN** zeigt die obere Stimme eine Achtelpause gefolgt von einer Achtelnote
 
 #### Scenario: Leerer Beat für die Füße
-- **WHEN** ein Beat keine Bassdrum- und Hi-Hat-Pedal-Schläge hat
-- **THEN** zeigt die untere Stimme für diesen Beat eine Viertelpause
+- **WHEN** ein 4-Beat-Takt Bassdrum nur auf Beat 1 und Beat 3 hat
+- **THEN** zeigt die untere Stimme auf Beat 2 und Beat 4 je eine Viertelpause
+
+#### Scenario: Stimme ohne Schläge im Takt
+- **WHEN** ein 4-Beat-Takt Hi-Hat-Achtel und keine Bassdrum- oder Hi-Hat-Pedal-Schläge hat
+- **THEN** zeigt die untere Stimme in diesem Takt keine Pausen
+
+#### Scenario: Halbe Pause
+- **WHEN** ein 4-Beat-Takt Bassdrum nur auf Beat 3 und Beat 4 hat
+- **THEN** zeigt die untere Stimme auf Beat 1 eine Halbe Pause
+
+#### Scenario: Taktmitte bleibt sichtbar
+- **WHEN** ein 4-Beat-Takt Bassdrum nur auf Beat 1 und Beat 4 hat
+- **THEN** zeigt die untere Stimme auf Beat 2 und Beat 3 je eine Viertelpause
+
+#### Scenario: Unvollständiger Takt
+- **WHEN** ein Groove mit 6 Beats im zweiten Takt Bassdrum nur auf Beat 6 hat
+- **THEN** zeigt die untere Stimme im zweiten Takt auf Beat 5 eine Viertelpause
 
 ### Requirement: Balken pro Beat
 Noten MUST je Stimme innerhalb eines Beats gebalkt werden. Balken MUST NOT über Beatgrenzen gehen.
@@ -90,11 +106,15 @@ Ein Beat mit Achteltriolen- oder Sechzehnteltriolen-Unterteilung MUST in jeder S
 - **THEN** ist nur Beat 3 als Triole gekennzeichnet
 
 ### Requirement: Leeres Pattern
-Ein Pattern ohne Schläge MUST als System mit Viertelpausen in beiden Stimmen für jeden Beat dargestellt werden.
+Ein Takt ohne Schläge in beiden Stimmen MUST nur in der oberen Stimme Pausen zeigen: in einem 4-Beat-Takt eine Ganze Pause mittig im Takt, in einem unvollständigen Takt eine Viertelpause pro Beat. Die untere Stimme MUST dort keine Pausen zeigen.
 
 #### Scenario: Neuer Groove
 - **WHEN** ein neu angelegter, leerer Groove mit 4 Beats dargestellt wird
-- **THEN** zeigt jede Stimme vier Viertelpausen
+- **THEN** zeigt die obere Stimme eine Ganze Pause und die untere Stimme keine Pause
+
+#### Scenario: Leerer kurzer Fill
+- **WHEN** ein leerer Fill mit 2 Beats dargestellt wird
+- **THEN** zeigt die obere Stimme zwei Viertelpausen und die untere Stimme keine Pause
 
 ### Requirement: Notenbild in der Textfarbe des Farbschemas
 Das Notenbild MUST alle Elemente (Notenlinien, Taktstriche, Schlüssel, Notenköpfe, Hälse, Balken, Pausen, Punkte, Triolenklammern und -ziffern, „o“ der offenen Hi-Hat) in der Textfarbe des aktiven Farbschemas zeichnen. Es MUST keine fest vorgegebene Farbe wie Schwarz verwenden.

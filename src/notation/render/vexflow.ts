@@ -1,4 +1,4 @@
-import { Annotation, Beam, Dot, Formatter, Renderer, Stave, StaveNote, Tuplet, Voice } from 'vexflow';
+import { Annotation, Beam, Dot, Formatter, GhostNote, Renderer, Stave, StaveNote, Tuplet, Voice } from 'vexflow';
 import type { BeatGroup, Measure, NotationEvent, NotationModel, VoiceName } from '../model';
 
 // Systemschritt 0 = Linie 1 = e/4 (Percussion-Schlüssel wie Violinschlüssel)
@@ -9,6 +9,8 @@ function pitchOf(staffStep: number): string {
 }
 
 const REST_KEY: Record<VoiceName, string> = { up: 'c/5', down: 'f/4' };
+/** Die Ganze Pause hängt an der vierten Linie (rest-voices D3). */
+const WHOLE_REST_KEY = 'd/5';
 const STEM: Record<VoiceName, number> = { up: 1, down: -1 };
 
 const CLEF_WIDTH = 40;
@@ -38,7 +40,7 @@ const CARD_TRIM_MARGIN = 4;
 function noteFor(event: NotationEvent, voice: VoiceName): StaveNote {
   const isRest = event.kind === 'rest';
   const keys = isRest
-    ? [REST_KEY[voice]]
+    ? [event.duration === 'w' ? WHOLE_REST_KEY : REST_KEY[voice]]
     : event.keys.map((k) => `${pitchOf(k.staffStep)}${k.notehead === 'x' ? '/x2' : ''}`);
   const note = new StaveNote({
     keys,
@@ -48,6 +50,8 @@ function noteFor(event: NotationEvent, voice: VoiceName): StaveNote {
   });
   note.setStemStyle({ strokeStyle: INK });
   if (event.duration === '8d') Dot.buildAndAttach([note], { all: true });
+  // Ganze Pause eines leeren Takts mittig im Takt
+  if (isRest && event.duration === 'w') note.setCenterAlignment(true);
   if (event.keys.some((k) => k.open)) {
     note.addModifier(new Annotation('o').setVerticalJustification(Annotation.VerticalJustify.TOP), 0);
   }
@@ -82,7 +86,9 @@ function buildVoice(groups: BeatGroup[], name: VoiceName, beatCount: number): Bu
     }
     notes.push(...groupNotes);
   }
-  const voice = new Voice({ numBeats: beatCount, beatValue: 4 }).addTickables(notes);
+  // Stimme ohne sichtbare Events im Takt: unsichtbar auffüllen, VexFlow verlangt volle Stimmen (rest-voices D2)
+  const tickables = notes.length > 0 ? notes : Array.from({ length: beatCount }, () => new GhostNote({ duration: 'q' }));
+  const voice = new Voice({ numBeats: beatCount, beatValue: 4 }).addTickables(tickables);
   return { voice, beams, tuplets };
 }
 

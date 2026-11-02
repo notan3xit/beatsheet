@@ -90,6 +90,37 @@ describe('VexFlow-Adapter (Smoke-Test)', () => {
     expect(rows(wide)).toBe(rows(single()));
   });
 
+  describe('Pausen der Stimmen (rest-voices)', () => {
+    const notesOf = (pattern: ReturnType<typeof patternOf>) => {
+      const container = document.createElement('div');
+      renderNotation(toNotation(pattern), container);
+      return container.querySelectorAll('.vf-stavenote').length;
+    };
+
+    it('Hi-Hat-Achtel ohne Füße: nur die Hi-Hat-Noten, keine Fußpausen', () => {
+      expect(notesOf(patternOf(Array.from({ length: 4 }, () => ({ hits: { hihat: [1, 3] } }))))).toBe(8);
+    });
+
+    it('leerer 4-Beat-Groove: genau eine Pause', () => {
+      expect(notesOf(patternOf(emptyBeats(4)))).toBe(1);
+    });
+
+    it('leerer 2-Beat-Fill: genau zwei Pausen', () => {
+      expect(notesOf(patternOf(emptyBeats(2), 'fill'))).toBe(2);
+    });
+
+    it('Halbe Pause in der unteren Stimme', () => {
+      // oben 4 Viertel Snare, unten Halbe Pause + 2 Viertel Bassdrum
+      const pattern = patternOf([
+        { hits: { snare: [1] } },
+        { hits: { snare: [1] } },
+        { hits: { snare: [1], kick: [1] } },
+        { hits: { snare: [1], kick: [1] } },
+      ]);
+      expect(notesOf(pattern)).toBe(4 + 3);
+    });
+  });
+
   it('ersetzt vorherigen Inhalt beim erneuten Rendern', () => {
     const container = document.createElement('div');
     renderNotation(toNotation(patternOf(emptyBeats(4))), container);

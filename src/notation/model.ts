@@ -8,14 +8,18 @@ export interface NoteKey {
   open?: true;
 }
 
-export type Duration = 'q' | '8d' | '8' | '16';
+/** 'h' und 'w' kommen nur als Pausen über leere Beats vor (Halbe, Ganze). */
+export type Duration = 'w' | 'h' | 'q' | '8d' | '8' | '16';
 
 export type NotationEvent =
   | { kind: 'note'; duration: Duration; keys: NoteKey[] }
   | { kind: 'rest'; duration: Duration; keys: [] };
 
 export interface BeatGroup {
-  /** Beat-Index im Pattern (0-basiert). */
+  /**
+   * Beat-Index im Pattern (0-basiert). Eine Gruppe ohne Events ist entweder von einer Pause
+   * eines früheren Beats abgedeckt (Halbe, Ganze) oder gehört zu einer Stimme, die im Takt nichts zeigt.
+   */
   beat: number;
   tuplet: 3 | 6 | null;
   beamed: boolean;
@@ -89,9 +93,8 @@ function beatGroup(beat: Beat, index: number, voice: VoiceName): BeatGroup {
   }
 
   const positions = [...byPosition.keys()].sort((a, b) => a - b);
-  if (positions.length === 0) {
-    return { beat: index, tuplet: null, beamed: false, events: [{ kind: 'rest', duration: 'q', keys: [] }] };
-  }
+  // Leerer Beat: Pausen bestimmt erst resolveEmptyBeats mit Blick auf den ganzen Takt
+  if (positions.length === 0) return { beat: index, tuplet: null, beamed: false, events: [] };
 
   const { subdivision } = beat;
   const events: NotationEvent[] = split(positions[0]!, subdivision).map((duration) => ({
@@ -116,16 +119,54 @@ function beatGroup(beat: Beat, index: number, voice: VoiceName): BeatGroup {
   };
 }
 
+const rest = (duration: Duration): NotationEvent => ({ kind: 'rest', duration, keys: [] });
+const isEmpty = (group: BeatGroup) => group.events.length === 0;
+
+/**
+ * Pausen für leere Beats einer Stimme, die im Takt spielt: im vollen Takt Halbe auf 1+2 bzw. 3+4,
+ * sonst eine Viertel je leerem Beat.
+ */
+function fillEmptyBeats(groups: BeatGroup[]): BeatGroup[] {
+  const result = groups.map((g) => ({ ...g }));
+  const full = groups.length === BEATS_PER_MEASURE;
+  for (let i = 0; i < result.length; i++) {
+    if (!isEmpty(groups[i]!)) continue;
+    if (full && i % 2 === 0 && isEmpty(groups[i + 1]!)) {
+      result[i]!.events = [rest('h')];
+      i++; // Beat i+1 ist von der Halben abgedeckt und bleibt ohne Events
+    } else {
+      result[i]!.events = [rest('q')];
+    }
+  }
+  return result;
+}
+
+/** Leere Beats pro Takt auflösen (Spec drum-notation: Notenwerte und Pausen, Leeres Pattern). */
+function resolveEmptyBeats(voices: Record<VoiceName, BeatGroup[]>): Record<VoiceName, BeatGroup[]> {
+  const silent = (name: VoiceName) => voices[name].every(isEmpty);
+  if (silent('up') && silent('down')) {
+    // Takt ohne Schläge: nur oben Pausen, im vollen Takt eine Ganze
+    const up = voices.up.map((g) => ({ ...g }));
+    if (up.length === BEATS_PER_MEASURE) up[0]!.events = [rest('w')];
+    else for (const g of up) g.events = [rest('q')];
+    return { up, down: voices.down };
+  }
+  return {
+    up: silent('up') ? voices.up : fillEmptyBeats(voices.up),
+    down: silent('down') ? voices.down : fillEmptyBeats(voices.down),
+  };
+}
+
 export function toNotation(pattern: Pattern): NotationModel {
   const measures: Measure[] = [];
   for (let start = 0; start < pattern.beats.length; start += BEATS_PER_MEASURE) {
     const beats = pattern.beats.slice(start, start + BEATS_PER_MEASURE);
     measures.push({
       beatCount: beats.length,
-      voices: {
+      voices: resolveEmptyBeats({
         up: beats.map((beat, i) => beatGroup(beat, start + i, 'up')),
         down: beats.map((beat, i) => beatGroup(beat, start + i, 'down')),
-      },
+      }),
     });
   }
   return { clef: 'percussion', measures };

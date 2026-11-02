@@ -74,7 +74,7 @@ Jeder Akzent MUST als Markierung mit dem Kürzel des Instruments an seiner Posit
 - **THEN** zeigt Takt 1 am linken Rand oben die Markierung „Cr“
 
 ### Requirement: Patternseite
-Die rechte Seite MUST jedes Pattern des Songs genau einmal mit Name, Farbe, Länge und Noten zeigen, Grooves vor Fills, jeweils in der Reihenfolge des ersten Auftretens in der Struktur, nicht verwendete Patterns danach alphabetisch. Ein leeres Pattern MUST als leeres System seiner Länge erscheinen, mit einer Viertelpause pro Beat.
+Die rechte Seite MUST jedes Pattern des Songs genau einmal mit Name, Farbe, Länge und Noten zeigen, Grooves vor Fills, jeweils in der Reihenfolge des ersten Auftretens in der Struktur, nicht verwendete Patterns danach alphabetisch. Ein leeres Pattern MUST als leeres System seiner Länge erscheinen, mit Pausen nach der Anforderung „Leeres Pattern“ der Notation.
 
 #### Scenario: Reihenfolge
 - **WHEN** die Struktur zuerst Groove B, dann Groove A verwendet und Groove C nicht verwendet wird
@@ -82,7 +82,7 @@ Die rechte Seite MUST jedes Pattern des Songs genau einmal mit Name, Farbe, Län
 
 #### Scenario: Leerer Platzhalter
 - **WHEN** der Groove „Verse-Beat“ mit 4 Beats noch keine Schläge hat
-- **THEN** zeigt die rechte Seite „Verse-Beat“ mit einem leeren System aus 4 Viertelpausen
+- **THEN** zeigt die rechte Seite „Verse-Beat“ mit einem leeren System und einer Ganzen Pause
 
 ### Requirement: Kompakte Zeilen
 Eine Zeile der Struktur MUST als flacher Balken erscheinen, höchstens 1,5rem hoch, mit höchstens 0,5rem Abstand zur nächsten Zeile desselben Segments. Groove- und Fill-Namen MUST in den Balken passen oder gekürzt werden. Der vollständige Name MUST dann als Tooltip verfügbar sein.
