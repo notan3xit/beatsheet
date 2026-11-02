@@ -50,13 +50,13 @@ describe('Spec songbook-view › Takt einfügen beim Überfahren', () => {
 
   it('Takt am Blockanfang', async () => {
     const [a] = seed({ kind: 'groove', name: 'A' });
-    const { user, bars } = setup([a!], (s) => appendSegment(s, { name: 'V', bars: 5, beats: 3, grooveId: a!.id }));
-    await user.hover(rowOf(5));
-    expect(within(rowOf(5)).queryByRole('button', { name: /^Takt vor/ })).not.toBeInTheDocument();
+    const { user, bars } = setup([a!], (s) => appendSegment(s, { name: 'V', bars: 6, beats: 3, grooveId: a!.id }));
+    await user.hover(rowOf(6));
+    expect(within(rowOf(6)).queryByRole('button', { name: /^Takt vor/ })).not.toBeInTheDocument();
     await user.hover(rowOf(1));
     const first = bars()[0]!.id;
     await user.click(within(rowOf(1)).getByRole('button', { name: 'Takt vor Takt 1 einfügen' }));
-    expect(bars()).toHaveLength(6);
+    expect(bars()).toHaveLength(7);
     expect(bars()[0]).toMatchObject({ beats: 3, grooveId: a!.id });
     expect(bars()[1]!.id).toBe(first);
   });

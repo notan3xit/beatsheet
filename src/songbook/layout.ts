@@ -1,8 +1,8 @@
 import { resolveSong, type ResolvedBar } from '../domain/timeline';
 import type { Instrument, Pattern, PatternColor, Song } from '../domain/types';
 
-/** Höchstens so viele Takte pro Zeile. */
-export const BARS_PER_ROW = 4;
+/** Höchstens so viele Beats pro Zeile (vier 4/4-Takte). Takte werden nie geteilt. */
+export const BEATS_PER_ROW = 16;
 
 export const ACCENT_LABELS: Record<Instrument, string> = {
   crash: 'Cr',
@@ -116,7 +116,7 @@ function fillInstances(resolved: ResolvedBar[]): FillInstance[] {
   return instances;
 }
 
-/** Layout der linken Buchseite: Zeilen zu höchstens 4 Takten, jeder Block beginnt eine neue Zeile. */
+/** Layout der linken Buchseite: Zeilen zu höchstens 16 Beats, jeder Block beginnt eine neue Zeile. */
 export function layoutStructure(song: Song): SegmentLayout[] {
   const resolved = resolveSong(song);
   const patterns = new Map(song.patterns.map((p) => [p.id, p]));
@@ -126,13 +126,30 @@ export function layoutStructure(song: Song): SegmentLayout[] {
     const rows: Row[] = [];
     segment.blocks.forEach((block, b) => {
       const bars = resolved.filter((r) => r.blockId === block.id);
-      for (let i = 0; i < bars.length; i += BARS_PER_ROW) {
-        const row = layoutRow(bars.slice(i, i + BARS_PER_ROW), patterns, fills);
+      splitIntoRows(bars).forEach((rowBars, i) => {
+        const row = layoutRow(rowBars, patterns, fills);
         rows.push({ blockId: block.id, blockStart: b > 0 && i === 0, firstInBlock: i === 0, ...row });
-      }
+      });
     });
     return { segmentId: segment.id, name: segment.name, rows };
   });
+}
+
+/** Takte der Reihe nach auf Zeilen verteilen, solange sie vollständig in BEATS_PER_ROW passen. */
+function splitIntoRows(bars: ResolvedBar[]): ResolvedBar[][] {
+  const rows: ResolvedBar[][] = [];
+  let beats = 0;
+  for (const bar of bars) {
+    const current = rows.at(-1);
+    if (current && beats + bar.beats <= BEATS_PER_ROW) {
+      current.push(bar);
+      beats += bar.beats;
+    } else {
+      rows.push([bar]);
+      beats = bar.beats;
+    }
+  }
+  return rows;
 }
 
 function layoutRow(

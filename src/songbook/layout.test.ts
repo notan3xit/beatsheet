@@ -40,6 +40,21 @@ describe('Spec songbook-view › Maßstabsgetreue Struktur', () => {
     expect(segment!.rows[1]!.bars[0]!.x).toBe(0);
   });
 
+  it('Kürzere Takte füllen die Zeile', () => {
+    const block = [...Array.from({ length: 4 }, () => barOf({ beats: 3 })), barOf()];
+    const [segment] = layoutStructure(song([], [block]));
+    expect(segment!.rows.map((r) => [r.bars.length, r.width])).toEqual([[5, 16]]);
+    expect(segment!.rows[0]!.bars.at(-1)!.x).toBe(12);
+  });
+
+  it('Takt passt nicht mehr in die Zeile', () => {
+    const block = Array.from({ length: 6 }, () => barOf({ beats: 3 }));
+    const [segment] = layoutStructure(song([], [block]));
+    expect(segment!.rows.map((r) => r.bars.length)).toEqual([5, 1]);
+    expect(segment!.rows.map((r) => r.firstInBlock)).toEqual([true, false]);
+    expect(segment!.rows[1]!.bars[0]!.x).toBe(0);
+  });
+
   it('Jedes Segment beginnt in einer neuen Zeile', () => {
     const layout = layoutStructure(song([], [[barOf(), barOf()]], [[barOf()]]));
     expect(layout.map((s) => s.rows.map((r) => r.bars.length))).toEqual([[2], [1]]);
