@@ -1,4 +1,5 @@
 import { beatHasHits } from '../domain/pattern';
+import { useDragSource } from './dragPattern';
 import type { Pattern } from '../domain/types';
 import { patternPageOrder } from '../songbook/layout';
 import { beatsLabel, patternStyle } from './patternStyle';
@@ -10,9 +11,10 @@ export const isEmptyPattern = (pattern: Pattern) => !pattern.beats.some(beatHasH
 function PatternCard({ pattern }: { pattern: Pattern }) {
   const store = useStore();
   const headingId = `pattern-${pattern.id}`;
+  const drag = useDragSource({ kind: 'pattern', patternId: pattern.id });
   return (
     <article className="pattern-card" aria-labelledby={headingId} style={patternStyle(pattern.color)}>
-      <header className="pattern-card-header">
+      <header className="pattern-card-header" {...drag}>
         <h3 id={headingId}>{pattern.name}</h3>
         <span className="pattern-meta">{pattern.kind === 'groove' ? 'Groove' : 'Fill'}</span>
         <span className="pattern-meta">{beatsLabel(pattern.beats.length)}</span>
@@ -34,13 +36,15 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
 export function PatternPage() {
   const store = useStore();
   const song = useOpenSong();
+  const newGroove = useDragSource({ kind: 'new', patternKind: 'groove' });
+  const newFill = useDragSource({ kind: 'new', patternKind: 'fill' });
   return (
     <section className="page pattern-page" aria-label="Patterns">
       <div className="page-actions">
-        <button type="button" onClick={() => store.createPattern('groove')}>
+        <button type="button" {...newGroove} onClick={() => store.createPattern('groove')}>
           Neuer Groove
         </button>
-        <button type="button" onClick={() => store.createPattern('fill')}>
+        <button type="button" {...newFill} onClick={() => store.createPattern('fill')}>
           Neuer Fill
         </button>
       </div>

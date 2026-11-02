@@ -1,10 +1,12 @@
-import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { allBars } from '../domain/songPatterns';
-import { insertSegmentAfter } from '../domain/structure';
+import { appendBlockLike, insertBarAfter, insertBarBefore, insertSegmentAfter } from '../domain/structure';
 import type { Song } from '../domain/types';
 import { layoutStructure, type BarEdges, type FillItem, type Item, type Row, type SegmentLayout } from '../songbook/layout';
+import { useDropTargets } from './dragPattern';
 import { patternStyle } from './patternStyle';
 import { BarPopover, Popover, POPOVER_BEATS, SegmentPopover } from './StructurePopovers';
+import { openSongOf } from '../state/notebookStore';
 import { useOpenSong, useStore } from './useLibrary';
 import { useStructureSelection, type StructureSelection } from './useStructureSelection';
 
@@ -55,9 +57,8 @@ function RowItem({ item }: { item: Item }) {
         <div className="item groove" style={{ ...placeInset(item), ...patternStyle(item.color) }} title={item.label}>
           <span className="item-label">{item.label}</span>
           {item.startBeat !== null && (
-            <span className="start-beat">
-              <span className="visually-hidden">ab Beat </span>
-              {item.startBeat}
+            <span className="start-beat" title={`Takt beginnt mit Beat ${item.startBeat} des Grooves`}>
+              ab {item.startBeat}
             </span>
           )}
         </div>
@@ -82,14 +83,101 @@ interface Selection {
   selectSegment: (segmentId: string) => void;
   /** Popover der Takt-Auswahl, wenn es in dieser Zeile verankert ist. */
   barPopover: (row: Row) => ReactNode;
+  hover: Hover;
+  setHover: (change: (hover: Hover) => Hover) => void;
+  /** Takte, auf die ein gezogenes Pattern gerade fiele. */
+  dropTargets: ReadonlySet<string>;
+}
+
+/** Was die Maus gerade überfährt (design.md D1); Touch und Stift erzeugen keinen Hover. */
+interface Hover {
+  segmentId: string | null;
+  rowKey: string | null;
+}
+
+const rowKey = (row: Row) => `${row.blockId}:${row.bars[0]!.barId}`;
+
+/**
+ * Hover nur bei Maus, über die nativen pointerenter/pointerleave des Elements. Die blubbern nicht
+ * und hängen nicht wie Reacts onPointerEnter/-Leave vom relatedTarget von pointerover/-out ab.
+ */
+function useMouseHover<T extends HTMLElement>(enter: () => void, leave: () => void) {
+  const ref = useRef<T>(null);
+  const handlers = useRef({ enter, leave });
+  handlers.current = { enter, leave };
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onEnter = (e: PointerEvent) => e.pointerType === 'mouse' && handlers.current.enter();
+    const onLeave = (e: PointerEvent) => e.pointerType === 'mouse' && handlers.current.leave();
+    el.addEventListener('pointerenter', onEnter);
+    el.addEventListener('pointerleave', onLeave);
+    return () => {
+      el.removeEventListener('pointerenter', onEnter);
+      el.removeEventListener('pointerleave', onLeave);
+    };
+  }, []);
+  return ref;
+}
+
+/** Kreis mit Plus als SVG, damit es bei jedem Zoom scharf und mittig bleibt. */
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <circle cx="8" cy="8" r="7.5" strokeWidth="1" />
+      <path d="M4.5 8h7M8 4.5v7" strokeWidth="1.75" />
+    </svg>
+  );
+}
+
+/** (+) auf den Taktstrichen einer überfahrenen Zeile. */
+function BarInsertButtons({ row }: { row: Row }) {
+  const store = useStore();
+  const first = row.bars[0]!;
+  return (
+    <>
+      {row.firstInBlock && (
+        <button
+          type="button"
+          className="insert-bar"
+          style={place(0)}
+          aria-label={`Takt vor Takt ${first.index + 1} einfügen`}
+          title="Takt davor einfügen"
+          onClick={() => store.updateSong((s) => insertBarBefore(s, first.barId))}
+        >
+          <PlusIcon />
+        </button>
+      )}
+      {row.bars.map((bar) => (
+        <button
+          key={bar.barId}
+          type="button"
+          className="insert-bar"
+          style={place(bar.x + bar.width)}
+          aria-label={`Takt nach Takt ${bar.index + 1} einfügen`}
+          title="Takt einfügen"
+          onClick={() => store.updateSong((s) => insertBarAfter(s, bar.barId))}
+        >
+          <PlusIcon />
+        </button>
+      ))}
+    </>
+  );
 }
 
 const barSelected = (selection: StructureSelection, barId: string) =>
   selection.kind === 'bars' && selection.barIds.includes(barId);
 
 function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
+  const key = rowKey(row);
+  const { hover, setHover } = selection;
+  const ref = useMouseHover<HTMLDivElement>(
+    () => setHover((h) => ({ ...h, rowKey: key })),
+    () => setHover((h) => (h.rowKey === key ? { ...h, rowKey: null } : h)),
+  );
   return (
     <div
+      ref={ref}
       className={`structure-row${row.blockStart ? ' block-start' : ''}`}
       style={{ width: `calc(var(--beat) * ${row.width})` }}
     >
@@ -100,25 +188,45 @@ function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
         <button
           key={bar.barId}
           type="button"
-          className="bar-frame"
+          className={`bar-frame${selection.dropTargets.has(bar.barId) ? ' drop-target' : ''}`}
+          data-bar-id={bar.barId}
           style={place(bar.x, bar.width)}
           aria-label={`Takt ${bar.index + 1}`}
           aria-pressed={barSelected(selection.current, bar.barId)}
           onClick={(e) => selection.selectBar(bar.barId, e.shiftKey)}
         />
       ))}
+      {/* Schlussstrich als linke Kante bei x = Zeilenbreite, damit er auf derselben Linie liegt wie die Trennstriche */}
+      <span className="row-end" style={place(row.width)} aria-hidden="true" />
       {row.items.map((item, i) => (
         <RowItem key={i} item={item} />
       ))}
+      {hover.rowKey === key && <BarInsertButtons row={row} />}
       {selection.barPopover(row)}
     </div>
   );
 }
 
 function SegmentView({ segment, selection }: { segment: SegmentLayout; selection: Selection }) {
-  const selected = selection.current.kind === 'segment' && selection.current.segmentId === segment.segmentId;
+  const store = useStore();
+  const id = segment.segmentId;
+  const selected = selection.current.kind === 'segment' && selection.current.segmentId === id;
+  const hovered = selection.hover.segmentId === id;
+
+  const insertSegment = () => {
+    store.updateSong((s) => insertSegmentAfter(s, id));
+    const segments = openSongOf(store.getState())?.segments ?? [];
+    const created = segments[segments.findIndex((s) => s.id === id) + 1];
+    if (created) selection.selectSegment(created.id);
+  };
+
+  const ref = useMouseHover<HTMLDivElement>(
+    () => selection.setHover((h) => ({ ...h, segmentId: id })),
+    () => selection.setHover((h) => (h.segmentId === id ? { segmentId: null, rowKey: null } : h)),
+  );
+
   return (
-    <div className="segment">
+    <div ref={ref} className="segment">
       <div className="segment-head">
         <h3 className="segment-name">
           <button
@@ -139,6 +247,29 @@ function SegmentView({ segment, selection }: { segment: SegmentLayout; selection
       {segment.rows.map((row, r) => (
         <StructureRow key={r} row={row} selection={selection} />
       ))}
+      {/* Nur beim Überfahren im DOM, damit die Leseansicht ohne Hover frei von Knöpfen bleibt */}
+      <div className="insert-strips">
+        {hovered && (
+          <>
+            <button
+              type="button"
+              className="insert-strip"
+              aria-label={`Block an ${segment.name} anfügen`}
+              onClick={() => store.updateSong((s) => appendBlockLike(s, id))}
+            >
+              + Block
+            </button>
+            <button
+              type="button"
+              className="insert-strip"
+              aria-label={`Segment nach ${segment.name} einfügen`}
+              onClick={insertSegment}
+            >
+              + Segment
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -163,7 +294,8 @@ function useDismiss(active: boolean, inside: React.RefObject<HTMLElement | null>
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && dismiss();
     const onPointer = (e: PointerEvent) => {
       const target = e.target as Element | null;
-      if (inside.current?.contains(target) || target?.closest('.backdrop')) return;
+      // Ziehquellen lassen die Auswahl stehen, sonst ginge „auf die Auswahl ziehen“ nicht (design.md D3)
+      if (inside.current?.contains(target) || target?.closest('.backdrop, [data-drag-source]')) return;
       dismiss();
     };
     document.addEventListener('keydown', onKey);
@@ -181,6 +313,10 @@ export function StructurePage() {
   const song = useOpenSong();
   const layout = layoutStructure(song);
   const { selection, selectBar, selectSegment, clear } = useStructureSelection(song);
+  const [hover, setHover] = useState<Hover>({ segmentId: null, rowKey: null });
+  const dropTargets = useDropTargets((barId) =>
+    selection.kind === 'bars' && selection.barIds.includes(barId) ? selection.barIds : [barId],
+  );
   const page = useRef<HTMLElement>(null);
   useDismiss(selection.kind !== 'none', page, clear);
 
@@ -217,7 +353,7 @@ export function StructurePage() {
         <SegmentView
           key={segment.segmentId}
           segment={segment}
-          selection={{ current: selection, selectBar, selectSegment, barPopover }}
+          selection={{ current: selection, selectBar, selectSegment, barPopover, hover, setHover, dropTargets }}
         />
       ))}
     </section>

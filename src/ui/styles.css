@@ -272,13 +272,18 @@ input {
 /* Kein overflow: sonst wird die Seite zum Scrollbereich und schneidet das Popover ab */
 .structure-page {
   --beat: 2.25rem;
-  --row-gutter: 1.6rem;
+  /* Maße auf ganze Pixel (bei 16px), damit Striche und Kreise nicht je nach Lage verwischen */
+  --row-gutter: 1.625rem;
   /* Abstand der Balken zu Taktstrichen und zueinander */
   --item-gap: 3px;
 }
 
+.segment {
+  position: relative;
+}
+
 .segment + .segment {
-  margin-top: 0.6rem;
+  margin-top: 1rem;
 }
 
 .segment-name {
@@ -308,8 +313,8 @@ input {
 
 .structure-row {
   position: relative;
-  height: 1.4rem;
-  margin-top: 0.3rem;
+  height: 1.375rem;
+  margin-top: 0.25rem;
   margin-left: var(--row-gutter);
 }
 
@@ -323,15 +328,15 @@ input {
   position: absolute;
   left: 0;
   right: 0;
-  top: -0.27rem;
+  top: -0.25rem;
   border-top: 1px dashed var(--border);
 }
 
 .row-number {
   position: absolute;
   right: 100%;
-  margin-right: 0.35rem;
-  line-height: 1.4rem;
+  margin-right: 0.375rem;
+  line-height: 1.375rem;
   font-size: 0.6rem;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
@@ -348,8 +353,12 @@ input {
   background: transparent;
 }
 
-.bar-frame:last-of-type {
-  border-right: 1px solid var(--muted);
+.row-end {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--muted);
+  pointer-events: none;
 }
 
 .bar-frame[aria-pressed='true'] {
@@ -440,6 +449,116 @@ input {
   border-radius: 3px;
   background: var(--text);
   color: var(--bg);
+}
+
+/* Abkürzungen beim Überfahren mit der Maus (nur im DOM, solange gehovert) */
+.insert-bar {
+  position: absolute;
+  top: -0.5rem;
+  z-index: 3;
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  margin-left: -0.5rem;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+}
+
+/* Kreis und Plus als Vektorgrafik: skaliert bei jedem Zoom gleichmäßig, anders als Verläufe oder Schriftzeichen */
+.insert-bar svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.insert-bar circle {
+  fill: var(--control);
+  stroke: var(--border);
+}
+
+.insert-bar path {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
+.insert-bar:hover {
+  background: transparent;
+  color: var(--text);
+}
+
+.insert-bar:hover circle {
+  fill: var(--control-hover);
+}
+
+/* In der Lücke unter dem Segment, damit beim Erscheinen nichts verrutscht */
+.insert-strips {
+  position: absolute;
+  top: 100%;
+  left: var(--row-gutter);
+  z-index: 3;
+  display: flex;
+  gap: 0.4rem;
+  padding-top: 0.15rem;
+}
+
+.insert-strip {
+  padding: 0 0.5rem;
+  border-radius: 4px;
+  background: var(--control);
+  box-shadow: 0 0 0 1px var(--border);
+  color: var(--muted);
+  font-size: 0.65rem;
+  line-height: 0.75rem;
+}
+
+.insert-strip:hover {
+  background: var(--control-hover);
+  color: var(--text);
+}
+
+/* Ziehen von Patterns auf Takte */
+[data-drag-source] {
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+/* Ziel beim Ziehen: gestrichelt, damit es sich von der Auswahl (durchgezogen) unterscheidet */
+.bar-frame.drop-target {
+  background: var(--accent-soft);
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+body.dragging-pattern,
+body.dragging-pattern * {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.drag-image {
+  position: fixed;
+  z-index: 20;
+  transform: translate(0.6rem, 0.6rem);
+  padding: 0.15rem 0.5rem;
+  border-left: 3px solid var(--pc);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--pc) 35%, var(--bg));
+  box-shadow: 0 4px 12px var(--shadow);
+  color: var(--text);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.drag-image.new {
+  border: 1px dashed var(--pc);
 }
 
 /* Bearbeiten: Popover an der Auswahl (nicht modal, überdeckt die folgenden Zeilen) */

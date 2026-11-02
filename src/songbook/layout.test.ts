@@ -54,6 +54,12 @@ describe('Spec songbook-view › Maßstabsgetreue Struktur', () => {
     expect(segment!.rows[1]!.bars[0]!.x).toBe(0);
   });
 
+  it('Erste Zeile eines Blocks ist gekennzeichnet', () => {
+    const block = Array.from({ length: 5 }, () => barOf());
+    const [segment] = layoutStructure(song([], [block, [barOf()]]));
+    expect(segment!.rows.map((r) => r.firstInBlock)).toEqual([true, false, true]);
+  });
+
   it('Takte tragen ihre laufende Nummer; Zeilenumbruch im Block ist kein Blockanfang', () => {
     const [segment] = layoutStructure(song([], [[barOf(), barOf(), barOf(), barOf(), barOf()], [barOf()]]));
     expect(segment!.rows.map((r) => [r.bars.map((b) => b.index), r.blockStart])).toEqual([

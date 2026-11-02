@@ -1,5 +1,6 @@
 import type { NotebookStore } from '../state/notebookStore';
 import { ConfirmProvider } from './ConfirmDialog';
+import { HitTestContext, type HitTest } from './dragPattern';
 import { LibraryFileActions } from './LibraryFileActions';
 import { PatternEditor } from './PatternEditor';
 import { SongList } from './SongList';
@@ -22,8 +23,17 @@ function CurrentView() {
   return <SongList />;
 }
 
-export function App({ store, storagePersisted = true }: { store: NotebookStore; storagePersisted?: boolean }) {
-  return (
+export function App({
+  store,
+  storagePersisted = true,
+  hitTest,
+}: {
+  store: NotebookStore;
+  storagePersisted?: boolean;
+  /** Trefferprüfung beim Ziehen; nur für Tests (jsdom hat kein elementFromPoint). */
+  hitTest?: HitTest;
+}) {
+  const app = (
     <StoreContext.Provider value={store}>
       <ConfirmProvider>
         <div className="app">
@@ -42,4 +52,5 @@ export function App({ store, storagePersisted = true }: { store: NotebookStore; 
       </ConfirmProvider>
     </StoreContext.Provider>
   );
+  return hitTest ? <HitTestContext.Provider value={hitTest}>{app}</HitTestContext.Provider> : app;
 }

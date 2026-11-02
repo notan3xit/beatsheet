@@ -1,6 +1,7 @@
 import { openSongOf } from '../state/notebookStore';
 import { CommitField } from './CommitField';
 import { useConfirm } from './ConfirmDialog';
+import { DragProvider } from './dragPattern';
 import { PatternPage } from './PatternPage';
 import { StructurePage } from './StructurePage';
 import { useOpenSong, useStore } from './useLibrary';
@@ -42,10 +43,12 @@ export function Songbook() {
   return (
     <main className="songbook" aria-label="Song">
       <SongHeader />
-      <div className="pages">
-        <StructurePage />
-        <PatternPage />
-      </div>
+      <DragProvider>
+        <div className="pages">
+          <StructurePage />
+          <PatternPage />
+        </div>
+      </DragProvider>
     </main>
   );
 }

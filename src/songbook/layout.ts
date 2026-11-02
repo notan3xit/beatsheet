@@ -78,6 +78,8 @@ export interface Row {
   blockId: string;
   /** Erste Zeile eines Blocks, der nicht der erste des Segments ist. */
   blockStart: boolean;
+  /** Erste Zeile eines Blocks (auch des ersten im Segment). */
+  firstInBlock: boolean;
   width: number;
   bars: BarFrame[];
   items: Item[];
@@ -126,7 +128,7 @@ export function layoutStructure(song: Song): SegmentLayout[] {
       const bars = resolved.filter((r) => r.blockId === block.id);
       for (let i = 0; i < bars.length; i += BARS_PER_ROW) {
         const row = layoutRow(bars.slice(i, i + BARS_PER_ROW), patterns, fills);
-        rows.push({ blockId: block.id, blockStart: b > 0 && i === 0, ...row });
+        rows.push({ blockId: block.id, blockStart: b > 0 && i === 0, firstInBlock: i === 0, ...row });
       }
     });
     return { segmentId: segment.id, name: segment.name, rows };
@@ -137,7 +139,7 @@ function layoutRow(
   bars: ResolvedBar[],
   patterns: Map<string, Pattern>,
   fills: FillInstance[],
-): Omit<Row, 'blockId' | 'blockStart'> {
+): Omit<Row, 'blockId' | 'blockStart' | 'firstInBlock'> {
   const rowStart = bars[0]!.start;
   const rowEnd = bars.at(-1)!.start + bars.at(-1)!.beats;
   const frames: BarFrame[] = [];
