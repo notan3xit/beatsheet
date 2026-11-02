@@ -36,6 +36,12 @@ Aufbau unter `src/`:
 - `npm run build`: Typprüfung und Produktions-Build
 - `npm test`: alle Tests einmal ausführen (`npm run test:watch` im Watch-Modus)
 
+## Vor dem Push
+
+- Vor jedem Push MUSS `npm test` vollständig durchlaufen und grün sein. Schlägt ein Test fehl, wird nicht gepusht, auch nicht „nur kurz“.
+- Der Hook `.githooks/pre-push` erzwingt das. `npm install` aktiviert ihn über das `prepare`-Skript (`git config core.hooksPath .githooks`); in einem frischen Klon also zuerst `npm install`.
+- Den Hook nicht mit `git push --no-verify` umgehen.
+
 ## Arbeitsweise: OpenSpec (spec-driven)
 
 Änderungen werden über [OpenSpec](https://github.com/Fission-AI/OpenSpec) geplant und umgesetzt (Schema: `spec-driven`, siehe `openspec/config.yaml`).

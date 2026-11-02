@@ -1,0 +1,8 @@
+#!/bin/sh
+# Vor jedem Push muss die komplette Test-Suite grün sein (siehe AGENTS.md, „Vor dem Push“).
+# Aktiviert über `git config core.hooksPath .githooks` (macht `npm install` über das prepare-Skript).
+echo "pre-push: npm test ..."
+if ! npm test; then
+  echo "pre-push: Tests fehlgeschlagen, Push abgebrochen." >&2
+  exit 1
+fi
