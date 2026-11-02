@@ -4,6 +4,7 @@ import { connectStore, openRepository, requestPersistentStorage } from './persis
 import { createNotebookStore, type NotebookStore } from './state/notebookStore';
 import { App } from './ui/App';
 import { installTheme } from './ui/theme';
+import { connectUrl } from './ui/urlSync';
 import './ui/styles.css';
 
 installTheme();
@@ -21,6 +22,8 @@ async function start() {
     const repo = await openRepository();
     const store = createNotebookStore(await repo.loadAll());
     connectStore(store, repo);
+    // Ansicht aus der Adresse öffnen, bevor gerendert wird (kein Aufblitzen der Song-Liste)
+    connectUrl(store);
     renderApp(store, true);
     // Manche Browser fragen den Nutzer; der Hinweis erscheint erst nach der Antwort
     if (!(await requestPersistentStorage())) renderApp(store, false);
