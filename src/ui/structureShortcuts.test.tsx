@@ -185,7 +185,7 @@ describe('Spec songbook-view › Neues Pattern ziehen', () => {
     const { user, currentSong } = setup([], (s) => appendSegment(s, { name: 'V', bars: 2 }));
     await user.click(newButton('Groove'));
     expect(currentSong().patterns).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Zurück zum Song' })).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Pattern bearbeiten' })).toBeInTheDocument();
   });
 });
 

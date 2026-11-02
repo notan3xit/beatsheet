@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { allBars } from '../domain/songPatterns';
 import { useNotebook, useStore } from './useLibrary';
 
-const barsLabel = (count: number) => (count === 1 ? '1 Takt' : `${count} Takte`);
 
 export function SongList() {
   const store = useStore();
@@ -17,6 +16,7 @@ export function SongList() {
 
   return (
     <main className="song-list" aria-label="Songs">
+      <h2 className="page-heading">Songs</h2>
       <form
         className="song-create"
         onSubmit={(e) => {
@@ -35,16 +35,31 @@ export function SongList() {
       {sorted.length === 0 ? (
         <p className="hint">Noch keine Songs. Gib oben einen Titel ein und lege deinen ersten Song an.</p>
       ) : (
-        <ul className="songs">
-          {sorted.map((song) => (
-            <li key={song.id}>
-              <button type="button" className="song-item" onClick={() => store.openSong(song.id)}>
-                <span className="song-title">{song.title}</span>
-                <span className="song-bars">{barsLabel(allBars(song).length)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <table className="songs">
+          <thead>
+            <tr>
+              <th scope="col">Titel</th>
+              <th scope="col" className="num">Takte</th>
+              <th scope="col" className="num">Grooves</th>
+              <th scope="col" className="num">Fills</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((song) => (
+              // Ganze Zeile klickbar; der Knopf im Titel dient der Tastaturbedienung (design.md D4)
+              <tr key={song.id} onClick={() => store.openSong(song.id)}>
+                <td>
+                  <button type="button" className="song-open">
+                    {song.title}
+                  </button>
+                </td>
+                <td className="num">{allBars(song).length}</td>
+                <td className="num">{song.patterns.filter((p) => p.kind === 'groove').length}</td>
+                <td className="num">{song.patterns.filter((p) => p.kind === 'fill').length}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </main>
   );

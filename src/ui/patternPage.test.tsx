@@ -60,7 +60,7 @@ describe('Spec songbook-view › Kompakte Pattern-Karten (UI)', () => {
     const { user } = setup(seed({ kind: 'groove', name: 'A' }, { kind: 'groove', name: 'Verse-Beat' }));
     await user.click(within(cardOf('Verse-Beat')).getByText('Verse-Beat'));
     expect(screen.getByRole('region', { name: 'Pattern bearbeiten' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Name')).toHaveValue('Verse-Beat');
+    expect(screen.getByRole('heading', { level: 2, name: 'Verse-Beat' })).toBeInTheDocument();
   });
 
   it('Anlegen-Knöpfe', () => {
@@ -75,7 +75,7 @@ describe('Spec songbook-view › Kompakte Pattern-Karten (UI)', () => {
     await user.click(within(cardOf('A')).getByRole('button', { name: 'A bearbeiten' }));
     await user.click(screen.getByRole('button', { name: 'Snare, Beat 1, Position 1' }));
     expect(screen.getByRole('img', { name: 'Noten: A' })).toHaveClass('notation');
-    await user.click(screen.getByRole('button', { name: 'Zurück zum Song' }));
+    await user.click(within(screen.getByRole('navigation', { name: 'Pfad' })).getAllByRole('button').at(-1)!);
     const notes = within(cardOf('A')).getByRole('img', { name: 'Noten: A' });
     expect(notes).toHaveClass('notation-card');
     expect(notes).not.toHaveClass('notation');

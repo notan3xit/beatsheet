@@ -63,7 +63,7 @@ button {
 }
 
 /* Hover nur für Buttons mit Standardfläche; Buttons mit eigener Fläche (Sequencer, Takte …) regeln das selbst */
-:where(button:not([class]), button.back, button.danger):hover:not(:disabled) {
+:where(button:not([class]), button.danger):hover:not(:disabled) {
   background: var(--control-hover);
 }
 
@@ -205,30 +205,44 @@ input {
 }
 
 .songs {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.song-item {
-  display: flex;
-  justify-content: space-between;
   width: 100%;
-  border: none;
-  border-bottom: 1px solid var(--border);
-  border-radius: 0;
-  background: transparent;
-  text-align: left;
-  padding: 0.6rem 0.4rem;
+  border-collapse: collapse;
 }
 
-.song-item:hover {
+.songs th,
+.songs td {
+  padding: 0.5rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.songs thead th {
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.songs .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  width: 5rem;
+}
+
+.songs tbody tr {
+  cursor: pointer;
+}
+
+.songs tbody tr:hover {
   background: var(--accent-soft);
 }
 
-.song-bars {
-  color: var(--muted);
-  font-size: 0.85em;
+.song-open {
+  padding: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
 }
 
 /* Doppelseite */
@@ -236,15 +250,89 @@ input {
   padding: 1rem 1.25rem;
 }
 
+/* Kopf von Doppelseite und Pattern-Editor: Pfad über der Überschrift (navigation) */
+.page-header {
+  margin-bottom: 0.25rem;
+}
+
 .songbook-header {
-  display: flex;
-  align-items: end;
-  gap: 1rem;
   margin-bottom: 1rem;
 }
 
-.songbook-header .danger {
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.page-title .danger {
   margin-left: auto;
+}
+
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.breadcrumbs li::after {
+  content: '›';
+  margin: 0 0.4rem;
+  color: var(--muted);
+}
+
+.breadcrumbs button {
+  padding: 0;
+  background: none;
+  color: var(--muted);
+}
+
+.breadcrumbs button:hover {
+  background: none;
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.page-heading,
+.editable-heading {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.song-list .page-heading {
+  margin-bottom: 0.75rem;
+}
+
+/* Überschrift und Eingabefeld gleich groß, damit beim Umschalten nichts springt */
+.heading-edit,
+.editable-heading input {
+  font: inherit;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+}
+
+.heading-edit {
+  cursor: text;
+  border-bottom: 1px dashed transparent;
+}
+
+.heading-edit:hover {
+  border-bottom-color: var(--muted);
+}
+
+.editable-heading input {
+  min-width: 12ch;
+  border-bottom: 1px solid var(--accent);
+  outline: none;
 }
 
 .pages {
@@ -776,14 +864,6 @@ button.link {
   background: var(--control-hover);
 }
 
-.back {
-  align-self: end;
-}
-
-.workspace .back {
-  margin-bottom: 1rem;
-}
-
 .pattern-list {
   list-style: none;
   margin: 0;
@@ -818,10 +898,11 @@ button.link {
   min-width: 0;
 }
 
+/* Titel, Typ, Länge und Aktionen auf einer Schriftlinie */
 .editor-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: baseline;
   gap: 1rem;
   margin-bottom: 1rem;
 }
@@ -845,7 +926,18 @@ button.link {
   border-radius: 999px;
   background: var(--beat-alt);
   color: var(--muted);
-  align-self: center;
+}
+
+/* Länge im Kopf: Label links neben dem Dropdown, kompakt */
+.editor-header .field {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.editor-header select {
+  padding: 0.1rem 0.3rem;
+  font-size: 0.85rem;
 }
 
 .editor-actions {

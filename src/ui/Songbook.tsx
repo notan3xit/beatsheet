@@ -1,7 +1,7 @@
-import { openSongOf } from '../state/notebookStore';
-import { CommitField } from './CommitField';
+import { Breadcrumbs } from './Breadcrumbs';
 import { useConfirm } from './ConfirmDialog';
 import { DragProvider } from './dragPattern';
+import { EditableHeading } from './EditableHeading';
 import { PatternPage } from './PatternPage';
 import { StructurePage } from './StructurePage';
 import { useOpenSong, useStore } from './useLibrary';
@@ -18,23 +18,15 @@ function SongHeader() {
   };
 
   return (
-    <div className="songbook-header">
-      <button type="button" className="back" onClick={() => store.backToList()}>
-        Alle Songs
-      </button>
-      <CommitField
-        key={song.id}
-        label="Songtitel"
-        value={song.title}
-        onCommit={(draft) => {
-          store.renameSong(song.id, draft);
-          return openSongOf(store.getState())?.title ?? song.title;
-        }}
-      />
-      <button type="button" className="danger" onClick={() => void remove()}>
-        Song löschen
-      </button>
-    </div>
+    <header className="page-header songbook-header">
+      <Breadcrumbs />
+      <div className="page-title">
+        <EditableHeading key={song.id} label="Songtitel" value={song.title} onCommit={(draft) => store.renameSong(song.id, draft)} />
+        <button type="button" className="danger" onClick={() => void remove()}>
+          Song löschen
+        </button>
+      </div>
+    </header>
   );
 }
 

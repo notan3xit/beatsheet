@@ -27,25 +27,26 @@ describe('Spec pattern-library › Pattern anlegen (UI)', () => {
   it('Groove und Fill über die Patternseite anlegen', async () => {
     const { user, patternsNow } = setup([], 'book');
     await user.click(within(patternPage()).getByRole('button', { name: 'Neuer Groove' }));
-    await user.click(screen.getByRole('button', { name: 'Zurück zum Song' }));
+    await user.click(within(screen.getByRole('navigation', { name: 'Pfad' })).getAllByRole('button').at(-1)!);
     await user.click(within(patternPage()).getByRole('button', { name: 'Neuer Fill' }));
     expect(patternsNow().map((p) => [p.kind, p.beats.length, p.name])).toEqual([
       ['groove', 4, 'Groove 1'],
       ['fill', 1, 'Fill 1'],
     ]);
-    expect(screen.getByLabelText('Name')).toHaveValue('Fill 1');
+    expect(screen.getByRole('heading', { level: 2, name: 'Fill 1' })).toBeInTheDocument();
   });
 });
 
 describe('Spec pattern-library › Pattern-Namen (UI)', () => {
   it('Leerer Name wird abgelehnt', async () => {
     const { user, patternsNow } = setup(seed({ kind: 'groove', name: 'Verse' }));
+    await user.click(screen.getByRole('heading', { level: 2, name: 'Verse' }));
     const input = screen.getByLabelText('Name');
     await user.clear(input);
     await user.type(input, '   ');
     await user.tab();
     expect(patternsNow()[0]!.name).toBe('Verse');
-    expect(input).toHaveValue('Verse');
+    expect(screen.getByRole('heading', { level: 2, name: 'Verse' })).toBeInTheDocument();
   });
 });
 
@@ -90,7 +91,7 @@ describe('Spec pattern-library › Pattern duplizieren (UI)', () => {
     const { user, patternsNow } = setup(seed({ kind: 'groove', name: 'Verse' }));
     await user.click(screen.getByRole('button', { name: 'Duplizieren' }));
     expect(patternsNow().map((p) => p.name)).toEqual(['Verse', 'Verse (Kopie)']);
-    expect(screen.getByLabelText('Name')).toHaveValue('Verse (Kopie)');
+    expect(screen.getByRole('heading', { level: 2, name: 'Verse (Kopie)' })).toBeInTheDocument();
   });
 });
 

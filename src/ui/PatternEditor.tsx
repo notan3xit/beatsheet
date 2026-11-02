@@ -1,27 +1,18 @@
 import { useEffect } from 'react';
 import { resizeWouldRemoveHits } from '../domain/pattern';
 import { MAX_LENGTH, MIN_LENGTH, type Pattern } from '../domain/types';
-import { openSongOf } from '../state/notebookStore';
-import { CommitField } from './CommitField';
+import { Breadcrumbs } from './Breadcrumbs';
 import { useConfirm } from './ConfirmDialog';
+import { EditableHeading } from './EditableHeading';
 import { NotationView } from './NotationView';
 import { Sequencer } from './Sequencer';
 import { useNotebook, useStore } from './useLibrary';
 
 const LENGTHS = Array.from({ length: MAX_LENGTH - MIN_LENGTH + 1 }, (_, i) => i + MIN_LENGTH);
 
-function NameField({ pattern }: { pattern: Pattern }) {
+function NameHeading({ pattern }: { pattern: Pattern }) {
   const store = useStore();
-  return (
-    <CommitField
-      label="Name"
-      value={pattern.name}
-      onCommit={(draft) => {
-        store.rename(pattern.id, draft);
-        return openSongOf(store.getState())?.patterns.find((p) => p.id === pattern.id)?.name ?? pattern.name;
-      }}
-    />
-  );
+  return <EditableHeading label="Name" value={pattern.name} onCommit={(draft) => store.rename(pattern.id, draft)} />;
 }
 
 const isTextInput = (target: EventTarget | null) =>
@@ -70,11 +61,11 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
 
   return (
     <section className="editor" aria-label="Pattern bearbeiten">
-      <button type="button" className="back" onClick={() => store.backToBook()}>
-        Zurück zum Song
-      </button>
+      <header className="page-header">
+        <Breadcrumbs />
+      </header>
       <div className="editor-header">
-        <NameField key={pattern.id} pattern={pattern} />
+        <NameHeading key={pattern.id} pattern={pattern} />
         <label className="field">
           Länge (Beats)
           <select value={pattern.beats.length} onChange={(e) => void changeLength(Number(e.target.value))}>

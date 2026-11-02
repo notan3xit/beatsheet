@@ -38,7 +38,7 @@ describe('Spec songbook-view › Doppelseite', () => {
     const before = within(patternCards()[0]!).getByRole('img', { name: 'Noten: Verse-Beat' }).innerHTML;
     await user.click(within(patternPage()).getByRole('button', { name: 'Verse-Beat bearbeiten' }));
     await user.click(screen.getByRole('button', { name: 'Snare, Beat 1, Position 1' }));
-    await user.click(screen.getByRole('button', { name: 'Zurück zum Song' }));
+    await user.click(within(screen.getByRole('navigation', { name: 'Pfad' })).getAllByRole('button').at(-1)!);
     const card = patternCards()[0]!;
     expect(within(card).getByRole('img', { name: 'Noten: Verse-Beat' }).innerHTML).not.toBe(before);
   });
@@ -93,7 +93,7 @@ describe('Spec songbook-view › Fill-Blöcke (UI)', () => {
     // Fill mit Schlägen, damit sichtbar wird, dass trotzdem keine Noten erscheinen
     await user.click(within(patternPage()).getByRole('button', { name: 'f1 bearbeiten' }));
     await user.click(screen.getByRole('button', { name: 'Snare, Beat 1, Position 1' }));
-    await user.click(screen.getByRole('button', { name: 'Zurück zum Song' }));
+    await user.click(within(screen.getByRole('navigation', { name: 'Pfad' })).getAllByRole('button').at(-1)!);
     act(() => store.updateSong((song) => {
       const withSegment = appendSegment(song, { name: 'Verse', bars: 4, grooveId: patterns[0]!.id });
       const last = withSegment.segments[0]!.blocks[0]!.bars[3]!;
