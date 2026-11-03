@@ -15,12 +15,15 @@
 **Farbregel:** Im CSS stehen keine Farbliterale (Hex, `rgb()`, benannte Farben). Komponenten verwenden die semantischen Tokens aus `src/ui/styles.css` (`--bg`, `--surface`, `--text`, `--accent`, `--danger` …), und die Tokens verweisen auf `--ctp-*`. `red` ist für Fehler und destruktive Aktionen reserviert (`--danger`). `src/ui/styles.test.ts` prüft das.
 
 Aufbau unter `src/`:
-- `domain`: reine Fachlogik. Datenmodell `Song` → `Segment` → `Block` → `Bar`, Patterns gehören zum Song. Dazu `pattern`/`sequencer` (Pattern-Inhalt), `structure` (Struktur-Operationen), `songPatterns` (Patterns im Song, Farben) und `timeline` (Groove-Fortlauf, Fill-Überdeckung).
+- `domain`: reine Fachlogik. Datenmodell `Song` → `Segment` → `Block` → `Bar`, Patterns gehören zum Song. Dazu `pattern`/`sequencer` (Pattern-Inhalt), `structure` (Struktur-Operationen), `songPatterns` (Patterns im Song, Farben), `timeline` (Groove-Fortlauf, Fill-Überdeckung) und `playback` (Tempo, Zeitplan eines Patterns für die Wiedergabe).
 - `notation`: Notationsmodell und VexFlow-Renderer, inklusive Mini-Darstellung (`compact`)
 - `songbook`: Layout der linken Buchseite (`layout.ts`, Positionen in Beats)
-- `persistence`: Dateiformat (Schemaversion 2, v1 weiterhin lesbar), Merge pro Song, IndexedDB (ein Datensatz pro Song)
+- `audio`: Wiedergabe über Web Audio: synthetisierte Stimmen (`voices`), vorausplanender Scheduler (`scheduler`), `player` als einzige Stelle mit `AudioContext`
+- `persistence`: Dateiformat (Schemaversion 3, v1 und v2 weiterhin lesbar), Merge pro Song, IndexedDB (ein Datensatz pro Song)
 - `state`: `notebookStore` (Songs, Navigation Liste/Doppelseite/Pattern-Editor, Undo im Pattern-Editor)
 - `ui`: React-Komponenten
+
+**Dateiformat erweitern:** Ein neues Feld, das eine ältere Version gefahrlos übergehen kann, kommt optional mit Vorgabewert dazu, ohne neue Schemaversion. Der Import ignoriert unbekannte Felder (keine `.strict()`-Schemata), damit ältere Versionen neuere Dateien lesen können. Die Schemaversion steigt nur, wenn eine ältere Version die Datei sonst falsch verstünde (Bedeutung eines Felds ändert sich, Pflichtfeld entfällt, Struktur wird umgebaut).
 
 `domain`, `notation/model`, `songbook` und die Format-/Merge-Logik in `persistence` haben keine Abhängigkeit zu React oder Browser-APIs. Änderungen an einem Song laufen immer über reine Funktionen und `store.updateSong`, damit Revision und Speicherung stimmen.
 

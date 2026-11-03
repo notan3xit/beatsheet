@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { toggleHit } from '../domain/sequencer';
+import { setTempo } from '../domain/playback';
 import { appendSegment } from '../domain/structure';
 import { notebookWith } from '../test/notebook';
 import { emptyBeats, patternOf } from '../test/patterns';
@@ -17,6 +18,28 @@ describe('Spec song-library › Song anlegen', () => {
     const store = createNotebookStore();
     expect(store.createSong('').title).toBe('Neuer Song');
     expect(store.createSong('   ').title).toBe('Neuer Song');
+  });
+});
+
+describe('Spec song-library › Song-Tempo', () => {
+  it('Tempo eines neuen Songs', () => {
+    expect(createNotebookStore().createSong('Hysteria').tempo).toBe(120);
+  });
+
+  it('Tempo ändern erhöht die Revision', () => {
+    const { store, currentSong } = notebookWith([], 'book');
+    const before = currentSong().revision;
+    store.updateSong((s) => setTempo(s, 140));
+    expect(currentSong()).toMatchObject({ tempo: 140, revision: before + 1 });
+  });
+
+  it('Tempo außerhalb des Bereichs und gleiches Tempo lassen die Revision unverändert', () => {
+    const { store, currentSong } = notebookWith([], 'book');
+    const before = currentSong();
+    store.updateSong((s) => setTempo(s, 301));
+    store.updateSong((s) => setTempo(s, 29));
+    store.updateSong((s) => setTempo(s, before.tempo));
+    expect(currentSong()).toBe(before);
   });
 });
 

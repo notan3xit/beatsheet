@@ -148,3 +148,17 @@ describe('Spec library-persistence › Dauerhaften Speicher anfordern', () => {
     expect(await requestPersistentStorage(undefined)).toBe(false);
   });
 });
+
+describe('Spec library-persistence › Lokal gespeicherte Songs ohne Tempo', () => {
+  it('Start nach dem Update', async () => {
+    const dbName = uniqueDb();
+    (await openRepository(dbName)).close();
+    const { tempo: _tempo, ...legacy } = { ...songWith({ title: 'Alt' }), revision: 6 };
+    const raw = await openDB(dbName, 2);
+    await raw.put('songs', legacy);
+    raw.close();
+
+    const [loaded] = await (await openRepository(dbName)).loadAll();
+    expect(loaded).toEqual({ ...legacy, tempo: 120, revision: 6 });
+  });
+});

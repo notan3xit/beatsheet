@@ -33,13 +33,61 @@ describe('Spec library-persistence › Export der Bibliothek', () => {
     expect(file).toMatchObject({ format: 'drumstuff.library', schemaVersion: 3, exportedAt: NOW.toISOString() });
     expect(file.songs.map((s: Song) => s.title)).toEqual(['Hysteria', 'Leer']);
     expect(Object.keys(file.songs[0]).sort()).toEqual(
-      ['createdAt', 'id', 'patterns', 'revision', 'segments', 'title', 'updatedAt'].sort(),
+      ['createdAt', 'id', 'patterns', 'revision', 'segments', 'tempo', 'title', 'updatedAt'].sort(),
     );
   });
 
   it('Export ist verlustfrei', () => {
     const songs = [richSong(), songWith({ title: 'Leer' })];
     expect(parseNotebookFile(serializeNotebook(songs, NOW))).toEqual({ ok: true, songs });
+  });
+});
+
+describe('Spec library-persistence › Tempo im Format', () => {
+  it('Tempo im Export', () => {
+    const songs = [songWith({ title: 'Langsam', tempo: 96 })];
+    const result = parseNotebookFile(serializeNotebook(songs, NOW));
+    expect(result).toEqual({ ok: true, songs });
+    expect(result.ok && result.songs[0]!.tempo).toBe(96);
+  });
+
+  it.each([0, 72.5, 29, 301, '120'])('Ungültiges Tempo %s', (tempo) => {
+    const file = fileOf([richSong()]);
+    file.songs[0].tempo = tempo;
+    const result = parseNotebookFile(JSON.stringify(file));
+    expect(!result.ok && result.error).toMatch(/beschädigt/);
+  });
+
+  it('Export ohne Tempo importieren (Schemaversion 3)', () => {
+    const song = songWithArticulations();
+    const file = fileOf([song]);
+    delete file.songs[0].tempo;
+    expect(file.schemaVersion).toBe(3);
+    expect(parseNotebookFile(JSON.stringify(file))).toEqual({ ok: true, songs: [{ ...song, tempo: 120 }] });
+  });
+
+  it('Datei der Schemaversion 2', () => {
+    const song = songWith({ title: 'Alt', tempo: 140 });
+    const file = { ...fileOf([song]), schemaVersion: 2 };
+    delete file.songs[0].tempo;
+    expect(parseNotebookFile(JSON.stringify(file))).toEqual({ ok: true, songs: [{ ...song, tempo: 120 }] });
+  });
+});
+
+describe('Spec library-persistence › Unbekannte Felder in Importdateien', () => {
+  it('Zusätzliches Feld aus einer neueren Version', () => {
+    const song = richSong();
+    const file = fileOf([song]);
+    file.producer = 'drumstuff 9';
+    file.songs[0].key = 'E-Moll';
+    file.songs[0].segments[0].mood = 'ruhig';
+    file.songs[0].segments[0].blocks[0].repeat = 2;
+    file.songs[0].segments[0].blocks[0].bars[0].dynamics = 'p';
+    file.songs[0].segments[0].blocks[0].bars[0].accents[0].velocity = 0.8;
+    file.songs[0].patterns[0].swing = 0.6;
+    file.songs[0].patterns[0].beats[0].humanize = true;
+    const result = parseNotebookFile(JSON.stringify(file));
+    expect(result).toEqual({ ok: true, songs: [song] });
   });
 });
 

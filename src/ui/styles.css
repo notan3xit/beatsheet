@@ -21,6 +21,8 @@
   --accent-fill-hover-mix: 35%;
   --on-accent-fill: var(--text);
   --step-on-mix: 60%;
+  /* Gerade erklingende Spalte im Sequencer */
+  --playhead: var(--ctp-blue);
   --danger: var(--ctp-red);
   --success: var(--ctp-green);
   --warning: var(--ctp-yellow);
@@ -997,6 +999,27 @@ button.link {
   font-size: 0.85rem;
 }
 
+.transport {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+/* Feste Breite, damit „Abspielen“/„Stopp“ die Zeile nicht verschiebt */
+.transport .play {
+  min-width: 6.5rem;
+}
+
+.transport .tempo-field input {
+  min-width: 0;
+  width: 4.5rem;
+}
+
+.transport .hint {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
 .editor-actions {
   display: flex;
   gap: 0.5rem;
@@ -1076,6 +1099,11 @@ button.link {
 
 .step[aria-pressed='true'] {
   background: color-mix(in srgb, var(--accent) var(--step-on-mix), var(--bg));
+}
+
+/* Wiedergabeposition: Rahmen statt Füllung, damit gesetzte Schläge erkennbar bleiben */
+.step.playing {
+  box-shadow: inset 0 0 0 2px var(--playhead);
 }
 
 /* Spielweisen: Flam als kleiner Vorschlag-Punkt links oben, Ghost Note blass mit Klammern */

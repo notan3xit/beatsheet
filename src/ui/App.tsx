@@ -1,8 +1,11 @@
+import { useState } from 'react';
+import { createWebAudioPlayer, type Player } from '../audio/player';
 import type { NotebookStore } from '../state/notebookStore';
 import { ConfirmProvider } from './ConfirmDialog';
 import { HitTestContext, type HitTest } from './dragPattern';
 import { LibraryFileActions } from './LibraryFileActions';
 import { PatternEditor } from './PatternEditor';
+import { PlayerContext } from './playback';
 import { SongList } from './SongList';
 import { Songbook } from './Songbook';
 import { StoreContext, useNotebook, useOpenSong } from './useLibrary';
@@ -27,29 +30,35 @@ export function App({
   store,
   storagePersisted = true,
   hitTest,
+  player: playerProp,
 }: {
   store: NotebookStore;
   storagePersisted?: boolean;
   /** Trefferprüfung beim Ziehen; nur für Tests (jsdom hat kein elementFromPoint). */
   hitTest?: HitTest;
+  /** Audio-Wiedergabe; Vorgabe Web Audio, in Tests ein Nachbau. */
+  player?: Player;
 }) {
+  const [player] = useState(() => playerProp ?? createWebAudioPlayer());
   const app = (
     <StoreContext.Provider value={store}>
-      <ConfirmProvider>
-        <div className="app">
-          <header className="app-header">
-            <h1>Drumstuff</h1>
-            <LibraryFileActions />
-          </header>
-          {!storagePersisted && (
-            <p role="note" className="storage-note">
-              Der Browser hat keinen dauerhaften Speicher gewährt. Deine Daten könnten gelöscht werden. Sichere sie
-              regelmäßig über „Exportieren“.
-            </p>
-          )}
-          <CurrentView />
-        </div>
-      </ConfirmProvider>
+      <PlayerContext.Provider value={player}>
+        <ConfirmProvider>
+          <div className="app">
+            <header className="app-header">
+              <h1>Drumstuff</h1>
+              <LibraryFileActions />
+            </header>
+            {!storagePersisted && (
+              <p role="note" className="storage-note">
+                Der Browser hat keinen dauerhaften Speicher gewährt. Deine Daten könnten gelöscht werden. Sichere sie
+                regelmäßig über „Exportieren“.
+              </p>
+            )}
+            <CurrentView />
+          </div>
+        </ConfirmProvider>
+      </PlayerContext.Provider>
     </StoreContext.Provider>
   );
   return hitTest ? <HitTestContext.Provider value={hitTest}>{app}</HitTestContext.Provider> : app;

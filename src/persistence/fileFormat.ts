@@ -3,10 +3,13 @@ import { nextColor, type Deps } from '../domain/pattern';
 import {
   ARTICULATED,
   ARTICULATIONS,
+  DEFAULT_TEMPO,
   INSTRUMENTS,
   MAX_BAR_BEATS,
   MAX_LENGTH,
+  MAX_TEMPO,
   MIN_LENGTH,
+  MIN_TEMPO,
   PATTERN_COLORS,
   SUBDIVISIONS,
   type Pattern,
@@ -29,7 +32,6 @@ const beatSchema = z
       .partialRecord(z.enum(ARTICULATED as [string, ...string[]]), z.record(z.string().regex(/^\d+$/), z.enum(ARTICULATIONS)))
       .optional(),
   })
-  .strict()
   .superRefine((beat, ctx) => {
     for (const [instrument, byPosition] of Object.entries(beat.articulations ?? {})) {
       const set = beat.hits[instrument as keyof typeof beat.hits] ?? [];
@@ -57,9 +59,9 @@ const patternFields = {
   revision: z.number().int().positive(),
 };
 
-const patternSchema = z.object({ ...patternFields, color: z.enum(PATTERN_COLORS) }).strict();
+const patternSchema = z.object({ ...patternFields, color: z.enum(PATTERN_COLORS) });
 /** Schemaversion 1: Patterns ohne Farbe. */
-const patternV1Schema = z.object(patternFields).strict();
+const patternV1Schema = z.object(patternFields);
 
 const accentSchema = z
   .object({
@@ -67,7 +69,7 @@ const accentSchema = z
     beat: z.number().int().nonnegative(),
     position: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
   })
-  .strict();
+  ;
 
 const barSchema = z
   .object({
@@ -77,28 +79,28 @@ const barSchema = z
     fillId: z.string().nullable(),
     accents: z.array(accentSchema),
   })
-  .strict()
   .refine((bar) => bar.accents.every((a) => a.beat < bar.beats), 'Akzent außerhalb des Takts');
 
 const songSchema = z
   .object({
     id: z.string().min(1),
     title: nonEmpty('Titel'),
+    /** Fehlt das Tempo (ältere Dateien), gilt die Vorgabe. */
+    tempo: z.number().int().min(MIN_TEMPO).max(MAX_TEMPO).default(DEFAULT_TEMPO),
     patterns: z.array(patternSchema),
     segments: z.array(
       z
         .object({
           id: z.string().min(1),
           name: nonEmpty('Name'),
-          blocks: z.array(z.object({ id: z.string().min(1), bars: z.array(barSchema).min(1) }).strict()),
+          blocks: z.array(z.object({ id: z.string().min(1), bars: z.array(barSchema).min(1) })),
         })
-        .strict(),
+        ,
     ),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
     revision: z.number().int().positive(),
   })
-  .strict()
   .superRefine((song, ctx) => {
     const kinds = new Map(song.patterns.map((p) => [p.id, p.kind]));
     for (const bar of song.segments.flatMap((s) => s.blocks.flatMap((b) => b.bars))) {
@@ -111,7 +113,11 @@ const songSchema = z
     }
   });
 
-/** Schemaversion 2 und 3 teilen die Form; Version 2 enthält nur keine Spielweisen. */
+/**
+ * Schemaversion 2 und 3 teilen die Form; Version 2 enthält nur keine Spielweisen.
+ * Unbekannte Felder werden auf allen Ebenen entfernt statt abgewiesen: Neue optionale Felder
+ * brauchen so keine neue Schemaversion (siehe AGENTS.md).
+ */
 const fileSchemaV2 = z.object({
   format: z.literal(FORMAT_ID),
   schemaVersion: z.union([z.literal(2), z.literal(3)]),
@@ -148,6 +154,7 @@ export function songFromV1Patterns(patterns: readonly Omit<Pattern, 'color'>[], 
   return {
     id: deps?.newId() ?? crypto.randomUUID(),
     title: IMPORTED_SONG_TITLE,
+    tempo: DEFAULT_TEMPO,
     patterns: colored,
     segments: [],
     createdAt: timestamp,

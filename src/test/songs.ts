@@ -9,7 +9,13 @@ export function barOf(overrides: Partial<Bar> = {}): Bar {
 }
 
 /** Testhilfe: Song mit optional einem Segment aus einem Block mit n Takten (ggf. mit einem Groove). */
-export function songWith(opts: { title?: string; bars?: number; groove?: boolean; patterns?: Pattern[] }): Song {
+export function songWith(opts: {
+  title?: string;
+  bars?: number;
+  groove?: boolean;
+  patterns?: Pattern[];
+  tempo?: number;
+}): Song {
   const patterns = [...(opts.patterns ?? [])];
   if (opts.groove) patterns.push(createPattern(patterns, { kind: 'groove', name: 'A' }));
   const grooveId = opts.groove ? patterns[patterns.length - 1]!.id : null;
@@ -17,6 +23,7 @@ export function songWith(opts: { title?: string; bars?: number; groove?: boolean
   return {
     id: id('song'),
     title: opts.title ?? 'Test',
+    tempo: opts.tempo ?? 120,
     patterns,
     segments: opts.bars
       ? [

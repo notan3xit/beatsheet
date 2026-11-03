@@ -1,3 +1,4 @@
+import type { Step } from '../domain/playback';
 import { articulationAt, changeSubdivision, cycleArticulation, toggleHit } from '../domain/sequencer';
 import {
   ARTICULATION_LABELS,
@@ -11,7 +12,8 @@ import {
 import { useConfirm } from './ConfirmDialog';
 import { useStore } from './useLibrary';
 
-export function Sequencer({ pattern }: { pattern: Pattern }) {
+/** `playhead`: gerade erklingende Rasterposition, wird in allen Zeilen hervorgehoben. */
+export function Sequencer({ pattern, playhead = null }: { pattern: Pattern; playhead?: Step | null }) {
   const store = useStore();
   const confirm = useConfirm();
 
@@ -68,7 +70,9 @@ export function Sequencer({ pattern }: { pattern: Pattern }) {
                   <button
                     type="button"
                     key={position}
-                    className={`step${position === 0 ? ' downbeat' : ''}`}
+                    className={`step${position === 0 ? ' downbeat' : ''}${
+                      playhead?.beat === b && playhead.position === position ? ' playing' : ''
+                    }`}
                     aria-pressed={active}
                     aria-label={articulation ? `${label}, ${ARTICULATION_LABELS[articulation]}` : label}
                     data-articulation={articulation}

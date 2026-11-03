@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from 'idb';
-import type { Pattern, Song } from '../domain/types';
+import { DEFAULT_TEMPO, type Pattern, type Song } from '../domain/types';
 import type { NotebookStore } from '../state/notebookStore';
 import { songFromV1Patterns } from './fileFormat';
 
@@ -41,7 +41,8 @@ export async function openRepository(name = 'drumstuff'): Promise<Repository> {
     },
   });
   return {
-    loadAll: () => db.getAll('songs'),
+    // Songs aus Versionen ohne Tempo bekommen die Vorgabe; ohne Revision, geschrieben wird erst bei der nächsten Änderung
+    loadAll: async () => (await db.getAll('songs')).map((song) => ({ ...song, tempo: song.tempo ?? DEFAULT_TEMPO })),
     async write({ put, remove }) {
       const tx = db.transaction('songs', 'readwrite');
       await Promise.all([...put.map((s) => tx.store.put(s)), ...remove.map((id) => tx.store.delete(id)), tx.done]);

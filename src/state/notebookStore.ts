@@ -6,7 +6,7 @@ import {
   type Deps,
 } from '../domain/pattern';
 import { addPattern, patternUsage, removePattern } from '../domain/songPatterns';
-import type { Pattern, PatternKind, Song } from '../domain/types';
+import { DEFAULT_TEMPO, type Pattern, type PatternKind, type Song } from '../domain/types';
 
 export const HISTORY_LIMIT = 50;
 
@@ -151,6 +151,7 @@ export function createNotebookStore(initial: Song[] = [], deps?: Deps): Notebook
       const song: Song = {
         id: newId(),
         title: title.trim() || 'Neuer Song',
+        tempo: DEFAULT_TEMPO,
         patterns: [],
         segments: [],
         createdAt: timestamp,

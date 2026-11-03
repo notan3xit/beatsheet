@@ -5,8 +5,9 @@ import { Breadcrumbs } from './Breadcrumbs';
 import { useConfirm } from './ConfirmDialog';
 import { EditableHeading } from './EditableHeading';
 import { NotationView } from './NotationView';
+import { Transport, usePlayback } from './playback';
 import { Sequencer } from './Sequencer';
-import { useNotebook, useStore } from './useLibrary';
+import { useNotebook, useOpenSong, useStore } from './useLibrary';
 
 const LENGTHS = Array.from({ length: MAX_LENGTH - MIN_LENGTH + 1 }, (_, i) => i + MIN_LENGTH);
 
@@ -38,6 +39,7 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
   const store = useStore();
   const { canUndo, canRedo } = useNotebook();
   const confirm = useConfirm();
+  const playback = usePlayback(pattern, useOpenSong().tempo);
   useUndoShortcuts();
 
   const changeLength = async (length: number) => {
@@ -77,6 +79,7 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
           </select>
         </label>
         <span className="kind-badge">{pattern.kind === 'groove' ? 'Groove' : 'Fill'}</span>
+        <Transport playback={playback} />
         <div className="editor-actions">
           <button type="button" disabled={!canUndo} onClick={() => store.undo()} title="Strg+Z">
             Rückgängig
@@ -93,7 +96,7 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
         </div>
       </div>
       <div className="sequencer-scroll">
-        <Sequencer pattern={pattern} />
+        <Sequencer pattern={pattern} playhead={playback.step} />
       </div>
       <NotationView pattern={pattern} />
     </section>

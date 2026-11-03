@@ -127,6 +127,8 @@ export interface Segment {
 export interface Song {
   id: string;
   title: string;
+  /** Tempo in BPM, ganzzahlig von MIN_TEMPO bis MAX_TEMPO. */
+  tempo: number;
   patterns: Pattern[];
   segments: Segment[];
   createdAt: string;
@@ -140,3 +142,7 @@ export const MAX_SEGMENT_BARS = 64;
 export const MIN_LENGTH = 1;
 export const MAX_LENGTH = 16;
 export const DEFAULT_SUBDIVISION: Subdivision = 4;
+
+export const DEFAULT_TEMPO = 120;
+export const MIN_TEMPO = 30;
+export const MAX_TEMPO = 300;
