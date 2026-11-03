@@ -60,3 +60,11 @@ describe('Spec songbook-view › Fill-Kurzschrift', () => {
     expect(first!.slot).toBeCloseTo(1 / 3);
   });
 });
+
+describe('Fill-Kurzschrift mit Zweiunddreißigsteln (thirty-second-notes)', () => {
+  it('Snare-Roll: acht Zeichen mit Breite 1/8', () => {
+    const roll = shorthand(patternOf([{ sub: 8, hits: { snare: [1, 2, 3, 4, 5, 6, 7, 8] } }], 'fill'));
+    expect(roll.map((m) => [m.time, m.char])).toEqual(Array.from({ length: 8 }, (_, i) => [i / 8, 's']));
+    expect(roll.every((m) => m.slot === 1 / 8)).toBe(true);
+  });
+});

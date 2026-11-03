@@ -65,7 +65,7 @@ export function noteFor(event: NotationEvent, voice: VoiceName): StaveNote {
     stemDirection: STEM[voice],
   });
   note.setStemStyle({ strokeStyle: INK });
-  if (event.duration === '8d') Dot.buildAndAttach([note], { all: true });
+  if (event.duration.endsWith('d')) Dot.buildAndAttach([note], { all: true });
   // Ganze Pause eines leeren Takts mittig im Takt
   if (isRest && event.duration === 'w') note.setCenterAlignment(true);
   if (event.keys.some((k) => k.open)) {
@@ -122,7 +122,8 @@ function buildVoice(groups: BeatGroup[], name: VoiceName, beatCount: number): Bu
       tuplets.push(
         new Tuplet(groupNotes, {
           numNotes: group.tuplet,
-          notesOccupied: group.tuplet === 3 ? 2 : 4,
+          // Triolen: drei im Raum von zwei (3 → 2, 6 → 4, 12 → 8)
+          notesOccupied: (group.tuplet * 2) / 3,
           location: name === 'up' ? 1 : -1,
           bracketed: true,
           ratioed: false,

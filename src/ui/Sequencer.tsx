@@ -9,6 +9,9 @@ import {
   type Pattern,
   type Subdivision,
 } from '../domain/types';
+
+/** Mindestbreite eines Beats in rem; 32tel und 32tel-Triolen brauchen Platz für acht bzw. zwölf bedienbare Zellen (design.md D3). */
+const BEAT_MIN_WIDTH: Record<Subdivision, number> = { 2: 6.5, 3: 6.5, 4: 6.5, 6: 6.5, 8: 12, 12: 18 };
 import { useConfirm } from './ConfirmDialog';
 import { useStore } from './useLibrary';
 
@@ -34,7 +37,9 @@ export function Sequencer({ pattern, playhead = null }: { pattern: Pattern; play
       role="grid"
       aria-label="Sequencer"
       className="sequencer"
-      style={{ gridTemplateColumns: `10.5rem repeat(${pattern.beats.length}, minmax(6.5rem, 1fr))` }}
+      style={{
+        gridTemplateColumns: `10.5rem ${pattern.beats.map((b) => `minmax(${BEAT_MIN_WIDTH[b.subdivision]}rem, 1fr)`).join(' ')}`,
+      }}
     >
       <div role="row" className="sequencer-row sequencer-head">
         <div role="columnheader" className="sequencer-corner" />

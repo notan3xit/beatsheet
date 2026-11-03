@@ -29,14 +29,18 @@ export const INSTRUMENT_LABELS: Record<Instrument, string> = {
   hihatPedal: 'Hi-Hat-Pedal',
 };
 
-export const SUBDIVISIONS = [2, 4, 3, 6] as const;
+/** Reihenfolge der Auswahl: gerade Werte aufsteigend, dann Triolen. */
+export const SUBDIVISIONS = [2, 4, 8, 3, 6, 12] as const;
 export type Subdivision = (typeof SUBDIVISIONS)[number];
 
+/** Kurze Bezeichnungen für die schmale Auswahl im Sequencer. */
 export const SUBDIVISION_LABELS: Record<Subdivision, string> = {
-  2: 'Achtel',
-  4: 'Sechzehntel',
-  3: 'Achteltriolen',
-  6: 'Sechzehnteltriolen',
+  2: '8tel',
+  4: '16tel',
+  8: '32tel',
+  3: '8tel-Triolen',
+  6: '16tel-Triolen',
+  12: '32tel-Triolen',
 };
 
 /** Spielweise eines Schlags; fehlt sie, wird normal gespielt. */

@@ -70,16 +70,48 @@ describe('Spec pattern-sequencer › Schläge setzen und entfernen (UI)', () => 
 describe('Spec pattern-sequencer › Unterteilung pro Beat (UI)', () => {
   it('Beat auf Triolen umstellen', async () => {
     const { user, current } = setup(patternOf(emptyBeats(4)));
-    await user.selectOptions(screen.getByLabelText('Unterteilung Beat 2'), 'Achteltriolen');
+    await user.selectOptions(screen.getByLabelText('Unterteilung Beat 2'), '8tel-Triolen');
     expect(current().beats.map((b) => b.subdivision)).toEqual([4, 3, 4, 4]);
     expect(within(row('Snare')).getAllByRole('button', { name: /Beat 2,/ })).toHaveLength(3);
+  });
+});
+
+describe('Spec pattern-sequencer › Unterteilung Zweiunddreißigstel (UI)', () => {
+  it('Bezeichnungen in der Auswahl; Beat auf Zweiunddreißigstel umstellen', async () => {
+    const { user, current } = setup(patternOf(emptyBeats(4)));
+    const select = screen.getByLabelText('Unterteilung Beat 1');
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual([
+      '8tel',
+      '16tel',
+      '32tel',
+      '8tel-Triolen',
+      '16tel-Triolen',
+      '32tel-Triolen',
+    ]);
+    await user.selectOptions(select, '32tel');
+    expect(current().beats.map((b) => b.subdivision)).toEqual([8, 4, 4, 4]);
+    expect(within(row('Snare')).getAllByRole('button', { name: /Beat 1,/ })).toHaveLength(8);
+  });
+
+  it('Beat auf 32tel-Triolen umstellen', async () => {
+    const { user, current } = setup(patternOf(emptyBeats(4)));
+    await user.selectOptions(screen.getByLabelText('Unterteilung Beat 2'), '32tel-Triolen');
+    expect(current().beats.map((b) => b.subdivision)).toEqual([4, 12, 4, 4]);
+    expect(within(row('Snare')).getAllByRole('button', { name: /Beat 2,/ })).toHaveLength(12);
+  });
+
+  it('Zweiunddreißigstel nach Sechzehntel mit Verlust fragt nach', async () => {
+    const { user, current } = setup(patternOf([{ sub: 8, hits: { snare: [1, 2] } }]));
+    await user.selectOptions(screen.getByLabelText('Unterteilung Beat 1'), '16tel');
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Bestätigen' }));
+    expect(current().beats[0]).toEqual({ subdivision: 4, hits: { snare: [0] } });
   });
 });
 
 describe('Spec pattern-sequencer › Schläge beim Wechsel der Unterteilung (UI)', () => {
   it('Sechzehntel nach Triole mit Verlust: Ablehnung', async () => {
     const { user, current } = setup(patternOf([{ hits: { kick: [1, 2] } }]));
-    await user.selectOptions(screen.getByLabelText('Unterteilung Beat 1'), 'Achteltriolen');
+    await user.selectOptions(screen.getByLabelText('Unterteilung Beat 1'), '8tel-Triolen');
     const dialog = screen.getByRole('alertdialog');
     expect(dialog).toHaveTextContent(/verloren/);
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
@@ -89,14 +121,14 @@ describe('Spec pattern-sequencer › Schläge beim Wechsel der Unterteilung (UI)
 
   it('Sechzehntel nach Triole mit Verlust: Bestätigung', async () => {
     const { user, current } = setup(patternOf([{ hits: { kick: [1, 2] } }]));
-    await user.selectOptions(screen.getByLabelText('Unterteilung Beat 1'), 'Achteltriolen');
+    await user.selectOptions(screen.getByLabelText('Unterteilung Beat 1'), '8tel-Triolen');
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Bestätigen' }));
     expect(current().beats[0]).toEqual({ subdivision: 3, hits: { kick: [0] } });
   });
 
   it('Ohne Verlust keine Nachfrage', async () => {
     const { user, current } = setup(patternOf([{ hits: { hihat: [1, 3] } }]));
-    await user.selectOptions(screen.getByLabelText('Unterteilung Beat 1'), 'Achtel');
+    await user.selectOptions(screen.getByLabelText('Unterteilung Beat 1'), '8tel');
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(current().beats[0]).toEqual({ subdivision: 2, hits: { hihat: [0, 1] } });
   });

@@ -56,6 +56,18 @@ describe('Spec pattern-sequencer › Unterteilung pro Beat', () => {
     expect(lost).toEqual([]);
     expect(pattern.beats.map((b) => b.subdivision)).toEqual([4, 3, 4, 4]);
   });
+
+  it('Beat auf Zweiunddreißigsteltriolen umstellen', () => {
+    const { pattern, lost } = changeSubdivision(patternOf(emptyBeats(4)), 0, 12);
+    expect(lost).toEqual([]);
+    expect(pattern.beats.map((b) => b.subdivision)).toEqual([12, 4, 4, 4]);
+  });
+
+  it('Beat auf Zweiunddreißigstel umstellen', () => {
+    const { pattern, lost } = changeSubdivision(patternOf(emptyBeats(4)), 0, 8);
+    expect(lost).toEqual([]);
+    expect(pattern.beats.map((b) => b.subdivision)).toEqual([8, 4, 4, 4]);
+  });
 });
 
 describe('Spec pattern-sequencer › Schläge beim Wechsel der Unterteilung', () => {
@@ -81,6 +93,30 @@ describe('Spec pattern-sequencer › Schläge beim Wechsel der Unterteilung', ()
     const { pattern, lost } = changeSubdivision(patternOf([{ sub: 3, hits: { snare: [1, 2, 3] } }]), 0, 6);
     expect(lost).toEqual([]);
     expect(pattern.beats[0]).toEqual({ subdivision: 6, hits: { snare: [0, 2, 4] } });
+  });
+
+  it('Sechzehntel nach Zweiunddreißigstel', () => {
+    const { pattern, lost } = changeSubdivision(patternOf([{ hits: { snare: [1, 2, 3, 4] } }]), 0, 8);
+    expect(lost).toEqual([]);
+    expect(pattern.beats[0]).toEqual({ subdivision: 8, hits: { snare: [0, 2, 4, 6] } });
+  });
+
+  it('Zweiunddreißigstel nach Sechzehntel mit Verlust', () => {
+    const { pattern, lost } = changeSubdivision(patternOf([{ sub: 8, hits: { snare: [1, 2] } }]), 0, 4);
+    expect(lost).toEqual([{ instrument: 'snare', position: 1 }]);
+    expect(pattern.beats[0]).toEqual({ subdivision: 4, hits: { snare: [0] } });
+  });
+
+  it('Sechzehnteltriole nach Zweiunddreißigsteltriole', () => {
+    const { pattern, lost } = changeSubdivision(patternOf([{ sub: 6, hits: { snare: [1, 2, 3, 4, 5, 6] } }]), 0, 12);
+    expect(lost).toEqual([]);
+    expect(pattern.beats[0]).toEqual({ subdivision: 12, hits: { snare: [0, 2, 4, 6, 8, 10] } });
+  });
+
+  it('Achteltriole nach Zweiunddreißigsteltriole', () => {
+    const { pattern, lost } = changeSubdivision(patternOf([{ sub: 3, hits: { snare: [1, 2, 3] } }]), 0, 12);
+    expect(lost).toEqual([]);
+    expect(pattern.beats[0]).toEqual({ subdivision: 12, hits: { snare: [0, 4, 8] } });
   });
 
   it('Instrumente ohne verbleibende Schläge verschwinden', () => {

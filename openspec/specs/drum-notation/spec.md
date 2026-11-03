@@ -86,6 +86,18 @@ Notenwerte MUST sich aus der Unterteilung des Beats und dem Abstand zum nächste
 - **WHEN** ein Groove mit 6 Beats im zweiten Takt Bassdrum nur auf Beat 6 hat
 - **THEN** zeigt die untere Stimme im zweiten Takt auf Beat 5 eine Viertelpause
 
+#### Scenario: Zweiunddreißigstel
+- **WHEN** ein Beat in Zweiunddreißigsteln Snare-Schläge auf allen acht Positionen hat
+- **THEN** erscheinen in der oberen Stimme acht Zweiunddreißigstelnoten
+
+#### Scenario: Punktierte Sechzehntel aus Zweiunddreißigstel-Raster
+- **WHEN** ein Beat in Zweiunddreißigsteln Snare-Schläge nur auf den Positionen 1 und 4 hat
+- **THEN** zeigt die obere Stimme eine punktierte Sechzehntelnote, eine Achtelnote und eine Zweiunddreißigstelpause
+
+#### Scenario: Pause vor Zweiunddreißigstel
+- **WHEN** ein Beat in Zweiunddreißigsteln einen Snare-Schlag nur auf Position 8 hat
+- **THEN** zeigt die obere Stimme Pausen über die ersten sieben Zweiunddreißigstel und danach eine Zweiunddreißigstelnote
+
 ### Requirement: Balken pro Beat
 Noten MUST je Stimme innerhalb eines Beats gebalkt werden. Balken MUST NOT über Beatgrenzen gehen.
 
@@ -94,8 +106,13 @@ Noten MUST je Stimme innerhalb eines Beats gebalkt werden. Balken MUST NOT über
 - **THEN** sind die vier Noten durch einen gemeinsamen Doppelbalken verbunden
 - **AND** der Balken endet am Ende des Beats
 
+#### Scenario: Zweiunddreißigstel im Beat
+- **WHEN** ein Beat acht Snare-Zweiunddreißigstel hat
+- **THEN** sind die acht Noten durch einen gemeinsamen dreifachen Balken verbunden
+- **AND** der Balken endet am Ende des Beats
+
 ### Requirement: Triolen kennzeichnen
-Ein Beat mit Achteltriolen- oder Sechzehnteltriolen-Unterteilung MUST in jeder Stimme, die in diesem Beat Noten hat, mit einer „3“ bzw. „6“ über bzw. unter der Gruppe gekennzeichnet werden.
+Ein Beat mit Achteltriolen-, Sechzehnteltriolen- oder Zweiunddreißigsteltriolen-Unterteilung MUST in jeder Stimme, die in diesem Beat Noten hat, mit einer „3“, „6“ bzw. „12“ über bzw. unter der Gruppe gekennzeichnet werden.
 
 #### Scenario: Achteltriole
 - **WHEN** Beat 3 auf Achteltriolen steht und Snare-Schläge auf allen drei Positionen hat
@@ -104,6 +121,10 @@ Ein Beat mit Achteltriolen- oder Sechzehnteltriolen-Unterteilung MUST in jeder S
 #### Scenario: Gemischtes Pattern
 - **WHEN** die Beats 1, 2 und 4 in Sechzehnteln und Beat 3 in Achteltriolen stehen
 - **THEN** ist nur Beat 3 als Triole gekennzeichnet
+
+#### Scenario: Zweiunddreißigsteltriole
+- **WHEN** Beat 1 auf Zweiunddreißigsteltriolen steht und Snare-Schläge auf allen zwölf Positionen hat
+- **THEN** erscheinen zwölf Zweiunddreißigstelnoten mit dreifachem Balken und einer „12“ über der Gruppe
 
 ### Requirement: Leeres Pattern
 Ein Takt ohne Schläge in beiden Stimmen MUST nur in der oberen Stimme Pausen zeigen: in einem 4-Beat-Takt eine Ganze Pause mittig im Takt, in einem unvollständigen Takt eine Viertelpause pro Beat. Die untere Stimme MUST dort keine Pausen zeigen.

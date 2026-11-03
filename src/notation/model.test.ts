@@ -146,6 +146,31 @@ describe('Spec drum-notation › Notenwerte und Pausen aus dem Raster', () => {
   });
 });
 
+describe('Spec drum-notation › Notenwerte und Pausen aus dem Raster (Zweiunddreißigstel)', () => {
+  const upEvents = (hits: number[]) =>
+    toNotation(patternOf([{ sub: 8, hits: { snare: hits } }], 'fill')).measures[0]!.voices.up[0]!;
+
+  it('Zweiunddreißigstel', () => {
+    const group = upEvents([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(summary(group.events)).toEqual(Array(8).fill('32'));
+    expect(group.beamed).toBe(true);
+    expect(group.tuplet).toBeNull();
+  });
+
+  it('Punktierte Sechzehntel aus Zweiunddreißigstel-Raster', () => {
+    expect(summary(upEvents([1, 4]).events)).toEqual(['16d', '8', '32r']);
+  });
+
+  it('Pause vor Zweiunddreißigstel', () => {
+    const events = upEvents([8]).events;
+    const units: Record<string, number> = { q: 8, '8d': 6, '8': 4, '16d': 3, '16': 2, '32': 1 };
+    const rests = events.filter((e) => e.kind === 'rest');
+    expect(rests.reduce((sum, e) => sum + units[e.duration]!, 0)).toBe(7);
+    expect(events.at(-1)).toMatchObject({ kind: 'note', duration: '32' });
+    expect(events.slice(0, -1).every((e) => e.kind === 'rest')).toBe(true);
+  });
+});
+
 describe('Spec drum-notation › Balken pro Beat', () => {
   it('Sechzehntel im Beat', () => {
     const model = toNotation(patternOf([{ hits: { hihat: [1, 2, 3, 4] } }, { hits: { hihat: [1, 2, 3, 4] } }]));
@@ -164,6 +189,14 @@ describe('Spec drum-notation › Balken pro Beat', () => {
 });
 
 describe('Spec drum-notation › Triolen kennzeichnen', () => {
+  it('Zweiunddreißigsteltriole', () => {
+    const model = toNotation(patternOf([{ sub: 12, hits: { snare: Array.from({ length: 12 }, (_, i) => i + 1) } }], 'fill'));
+    const group = model.measures[0]!.voices.up[0]!;
+    expect(summary(group.events)).toEqual(Array(12).fill('32'));
+    expect(group.beamed).toBe(true);
+    expect(group.tuplet).toBe(12);
+  });
+
   it('Achteltriole', () => {
     const model = toNotation(patternOf([{}, {}, { sub: 3, hits: { snare: [1, 2, 3] } }, {}]));
     const group = model.measures[0]!.voices.up[2] as BeatGroup;

@@ -209,3 +209,26 @@ describe('Spec library-persistence › Import von Dateien der Schemaversion 2', 
     expect(result).toEqual({ ok: true, songs });
   });
 });
+
+describe('Dateiformat mit Zweiunddreißigsteln (thirty-second-notes)', () => {
+  const rollSong = () => songWith({ title: 'Roll', patterns: [patternOf([{ sub: 8, hits: { snare: [1, 2, 3, 4, 5, 6, 7, 8] } }], 'fill')] });
+
+  it('Rundlauf mit Unterteilung 8 bei Schemaversion 3', () => {
+    const songs = [rollSong()];
+    const file = serializeNotebook(songs, NOW);
+    expect(JSON.parse(file).schemaVersion).toBe(3);
+    expect(parseNotebookFile(file)).toEqual({ ok: true, songs });
+  });
+
+  it('Rundlauf mit Unterteilung 12', () => {
+    const songs = [songWith({ title: 'Triolen', patterns: [patternOf([{ sub: 12, hits: { snare: [1, 5, 9, 12] } }], 'fill')] })];
+    expect(parseNotebookFile(serializeNotebook(songs, NOW))).toEqual({ ok: true, songs });
+  });
+
+  it('Position außerhalb des Zweiunddreißigstel-Rasters wird abgewiesen', () => {
+    const file = fileOf([rollSong()]);
+    file.songs[0].patterns[0].beats[0].hits.snare = [8];
+    const result = parseNotebookFile(JSON.stringify(file));
+    expect(!result.ok && result.error).toMatch(/beschädigt/);
+  });
+});

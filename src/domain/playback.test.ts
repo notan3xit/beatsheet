@@ -88,3 +88,17 @@ describe('Spec pattern-playback › Wiedergabeposition', () => {
     expect(steps[5]!.at).toBeCloseTo(4 / 3);
   });
 });
+
+describe('Wiedergabe mit Zweiunddreißigsteln (thirty-second-notes)', () => {
+  it('Position 2 eines Zweiunddreißigstel-Beats liegt 1/8 Beat nach dem Beginn', () => {
+    const pattern = patternOf([{ sub: 8, hits: { snare: [2] } }]);
+    expect(patternHits(pattern)).toEqual([{ at: 0.125, instrument: 'snare', gain: 1, step: { beat: 0, position: 1 } }]);
+    expect(patternSteps(pattern)).toHaveLength(8);
+  });
+
+  it('Position 2 eines Zweiunddreißigsteltriolen-Beats liegt 1/12 Beat nach dem Beginn', () => {
+    const pattern = patternOf([{ sub: 12, hits: { snare: [2] } }]);
+    expect(patternHits(pattern)[0]!.at).toBeCloseTo(1 / 12, 12);
+    expect(patternSteps(pattern)).toHaveLength(12);
+  });
+});

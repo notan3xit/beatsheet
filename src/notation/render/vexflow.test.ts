@@ -200,6 +200,42 @@ describe('VexFlow-Adapter (Smoke-Test)', () => {
     });
   });
 
+  describe('Spec drum-notation › Zweiunddreißigstel (Renderer)', () => {
+    it('Zweiunddreißigstel im Beat: ein dreifacher Balken nur über diesen Beat', () => {
+      const pattern = patternOf([{ sub: 8, hits: { snare: [1, 2, 3, 4, 5, 6, 7, 8] } }, { hits: { snare: [1, 3] } }]);
+      const container = document.createElement('div');
+      renderNotation(toNotation(pattern), container);
+      const beams = container.querySelectorAll('.vf-beam');
+      expect(beams).toHaveLength(2);
+      // Direkte path-Kinder sind die Balken; die Hälse liegen in eigenen Untergruppen
+      expect(beams[0]!.querySelectorAll(':scope > path')).toHaveLength(3);
+      expect(beams[1]!.querySelectorAll(':scope > path')).toHaveLength(1);
+    });
+
+    it('Zweiunddreißigsteltriole: dreifacher Balken und „12“ über der Gruppe', () => {
+      const pattern = patternOf([{ sub: 12, hits: { snare: Array.from({ length: 12 }, (_, i) => i + 1) } }], 'fill');
+      const container = document.createElement('div');
+      renderNotation(toNotation(pattern), container);
+      const beams = container.querySelectorAll('.vf-beam');
+      expect(beams).toHaveLength(1);
+      expect(beams[0]!.querySelectorAll(':scope > path')).toHaveLength(3);
+      // Tuplet-Ziffern sind SMuFL-Zeichen: U+E880 + Ziffer
+      const digits = [...container.querySelectorAll('.vf-tuplet text, .vf-tuplet')].map((t) => t.textContent).join('');
+      expect(digits).toContain('\u{E881}\u{E882}');
+    });
+
+    it('Punkt an der punktierten Sechzehntel', () => {
+      const note = noteFor({ kind: 'note', duration: '16d', keys: [{ instrument: 'snare', staffStep: 5, notehead: 'normal' }] }, 'up');
+      expect(note.getModifiersByType('Dot')).toHaveLength(1);
+    });
+
+    it('Zweiunddreißigstelpause rendert ohne Fehler', () => {
+      const pattern = patternOf([{ sub: 8, hits: { snare: [1, 4] } }]);
+      const container = document.createElement('div');
+      expect(() => renderNotation(toNotation(pattern), container)).not.toThrow();
+    });
+  });
+
   it('ersetzt vorherigen Inhalt beim erneuten Rendern', () => {
     const container = document.createElement('div');
     renderNotation(toNotation(patternOf(emptyBeats(4))), container);

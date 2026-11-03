@@ -11,7 +11,7 @@ export interface NoteKey {
 }
 
 /** 'h' und 'w' kommen nur als Pausen über leere Beats vor (Halbe, Ganze). */
-export type Duration = 'w' | 'h' | 'q' | '8d' | '8' | '16';
+export type Duration = 'w' | 'h' | 'q' | '8d' | '8' | '16d' | '16' | '32';
 
 export type NotationEvent =
   | { kind: 'note'; duration: Duration; keys: NoteKey[] }
@@ -23,7 +23,7 @@ export interface BeatGroup {
    * eines früheren Beats abgedeckt (Halbe, Ganze) oder gehört zu einer Stimme, die im Takt nichts zeigt.
    */
   beat: number;
-  tuplet: 3 | 6 | null;
+  tuplet: 3 | 6 | 12 | null;
   beamed: boolean;
   events: NotationEvent[];
 }
@@ -64,6 +64,8 @@ const DURATIONS: Record<Subdivision, [units: number, duration: Duration][]> = {
   4: [[4, 'q'], [3, '8d'], [2, '8'], [1, '16']],
   3: [[2, 'q'], [1, '8']],
   6: [[4, 'q'], [3, '8d'], [2, '8'], [1, '16']],
+  8: [[8, 'q'], [6, '8d'], [4, '8'], [3, '16d'], [2, '16'], [1, '32']],
+  12: [[8, 'q'], [6, '8d'], [4, '8'], [3, '16d'], [2, '16'], [1, '32']],
 };
 
 function split(units: number, subdivision: Subdivision): Duration[] {
@@ -116,7 +118,7 @@ function beatGroup(beat: Beat, index: number, voice: VoiceName): BeatGroup {
   const beamable = events.filter((e) => e.kind === 'note' && e.duration !== 'q').length;
   return {
     beat: index,
-    tuplet: subdivision === 3 || subdivision === 6 ? subdivision : null,
+    tuplet: subdivision === 3 || subdivision === 6 || subdivision === 12 ? subdivision : null,
     beamed: beamable >= 2,
     events,
   };
