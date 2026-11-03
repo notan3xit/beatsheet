@@ -4,6 +4,14 @@
 
 `drumstuff`: ein digitales Drum-Notenbuch. Die Song-Struktur und die Drum-Parts (Grooves, Fills) sind getrennt, jedes Pattern wird nur einmal notiert.
 
+## Schreibstil
+
+Anweisungen an Agenten, Specs, Kommentare und Dokumente sind kurz, prägnant und präzise. Zu vermeiden:
+- unnötige Umschreibungen
+- Angaben zur Historie
+- Mehrfachnennungen
+- Formulierungen, die durch Änderungen an anderer Stelle falsch werden (etwa Anzahlen wie „die folgenden drei Punkte“)
+
 ## Tech-Stack
 
 - TypeScript (strict), React, Vite
@@ -15,12 +23,12 @@
 **Farbregel:** Im CSS stehen keine Farbliterale (Hex, `rgb()`, benannte Farben). Komponenten verwenden die semantischen Tokens aus `src/ui/styles.css` (`--bg`, `--surface`, `--text`, `--accent`, `--danger` …), und die Tokens verweisen auf `--ctp-*`. `red` ist für Fehler und destruktive Aktionen reserviert (`--danger`). `src/ui/styles.test.ts` prüft das.
 
 Aufbau unter `src/`:
-- `domain`: reine Fachlogik. Datenmodell `Song` → `Segment` → `Block` → `Bar`, Patterns gehören zum Song. Dazu `pattern`/`sequencer` (Pattern-Inhalt), `structure` (Struktur-Operationen), `songPatterns` (Patterns im Song, Farben), `timeline` (Groove-Fortlauf, Fill-Überdeckung) und `playback` (Tempo, Zeitplan eines Patterns für die Wiedergabe).
-- `notation`: Notationsmodell und VexFlow-Renderer, inklusive Mini-Darstellung (`compact`)
-- `songbook`: Layout der linken Buchseite (`layout.ts`, Positionen in Beats)
-- `audio`: Wiedergabe über Web Audio: synthetisierte Stimmen (`voices`), vorausplanender Scheduler (`scheduler`), `player` als einzige Stelle mit `AudioContext`
-- `persistence`: Dateiformat (Schemaversion 3, v1 und v2 weiterhin lesbar), Merge pro Song, IndexedDB (ein Datensatz pro Song)
-- `state`: `notebookStore` (Songs, Navigation Liste/Doppelseite/Pattern-Editor, Undo im Pattern-Editor)
+- `domain`: reine Fachlogik (Datenmodell `Song` → `Segment` → `Block` → `Bar`, Patterns gehören zum Song)
+- `notation`: Notationsmodell und VexFlow-Renderer
+- `songbook`: Layout der linken Buchseite
+- `audio`: Wiedergabe über Web Audio; `player` ist die einzige Stelle mit `AudioContext`
+- `persistence`: Dateiformat, Merge pro Song, IndexedDB
+- `state`: Store mit Songs und Navigation
 - `ui`: React-Komponenten
 
 **Dateiformat erweitern:** Ein neues Feld, das eine ältere Version gefahrlos übergehen kann, kommt optional mit Vorgabewert dazu, ohne neue Schemaversion. Der Import ignoriert unbekannte Felder (keine `.strict()`-Schemata), damit ältere Versionen neuere Dateien lesen können. Die Schemaversion steigt nur, wenn eine ältere Version die Datei sonst falsch verstünde (Bedeutung eines Felds ändert sich, Pflichtfeld entfällt, Struktur wird umgebaut).
