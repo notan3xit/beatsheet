@@ -17,7 +17,8 @@ Anweisungen an Agenten, Specs, Kommentare und Dokumente sind kurz, prägnant und
 - TypeScript (strict), React, Vite
 - Notenrendering: VexFlow
 - Persistenz: IndexedDB (`idb`), Automerge (`@automerge/automerge`) für zusammenführbare Song-Dokumente, Dateiformat-Validierung mit `zod`
-- Tests: Vitest, Testing Library, jsdom, fake-indexeddb
+- Server: Node 24 führt `server/*.ts` ohne Build aus (nur entfernbare TypeScript-Syntax, Importe mit `.ts`), SQLite über `node:sqlite`
+- Tests: Vitest (Projekte `app` in jsdom und `server` in Node), Testing Library, jsdom, fake-indexeddb
 - Farben: Catppuccin, Latte (hell) bzw. Mocha (dunkel) nach Systemeinstellung, Werte aus `@catppuccin/palette` (`src/ui/theme.ts` erzeugt die Variablen `--ctp-<name>`)
 
 **Farbregel:** Im CSS stehen keine Farbliterale (Hex, `rgb()`, benannte Farben). Komponenten verwenden die semantischen Tokens aus `src/ui/styles.css` (`--bg`, `--surface`, `--text`, `--accent`, `--danger` …), und die Tokens verweisen auf `--ctp-*`. `red` ist für Fehler und destruktive Aktionen reserviert (`--danger`). `src/ui/styles.test.ts` prüft das.
@@ -29,7 +30,10 @@ Aufbau unter `src/`:
 - `audio`: Wiedergabe über Web Audio; `player` ist die einzige Stelle mit `AudioContext`
 - `persistence`: Dateiformat, Import nach Revision, IndexedDB mit einem Automerge-Dokument pro Song (`songDoc`: Dokumentform, Brücke vom `Song` ins Dokument, Zusammenführen)
 - `state`: Store mit Songs und Navigation
+- `account`: Client für die Anmeldung am Server
 - `ui`: React-Komponenten
+
+`server/`: HTTP-Server mit Anmeldung per Mail und Einmalcode; Mails als JSON-Dateien in `$MAIL_OUTBOX`, ohne die Variable auf der Konsole.
 
 **Dateiformat erweitern:** Ein neues Feld, das eine ältere Version gefahrlos übergehen kann, kommt optional mit Vorgabewert dazu, ohne neue Schemaversion. Der Import ignoriert unbekannte Felder (keine `.strict()`-Schemata), damit ältere Versionen neuere Dateien lesen können. Die Schemaversion steigt nur, wenn eine ältere Version die Datei sonst falsch verstünde (Bedeutung eines Felds ändert sich, Pflichtfeld entfällt, Struktur wird umgebaut).
 
@@ -43,8 +47,9 @@ Aufbau unter `src/`:
 ## Befehle
 
 - `npm install`: Abhängigkeiten installieren
-- `npm run dev`: Dev-Server starten
-- `npm run build`: Typprüfung und Produktions-Build
+- `npm run dev`: Dev-Server starten; leitet `/api` an `http://localhost:8787` weiter (anderes Ziel über `DRUMSTUFF_API`)
+- `npm run server`: Server starten (`-- --port`, `--host`, `--data`, `--insecure-cookie` für Tests über reines HTTP)
+- `npm run build`: Typprüfung (App und Server) und Produktions-Build
 - `npm test`: alle Tests einmal ausführen (`npm run test:watch` im Watch-Modus)
 
 ## Vor dem Push

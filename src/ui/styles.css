@@ -189,6 +189,40 @@ input {
   border-bottom: 1px solid var(--border);
 }
 
+.account {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.account-email {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* Anmeldeformular als Aufklapper unter dem Kopf */
+.account-form {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 19rem;
+  padding: 0.9rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px var(--shadow);
+}
+
+.account-form .hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
 .app-header h1 {
   margin: 0;
   font-size: 1.15rem;

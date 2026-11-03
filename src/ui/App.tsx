@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { createHttpAccountApi, type AccountApi } from '../account/api';
 import { createWebAudioPlayer, type Player } from '../audio/player';
 import type { NotebookStore } from '../state/notebookStore';
+import { AccountMenu } from './AccountMenu';
 import { ConfirmProvider } from './ConfirmDialog';
 import { HitTestContext, type HitTest } from './dragPattern';
 import { LibraryFileActions } from './LibraryFileActions';
@@ -31,6 +33,7 @@ export function App({
   storagePersisted = true,
   hitTest,
   player: playerProp,
+  account: accountProp,
 }: {
   store: NotebookStore;
   storagePersisted?: boolean;
@@ -38,8 +41,11 @@ export function App({
   hitTest?: HitTest;
   /** Audio-Wiedergabe; Vorgabe Web Audio, in Tests ein Nachbau. */
   player?: Player;
+  /** Anmeldeserver; Vorgabe HTTP über `/api`, in Tests ein Nachbau. */
+  account?: AccountApi;
 }) {
   const [player] = useState(() => playerProp ?? createWebAudioPlayer());
+  const [account] = useState(() => accountProp ?? createHttpAccountApi());
   const app = (
     <StoreContext.Provider value={store}>
       <PlayerContext.Provider value={player}>
@@ -48,6 +54,7 @@ export function App({
             <header className="app-header">
               <h1>Drumstuff</h1>
               <LibraryFileActions />
+              <AccountMenu api={account} />
             </header>
             {!storagePersisted && (
               <p role="note" className="storage-note">
