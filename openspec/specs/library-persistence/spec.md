@@ -44,8 +44,8 @@ Jeder Song und jedes Pattern MUST einen Erstellungszeitpunkt, einen Zeitpunkt de
 Der Nutzer MUST alle Songs als JSON-Datei exportieren können. Die Datei MUST eine Formatkennung, die Schemaversion 3 und alle Songs mit Titel, Tempo, Struktur, Patterns einschließlich der Spielweisen ihrer Schläge und Änderungsmetadaten enthalten.
 
 #### Scenario: Export herunterladen
-- **WHEN** der Nutzer „Exportieren“ wählt
-- **THEN** erhält er eine Datei mit der Endung `.drumbook.json`, die alle Songs enthält
+- **WHEN** der Nutzer am 3. November 2026 „Exportieren“ wählt
+- **THEN** erhält er die Datei `beatsheet-2026-11-03.json`, die alle Songs enthält
 
 #### Scenario: Export ist verlustfrei
 - **WHEN** alle Songs exportiert und auf einem leeren Gerät wieder importiert werden
@@ -263,3 +263,10 @@ Ein als Kopie importierter Song MUST eine neue ID, den Titel „<Titel> (Kopie)�
 #### Scenario: Kopie ist eigenständig
 - **WHEN** der Nutzer einen als Kopie importierten Song bearbeitet
 - **THEN** bleibt der Song mit der ursprünglichen ID unverändert
+
+### Requirement: Exporte unter dem früheren Namen
+Dateien, die die App unter ihrem früheren Namen drumstuff exportiert hat (Formatkennung `drumstuff.library`, Endung `.drumbook.json`), MUST sich wie aktuelle Exporte importieren lassen.
+
+#### Scenario: Alter Export
+- **WHEN** der Nutzer die Datei `drumstuff-2026-11-02.drumbook.json` mit der Formatkennung `drumstuff.library` und zwei Songs importiert
+- **THEN** sind beide Songs mit unveränderten IDs vorhanden
