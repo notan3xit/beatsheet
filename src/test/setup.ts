@@ -2,6 +2,9 @@ import '@testing-library/jest-dom/vitest';
 import 'fake-indexeddb/auto';
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
+import { initAutomerge } from '../persistence/songDoc';
+
+await initAutomerge();
 
 // jsdom hat kein Canvas; VexFlow braucht es nur zur Textvermessung (design.md D10)
 HTMLCanvasElement.prototype.getContext = function getContext() {

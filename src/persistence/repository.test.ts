@@ -1,9 +1,10 @@
 import { openDB } from 'idb';
 import { describe, expect, it, vi } from 'vitest';
-import { toggleHit } from '../domain/sequencer';
+import { cycleArticulation, toggleHit } from '../domain/sequencer';
 import { appendSegment } from '../domain/structure';
 import { createNotebookStore } from '../state/notebookStore';
 import { emptyBeats, patternOf } from '../test/patterns';
+import { createV2Database } from '../test/legacyDb';
 import { songWith } from '../test/songs';
 import { connectStore, openRepository, requestPersistentStorage } from './repository';
 
@@ -152,13 +153,75 @@ describe('Spec library-persistence › Dauerhaften Speicher anfordern', () => {
 describe('Spec library-persistence › Lokal gespeicherte Songs ohne Tempo', () => {
   it('Start nach dem Update', async () => {
     const dbName = uniqueDb();
-    (await openRepository(dbName)).close();
     const { tempo: _tempo, ...legacy } = { ...songWith({ title: 'Alt' }), revision: 6 };
-    const raw = await openDB(dbName, 2);
-    await raw.put('songs', legacy);
-    raw.close();
+    await createV2Database(dbName, [legacy]);
 
     const [loaded] = await (await openRepository(dbName)).loadAll();
     expect(loaded).toEqual({ ...legacy, tempo: 120, revision: 6 });
+  });
+});
+
+describe('Spec library-persistence › Übernahme lokal gespeicherter Songs in das Dokumentformat', () => {
+  /** Zwei Songs der Vorversion: einer mit Revision 6, Flam, Tempo 96 und Struktur, einer ohne Tempo. */
+  function legacySongs() {
+    const groove = toggleHit(patternOf(emptyBeats(4)), 0, 'snare', 1);
+    const withFlam = cycleArticulation(groove, 0, 'snare', 1);
+    const song = { ...songWith({ title: 'Mit Flam', bars: 2, patterns: [withFlam], tempo: 96 }), revision: 6 };
+    const { tempo: _tempo, ...withoutTempo } = songWith({ title: 'Ohne Tempo' });
+    return { song, withoutTempo, expected: [song, { ...withoutTempo, tempo: 120 }] };
+  }
+  const byId = <T extends { id: string }>(list: T[]) => [...list].sort((a, b) => a.id.localeCompare(b.id));
+
+  it('Vorhandene Songs', async () => {
+    const dbName = uniqueDb();
+    const { song, withoutTempo, expected } = legacySongs();
+    await createV2Database(dbName, [song, withoutTempo]);
+    const loaded = await (await openRepository(dbName)).loadAll();
+    expect(byId(loaded)).toEqual(byId(expected));
+    expect(loaded.find((s) => s.id === song.id)!.patterns[0]!.beats[0]!.articulations).toEqual({ snare: { 1: 'flam' } });
+  });
+
+  it('Zweiter Start', async () => {
+    const dbName = uniqueDb();
+    const { song, withoutTempo, expected } = legacySongs();
+    await createV2Database(dbName, [song, withoutTempo]);
+    (await openRepository(dbName)).close();
+    const loaded = await (await openRepository(dbName)).loadAll();
+    expect(byId(loaded)).toEqual(byId(expected));
+  });
+
+  it('Änderung nach der Übernahme', async () => {
+    const dbName = uniqueDb();
+    const { song } = legacySongs();
+    await createV2Database(dbName, [song]);
+    const repo = await openRepository(dbName);
+    const store = createNotebookStore(await repo.loadAll());
+    const connection = connectStore(store, repo);
+    store.openSong(song.id);
+    store.update(song.patterns[0]!.id, (p) => toggleHit(p, 1, 'kick', 0));
+    await connection.flush();
+    repo.close();
+
+    const [loaded] = await (await openRepository(dbName)).loadAll();
+    expect(loaded!.patterns[0]!.beats[1]!.hits.kick).toEqual([0]);
+    expect(loaded!.revision).toBe(7);
+  });
+
+  it('Patterns aus der Version vor den Songs', async () => {
+    const dbName = uniqueDb();
+    await createV1Database(dbName, [patternOf(emptyBeats(4)), patternOf(emptyBeats(1), 'fill')]);
+    const [loaded] = await (await openRepository(dbName)).loadAll();
+    expect(loaded!.title).toBe('Importierte Patterns');
+    expect(loaded!.patterns).toHaveLength(2);
+  });
+
+  it('danach gibt es nur noch den Store für Dokumente', async () => {
+    const dbName = uniqueDb();
+    await createV2Database(dbName, [legacySongs().song]);
+    (await openRepository(dbName)).close();
+    const raw = await openDB(dbName);
+    expect([...raw.objectStoreNames]).toEqual(['documents']);
+    expect(raw.version).toBe(3);
+    raw.close();
   });
 });

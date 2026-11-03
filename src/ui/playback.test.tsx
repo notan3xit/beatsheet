@@ -1,6 +1,5 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { openDB } from 'idb';
 import { describe, expect, it, vi } from 'vitest';
 import type { PlaybackSource, PlaybackState, Player } from '../audio/player';
 import { createPattern } from '../domain/pattern';
@@ -8,6 +7,7 @@ import { patternTimeline, type Step } from '../domain/playback';
 import type { Pattern } from '../domain/types';
 import { openRepository } from '../persistence/repository';
 import { createNotebookStore } from '../state/notebookStore';
+import { createV2Database } from '../test/legacyDb';
 import { notebookWith } from '../test/notebook';
 import { songWith } from '../test/songs';
 import { App } from './App';
@@ -188,11 +188,8 @@ describe('Spec pattern-playback › Audio nicht verfügbar (UI)', () => {
 describe('Spec library-persistence › Lokal gespeicherte Songs ohne Tempo (UI)', () => {
   it('Start nach dem Update: Pattern-Editor zeigt Tempo 120', async () => {
     const dbName = `drumstuff-test-${crypto.randomUUID()}`;
-    (await openRepository(dbName)).close();
     const { tempo: _tempo, ...legacy } = { ...songWith({ title: 'Alt', patterns: seed() }), revision: 6 };
-    const raw = await openDB(dbName, 2);
-    await raw.put('songs', legacy);
-    raw.close();
+    await createV2Database(dbName, [legacy]);
 
     const store = createNotebookStore(await (await openRepository(dbName)).loadAll());
     store.openSong(legacy.id);

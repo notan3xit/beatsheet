@@ -16,18 +16,18 @@ Anweisungen an Agenten, Specs, Kommentare und Dokumente sind kurz, prägnant und
 
 - TypeScript (strict), React, Vite
 - Notenrendering: VexFlow
-- Persistenz: IndexedDB (`idb`), Dateiformat-Validierung mit `zod`
+- Persistenz: IndexedDB (`idb`), Automerge (`@automerge/automerge`) für zusammenführbare Song-Dokumente, Dateiformat-Validierung mit `zod`
 - Tests: Vitest, Testing Library, jsdom, fake-indexeddb
 - Farben: Catppuccin, Latte (hell) bzw. Mocha (dunkel) nach Systemeinstellung, Werte aus `@catppuccin/palette` (`src/ui/theme.ts` erzeugt die Variablen `--ctp-<name>`)
 
 **Farbregel:** Im CSS stehen keine Farbliterale (Hex, `rgb()`, benannte Farben). Komponenten verwenden die semantischen Tokens aus `src/ui/styles.css` (`--bg`, `--surface`, `--text`, `--accent`, `--danger` …), und die Tokens verweisen auf `--ctp-*`. `red` ist für Fehler und destruktive Aktionen reserviert (`--danger`). `src/ui/styles.test.ts` prüft das.
 
 Aufbau unter `src/`:
-- `domain`: reine Fachlogik (Datenmodell `Song` → `Segment` → `Block` → `Bar`, Patterns gehören zum Song)
+- `domain`: reine Fachlogik (Datenmodell `Song` → `Segment` → `Block` → `Bar`, Patterns gehören zum Song), Normalisierung nach Strukturregeln
 - `notation`: Notationsmodell und VexFlow-Renderer
 - `songbook`: Layout der linken Buchseite
 - `audio`: Wiedergabe über Web Audio; `player` ist die einzige Stelle mit `AudioContext`
-- `persistence`: Dateiformat, Merge pro Song, IndexedDB
+- `persistence`: Dateiformat, Import nach Revision, IndexedDB mit einem Automerge-Dokument pro Song (`songDoc`: Dokumentform, Brücke vom `Song` ins Dokument, Zusammenführen)
 - `state`: Store mit Songs und Navigation
 - `ui`: React-Komponenten
 
