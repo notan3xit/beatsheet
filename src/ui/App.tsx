@@ -52,7 +52,7 @@ export function App({
         <ConfirmProvider>
           <div className="app">
             <header className="app-header">
-              <h1>Drumstuff</h1>
+              <h1>Beatsheet</h1>
               <LibraryFileActions />
               <AccountMenu api={account} />
             </header>

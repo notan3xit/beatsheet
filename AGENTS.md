@@ -2,7 +2,7 @@
 
 ## Projekt
 
-`drumstuff`: ein digitales Drum-Notenbuch. Die Song-Struktur und die Drum-Parts (Grooves, Fills) sind getrennt, jedes Pattern wird nur einmal notiert.
+`beatsheet`: ein digitales Drum-Notenbuch. Die Song-Struktur und die Drum-Parts (Grooves, Fills) sind getrennt, jedes Pattern wird nur einmal notiert.
 
 ## Schreibstil
 
@@ -47,7 +47,7 @@ Aufbau unter `src/`:
 ## Befehle
 
 - `npm install`: Abhängigkeiten installieren
-- `npm run dev`: Dev-Server starten; leitet `/api` an `http://localhost:8787` weiter (anderes Ziel über `DRUMSTUFF_API`)
+- `npm run dev`: Dev-Server starten; leitet `/api` an `http://localhost:8787` weiter (anderes Ziel über `BEATSHEET_API`)
 - `npm run server`: Server starten (`-- --port`, `--host`, `--data`, `--insecure-cookie` für Tests über reines HTTP)
 - `npm run build`: Typprüfung (App und Server) und Produktions-Build
 - `npm test`: alle Tests einmal ausführen (`npm run test:watch` im Watch-Modus)

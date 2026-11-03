@@ -8,7 +8,7 @@ import { createV2Database } from '../test/legacyDb';
 import { songWith } from '../test/songs';
 import { connectStore, openRepository, requestPersistentStorage } from './repository';
 
-const uniqueDb = () => `drumstuff-test-${crypto.randomUUID()}`;
+const uniqueDb = () => `beatsheet-test-${crypto.randomUUID()}`;
 
 /** Legt eine Datenbank im Format der Vorversion (v1, Store "patterns") an. */
 async function createV1Database(name: string, patterns: ReturnType<typeof patternOf>[]) {

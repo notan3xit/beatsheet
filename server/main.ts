@@ -22,7 +22,7 @@ const outbox = process.env.MAIL_OUTBOX;
 
 const server = createServer(
   createApp({
-    db: openDatabase(join(values.data, 'drumstuff.sqlite')),
+    db: openDatabase(join(values.data, 'beatsheet.sqlite')),
     secret: loadSecret(values.data),
     now: () => new Date(),
     newCode: () => String(randomInt(0, 1_000_000)).padStart(6, '0'),
@@ -32,5 +32,5 @@ const server = createServer(
 );
 
 server.listen(Number(values.port), values.host, () => {
-  console.log(`drumstuff-Server auf http://${values.host}:${values.port}, Mail ${outbox ? `über ${outbox}` : 'auf der Konsole'}`);
+  console.log(`beatsheet-Server auf http://${values.host}:${values.port}, Mail ${outbox ? `über ${outbox}` : 'auf der Konsole'}`);
 });

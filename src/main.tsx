@@ -31,7 +31,7 @@ async function start() {
     if (!(await requestPersistentStorage())) renderApp(store, false);
   } catch (error) {
     console.error(error);
-    root.render(<p role="alert">Der lokale Speicher konnte nicht geöffnet werden. Drumstuff kann nicht starten.</p>);
+    root.render(<p role="alert">Der lokale Speicher konnte nicht geöffnet werden. Beatsheet kann nicht starten.</p>);
   }
 }
 

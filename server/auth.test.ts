@@ -229,7 +229,7 @@ describe('Spec account-auth › Sitzung', () => {
   it('ohne Cookie nicht angemeldet', async () => {
     const h = await start();
     expect((await session(h)).status).toBe(401);
-    expect((await session(h, 'drumstuff_session=erfunden')).status).toBe(401);
+    expect((await session(h, 'beatsheet_session=erfunden')).status).toBe(401);
   });
 });
 
@@ -239,7 +239,7 @@ describe('Spec account-auth › Abmelden', () => {
     const cookie = await login(h);
     const response = await post(h, 'logout', {}, cookie);
     expect(response.status).toBe(204);
-    expect(response.headers.get('set-cookie')).toMatch(/^drumstuff_session=;.*Max-Age=0/);
+    expect(response.headers.get('set-cookie')).toMatch(/^beatsheet_session=;.*Max-Age=0/);
   });
 
   it('Alte Sitzung nach dem Abmelden', async () => {
@@ -269,7 +269,7 @@ describe('Spec account-auth › Schutz von Codes und Sitzungen', () => {
     await requestCode(h, 'ich@example.com');
     const header = (await verify(h, 'ich@example.com', codeIn(h.mails[0]!))).headers.get('set-cookie')!;
     const attributes = header.split(';').map((a) => a.trim());
-    expect(attributes[0]).toMatch(/^drumstuff_session=[A-Za-z0-9_-]{43}$/);
+    expect(attributes[0]).toMatch(/^beatsheet_session=[A-Za-z0-9_-]{43}$/);
     expect(attributes).toEqual(expect.arrayContaining(['HttpOnly', 'SameSite=Lax', 'Path=/api', 'Secure', `Max-Age=${90 * 24 * 3600}`]));
   });
 

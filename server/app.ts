@@ -6,7 +6,7 @@ export interface AppDeps extends AuthDeps {
   secureCookie: boolean;
 }
 
-const COOKIE = 'drumstuff_session';
+const COOKIE = 'beatsheet_session';
 const MAX_BODY = 4096;
 
 class HttpError extends Error {

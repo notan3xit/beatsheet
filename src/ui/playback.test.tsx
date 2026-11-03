@@ -187,7 +187,7 @@ describe('Spec pattern-playback › Audio nicht verfügbar (UI)', () => {
 
 describe('Spec library-persistence › Lokal gespeicherte Songs ohne Tempo (UI)', () => {
   it('Start nach dem Update: Pattern-Editor zeigt Tempo 120', async () => {
-    const dbName = `drumstuff-test-${crypto.randomUUID()}`;
+    const dbName = `beatsheet-test-${crypto.randomUUID()}`;
     const { tempo: _tempo, ...legacy } = { ...songWith({ title: 'Alt', patterns: seed() }), revision: 6 };
     await createV2Database(dbName, [legacy]);
 

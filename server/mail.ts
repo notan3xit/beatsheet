@@ -22,7 +22,7 @@ export function createOutboxMailer(dir: string, now: () => Date = () => new Date
       const stamp = now().toISOString().replace(/[-:]/g, '').slice(0, 15);
       const name = `${stamp}_${randomUUID()}.json`;
       const temporary = join(dir, `.${name}.tmp`);
-      await writeFile(temporary, JSON.stringify({ from_name: 'drumstuff', to: [to], subject, text }), { mode: 0o644 });
+      await writeFile(temporary, JSON.stringify({ from_name: 'beatsheet', to: [to], subject, text }), { mode: 0o644 });
       await chmod(temporary, 0o644);
       await rename(temporary, join(dir, name));
     },

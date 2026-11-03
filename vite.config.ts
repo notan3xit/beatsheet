@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   // App und Server teilen im Dev-Server einen Ursprung (server-auth, design.md D9)
   server: {
-    proxy: { '/api': process.env.DRUMSTUFF_API ?? 'http://localhost:8787' },
+    proxy: { '/api': process.env.BEATSHEET_API ?? 'http://localhost:8787' },
     // Vites eigene Sperren plus die Daten des Servers (Datenbank, Geheimnis), design.md D9
     fs: { deny: ['.env', '.env.*', '*.{crt,pem}', '**/.git/**', '**/server-data/**'] },
   },

@@ -11,7 +11,7 @@ interface DocumentRecord {
   bytes: Uint8Array;
 }
 
-interface DrumstuffDB extends DBSchema {
+interface BeatsheetDB extends DBSchema {
   documents: { key: string; value: DocumentRecord };
 }
 
@@ -29,7 +29,7 @@ export interface Repository {
 
 const DB_VERSION = 3;
 
-type UpgradeTx = IDBPTransaction<DrumstuffDB, 'documents'[], 'versionchange'>;
+type UpgradeTx = IDBPTransaction<BeatsheetDB, 'documents'[], 'versionchange'>;
 
 const recordOf = (song: Song): DocumentRecord => ({ id: song.id, bytes: A.save(createSongDoc(song)) });
 
@@ -38,7 +38,7 @@ const recordOf = (song: Song): DocumentRecord => ({ id: song.id, bytes: A.save(c
  * Version 2: Store "songs", ein Song als JSON pro Datensatz.
  * Version 3: Store "documents"; vorhandene Daten wandern genau einmal hinein.
  */
-async function upgradeLegacy(db: IDBPDatabase<DrumstuffDB>, tx: UpgradeTx, oldVersion: number) {
+async function upgradeLegacy(db: IDBPDatabase<BeatsheetDB>, tx: UpgradeTx, oldVersion: number) {
   const legacyDb = db as unknown as IDBPDatabase;
   const legacyTx = tx as unknown as IDBPTransaction<unknown, string[], 'versionchange'>;
   const songs: Song[] = [];
@@ -57,8 +57,8 @@ async function upgradeLegacy(db: IDBPDatabase<DrumstuffDB>, tx: UpgradeTx, oldVe
 }
 
 /** Automerge muss vorher initialisiert sein (`initAutomerge`), weil das Upgrade Dokumente erzeugt. */
-export async function openRepository(name = 'drumstuff'): Promise<Repository> {
-  const db: IDBPDatabase<DrumstuffDB> = await openDB<DrumstuffDB>(name, DB_VERSION, {
+export async function openRepository(name = 'beatsheet'): Promise<Repository> {
+  const db: IDBPDatabase<BeatsheetDB> = await openDB<BeatsheetDB>(name, DB_VERSION, {
     async upgrade(database, oldVersion, _newVersion, tx) {
       database.createObjectStore('documents', { keyPath: 'id' });
       if (oldVersion === 1 || oldVersion === 2) await upgradeLegacy(database, tx, oldVersion);

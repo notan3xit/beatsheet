@@ -16,7 +16,7 @@ import {
   type Song,
 } from '../domain/types';
 
-export const FORMAT_ID = 'drumstuff.library';
+export const FORMAT_ID = 'beatsheet.library';
 export const SCHEMA_VERSION = 3;
 export const IMPORTED_SONG_TITLE = 'Importierte Patterns';
 
@@ -137,7 +137,7 @@ export function serializeNotebook(songs: readonly Song[], now: Date): string {
 }
 
 export function exportFileName(now: Date): string {
-  return `drumstuff-${now.toISOString().slice(0, 10)}.drumbook.json`;
+  return `beatsheet-${now.toISOString().slice(0, 10)}.json`;
 }
 
 /** Patterns der Vorversion (ohne Farbe) in einen neuen Song „Importierte Patterns“ packen. */

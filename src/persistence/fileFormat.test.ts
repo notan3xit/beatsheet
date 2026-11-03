@@ -31,9 +31,9 @@ const imported = (songs: Song[]) => ({ ok: true, songs, fromNewerVersion: false 
 
 describe('Spec library-persistence › Export der Bibliothek', () => {
   it('Export herunterladen: Dateiname und Inhalt', () => {
-    expect(exportFileName(NOW)).toBe('drumstuff-2026-11-01.drumbook.json');
+    expect(exportFileName(NOW)).toBe('beatsheet-2026-11-01.json');
     const file = fileOf([richSong(), songWith({ title: 'Leer' })]);
-    expect(file).toMatchObject({ format: 'drumstuff.library', schemaVersion: 3, exportedAt: NOW.toISOString() });
+    expect(file).toMatchObject({ format: 'beatsheet.library', schemaVersion: 3, exportedAt: NOW.toISOString() });
     expect(file.songs.map((s: Song) => s.title)).toEqual(['Hysteria', 'Leer']);
     expect(Object.keys(file.songs[0]).sort()).toEqual(
       ['createdAt', 'id', 'patterns', 'revision', 'segments', 'tempo', 'title', 'updatedAt'].sort(),
@@ -81,7 +81,7 @@ describe('Spec library-persistence › Unbekannte Felder in Importdateien', () =
   it('Zusätzliches Feld aus einer neueren Version', () => {
     const song = richSong();
     const file = fileOf([song]);
-    file.producer = 'drumstuff 9';
+    file.producer = 'beatsheet 9';
     file.songs[0].key = 'E-Moll';
     file.songs[0].segments[0].mood = 'ruhig';
     file.songs[0].segments[0].blocks[0].repeat = 2;
@@ -156,8 +156,18 @@ describe('Spec library-persistence › Ungültige Importdateien', () => {
     file.songs[0].title = ' ';
     for (const text of ['{ nope', '{}', JSON.stringify(file)]) {
       const result = parseNotebookFile(text);
-      expect(!result.ok && result.error).not.toMatch(/drumstuff/i);
+      expect(!result.ok && result.error).not.toMatch(/beatsheet/i);
     }
+  });
+});
+
+describe('Spec library-persistence › Exporte unter dem früheren Namen', () => {
+  it('Alter Export', () => {
+    const songs = [richSong(), songWith({ title: 'Leer' })];
+    const old = { ...fileOf(songs), format: 'drumstuff.library' };
+    const result = parseNotebookFile(JSON.stringify(old));
+    expect(result).toEqual(imported(songs));
+    expect(result.ok && result.songs.map((s) => s.id)).toEqual(songs.map((s) => s.id));
   });
 });
 
@@ -192,7 +202,7 @@ describe('Spec library-persistence › Formatkennung und Schemaversion beim Impo
   });
 
   it('Export schreibt Formatkennung und Schemaversion', () => {
-    expect(fileOf([])).toMatchObject({ format: 'drumstuff.library', schemaVersion: 3 });
+    expect(fileOf([])).toMatchObject({ format: 'beatsheet.library', schemaVersion: 3 });
   });
 });
 

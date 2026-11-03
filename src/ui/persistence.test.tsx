@@ -63,7 +63,7 @@ describe('Spec library-persistence › Export der Bibliothek (UI)', () => {
     await user.click(screen.getByRole('button', { name: 'Exportieren' }));
     expect(save).toHaveBeenCalledTimes(1);
     const [name, content] = save.mock.calls[0]!;
-    expect(name).toMatch(/\.drumbook\.json$/);
+    expect(name).toMatch(/^beatsheet-\d{4}-\d{2}-\d{2}\.json$/);
     expect(JSON.parse(content).songs.map((s: Song) => s.id)).toEqual(songs.map((s) => s.id));
     save.mockRestore();
   });

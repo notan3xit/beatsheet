@@ -9,7 +9,7 @@ afterEach(async () => {
   await Promise.all(dirs.splice(0).map((d) => rm(d, { recursive: true, force: true })));
 });
 
-const mail = { to: 'ich@example.com', subject: 'Dein Anmeldecode für drumstuff', text: 'Code: 012345\n' };
+const mail = { to: 'ich@example.com', subject: 'Dein Anmeldecode für beatsheet', text: 'Code: 012345\n' };
 
 describe('Mail-Ausgang (design.md D6)', () => {
   it('schreibt eine vollständige Datei nach dem Vertrag von fs4', async () => {
@@ -22,7 +22,7 @@ describe('Mail-Ausgang (design.md D6)', () => {
     const path = join(dir, files[0]!);
     expect((await stat(path)).mode & 0o777).toBe(0o644);
     expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({
-      from_name: 'drumstuff',
+      from_name: 'beatsheet',
       to: ['ich@example.com'],
       subject: mail.subject,
       text: mail.text,
