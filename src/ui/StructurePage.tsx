@@ -5,6 +5,7 @@ import type { Song } from '../domain/types';
 import { layoutStructure, type BarEdges, type FillItem, type Item, type Row, type SegmentLayout } from '../songbook/layout';
 import { useDropTargets } from './dragPattern';
 import { patternStyle } from './patternStyle';
+import { PlayheadLine, useSongPlayback } from './playback';
 import { BarPopover, Popover, POPOVER_BEATS, SegmentPopover } from './StructurePopovers';
 import { openSongOf } from '../state/notebookStore';
 import { useOpenSong, useStore } from './useLibrary';
@@ -119,6 +120,8 @@ interface Selection {
   setHover: (change: (hover: Hover) => Hover) => void;
   /** Takte, auf die ein gezogenes Pattern gerade fiele. */
   dropTargets: ReadonlySet<string>;
+  /** Takt, den die Song-Wiedergabe gerade spielt. */
+  playingBarId: string | null;
 }
 
 /** Was die Maus gerade überfährt (design.md D1); Touch und Stift erzeugen keinen Hover. */
@@ -221,7 +224,9 @@ function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
         <button
           key={bar.barId}
           type="button"
-          className={`bar-frame${selection.dropTargets.has(bar.barId) ? ' drop-target' : ''}`}
+          className={`bar-frame${selection.dropTargets.has(bar.barId) ? ' drop-target' : ''}${
+            selection.playingBarId === bar.barId ? ' playing' : ''
+          }`}
           data-bar-id={bar.barId}
           style={place(bar.x, bar.width)}
           aria-label={`Takt ${bar.index + 1}`}
@@ -234,6 +239,11 @@ function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
       {row.items.map((item, i) => (
         <RowItem key={i} item={item} isHighlighted={isHighlighted} />
       ))}
+      {row.bars
+        .filter((bar) => bar.barId === selection.playingBarId)
+        .map((bar) => (
+          <PlayheadLine key={bar.barId} barId={bar.barId} x={bar.x} width={bar.width} />
+        ))}
       {hover.rowKey === key && <BarInsertButtons row={row} />}
       {selection.barPopover(row)}
     </div>
@@ -352,6 +362,12 @@ export function StructurePage() {
   );
   const page = useRef<HTMLElement>(null);
   useDismiss(selection.kind !== 'none', page, clear);
+  const { barId: playingBarId } = useSongPlayback();
+  // Laufenden Takt sichtbar halten; nearest scrollt nur, wenn er nicht ohnehin zu sehen ist (design.md D4)
+  useEffect(() => {
+    if (!playingBarId) return;
+    page.current?.querySelector(`[data-bar-id="${CSS.escape(playingBarId)}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [playingBarId]);
 
   const anchor = selection.kind === 'bars' ? barAnchor(layout, song, selection.barIds) : null;
   const barPopover = (row: Row) =>
@@ -386,7 +402,7 @@ export function StructurePage() {
         <SegmentView
           key={segment.segmentId}
           segment={segment}
-          selection={{ current: selection, selectBar, selectSegment, barPopover, hover, setHover, dropTargets }}
+          selection={{ current: selection, selectBar, selectSegment, barPopover, hover, setHover, dropTargets, playingBarId }}
         />
       ))}
     </section>

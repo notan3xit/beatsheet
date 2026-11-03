@@ -1,13 +1,13 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import type { Player } from '../audio/player';
-import { setTempo } from '../domain/playback';
-import { MAX_TEMPO, MIN_TEMPO, type Pattern } from '../domain/types';
+import { patternTimeline, setTempo, songTimeline, type SongRange, type Step } from '../domain/playback';
+import { DEFAULT_TEMPO, MAX_TEMPO, MIN_TEMPO, type Pattern } from '../domain/types';
 import { openSongOf } from '../state/notebookStore';
 import { useOpenSong, useStore } from './useLibrary';
 
 export const PlayerContext = createContext<Player | null>(null);
 
-function usePlayer(): Player {
+export function usePlayer(): Player {
   const player = useContext(PlayerContext);
   if (!player) throw new Error('PlayerContext fehlt');
   return player;
@@ -26,12 +26,82 @@ export function usePlayback(pattern: Pattern, tempo: number) {
   return {
     available: player.available,
     playing: state.playing,
-    step: state.step,
+    step: state.mark as Step | null,
     toggle: () =>
       state.playing
         ? player.stop()
-        : player.start({ pattern: () => latest.current.pattern, tempo: () => latest.current.tempo }),
+        : player.start({
+            timeline: () => patternTimeline(latest.current.pattern),
+            tempo: () => latest.current.tempo,
+            loop: true,
+          }),
   };
+}
+
+/**
+ * Wiedergabe des geöffneten Songs (song-playback, design.md D3). Die Quelle liest den Song bei jedem
+ * Planungsschritt aus dem Store, damit Änderungen sofort hörbar sind. Der Bereich steht ab dem Start fest.
+ */
+/** Bereich der laufenden Song-Wiedergabe je Player; die Linie braucht den Taktanfang relativ dazu (design.md D4). */
+const activeRanges = new WeakMap<Player, SongRange>();
+
+export function useSongPlayback() {
+  const player = usePlayer();
+  const store = useStore();
+  const state = useSyncExternalStore(player.subscribe, player.getState);
+  return {
+    available: player.available,
+    playing: state.playing,
+    /** Laufender Takt; nur Song-Marken sind Takt-IDs. */
+    barId: typeof state.mark === 'string' ? state.mark : null,
+    start(range: SongRange, loop: boolean) {
+      const song = () => openSongOf(store.getState());
+      activeRanges.set(player, range);
+      player.start({
+        timeline: () => {
+          const current = song();
+          return current ? songTimeline(current, range) : null;
+        },
+        tempo: () => song()?.tempo ?? DEFAULT_TEMPO,
+        loop,
+      });
+    },
+    stop: () => player.stop(),
+  };
+}
+
+/**
+ * Linie an der aktuellen Wiedergabeposition im laufenden Takt (Takt bei `x`, `width` Beats breit).
+ * Eigene Frame-Schleife, setzt `left` direkt: kein React-Render pro Frame (design.md D4).
+ */
+export function PlayheadLine({ barId, x, width }: { barId: string; x: number; width: number }) {
+  const player = usePlayer();
+  const store = useStore();
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    let frame = 0;
+    const draw = () => {
+      const range = activeRanges.get(player);
+      const song = openSongOf(store.getState());
+      const position = player.getPosition();
+      const start = range && song ? songTimeline(song, range)?.marks.find((m) => m.mark === barId)?.at : undefined;
+      const offset = position !== null && start !== undefined ? Math.min(Math.max(position - start, 0), width) : 0;
+      if (ref.current) ref.current.style.left = `calc(var(--beat) * ${x + offset})`;
+      frame = requestAnimationFrame(draw);
+    };
+    draw();
+    return () => cancelAnimationFrame(frame);
+  }, [player, store, barId, x, width]);
+  return <span ref={ref} className="playhead-line" aria-hidden="true" />;
+}
+
+/** Hinweis, wenn der Browser kein Web Audio kann. */
+export function NoAudioNote() {
+  return (
+    <p role="note" className="hint">
+      Die Wiedergabe ist in diesem Browser nicht möglich, weil er kein Web Audio unterstützt.
+    </p>
+  );
 }
 
 /** Tempo des geöffneten Songs; `commit` übernimmt ein neues Tempo und liefert das danach gespeicherte. */
@@ -90,11 +160,7 @@ export function Transport({ playback }: { playback: ReturnType<typeof usePlaybac
         {playback.playing ? 'Stopp' : 'Abspielen'}
       </button>
       <TempoField tempo={tempo} title={title} onCommit={commit} />
-      {!playback.available && (
-        <p role="note" className="hint">
-          Die Wiedergabe ist in diesem Browser nicht möglich, weil er kein Web Audio unterstützt.
-        </p>
-      )}
+      {!playback.available && <NoAudioNote />}
     </div>
   );
 }

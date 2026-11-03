@@ -323,3 +323,22 @@ describe('Spec song-structure › Akzente (UI)', () => {
     expect(bars()[0]!.accents).toEqual([]);
   });
 });
+
+describe('Spec songbook-view › Abspielen in den Popovers', () => {
+  it('Abspielen im Segment-Popover', async () => {
+    const { user } = setup([], twoSegments);
+    await user.click(segmentButton('Verse'));
+    const panel = within(popover('Segment Verse'));
+    expect(panel.getByRole('button', { name: 'Ab hier abspielen' })).toBeInTheDocument();
+    expect(panel.getByRole('button', { name: 'In Schleife abspielen' })).toBeInTheDocument();
+  });
+
+  it('Abspielen im Takt-Popover, auch bei mehreren Takten', async () => {
+    const { user } = setup([], twoSegments);
+    await selectBars(user, 1, 2);
+    const panel = within(barPopover());
+    expect(panel.getByRole('button', { name: 'Ab hier abspielen' })).toBeInTheDocument();
+    expect(panel.getByRole('button', { name: 'In Schleife abspielen' })).toBeInTheDocument();
+  });
+});
+

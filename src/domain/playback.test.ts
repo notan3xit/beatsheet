@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { songWith } from '../test/songs';
 import { patternOf } from '../test/patterns';
-import { FLAM_GRACE_GAIN, FLAM_GRACE_SECONDS, GHOST_GAIN, patternHits, patternSteps, setTempo } from './playback';
+import { addAccent, appendSegment, setBarProps } from './structure';
+import { allBars } from './songPatterns';
+import type { Pattern, Song } from './types';
+import { FLAM_GRACE_GAIN, FLAM_GRACE_SECONDS, GHOST_GAIN, patternHits, patternSteps, setTempo, songTimeline } from './playback';
 
 describe('Spec song-library › Song-Tempo', () => {
   it('Tempo ändern', () => {
@@ -100,5 +103,104 @@ describe('Wiedergabe mit Zweiunddreißigsteln (thirty-second-notes)', () => {
     const pattern = patternOf([{ sub: 12, hits: { snare: [2] } }]);
     expect(patternHits(pattern)[0]!.at).toBeCloseTo(1 / 12, 12);
     expect(patternSteps(pattern)).toHaveLength(12);
+  });
+});
+
+/** Song aus Patterns und Segmenten; `bars` je Segment mit 4-Beat-Takten. */
+function songOf(patterns: Pattern[], segments: { name: string; bars: number; grooveId?: string | null }[]): Song {
+  return segments.reduce((song, segment) => appendSegment(song, segment), songWith({ patterns }));
+}
+const barIds = (song: Song) => allBars(song).map((b) => b.id);
+const whole = (song: Song) => ({ from: barIds(song)[0]!, to: 'end' as const });
+const hitsAt = (song: Song, range = whole(song)) =>
+  songTimeline(song, range)!.hits.map((h) => [h.at, h.instrument]);
+
+describe('Spec song-playback › Klang aus der Struktur', () => {
+  it('Groove-Fortlauf: 8-Beat-Groove über zwei Takte', () => {
+    const groove = { ...patternOf([{}, {}, {}, {}, { hits: { snare: [1] } }, {}, {}, {}]), kind: 'groove' as const };
+    const song = songOf([groove], [{ name: 'Verse', bars: 2, grooveId: groove.id }]);
+    expect(hitsAt(song)).toEqual([[4, 'snare']]);
+    expect(songTimeline(song, whole(song))!.length).toBe(8);
+  });
+
+  it('Fill überdeckt den Groove', () => {
+    const groove = patternOf(Array.from({ length: 4 }, () => ({ hits: { kick: [1] } })));
+    const fill = patternOf([{ hits: { snare: [1] } }], 'fill');
+    let song = songOf([groove, fill], [{ name: 'Verse', bars: 2, grooveId: groove.id }]);
+    song = setBarProps(song, [barIds(song)[1]!], { fillId: fill.id });
+    expect(hitsAt(song).filter(([at]) => at === 7)).toEqual([[7, 'snare']]);
+    expect(hitsAt(song).filter(([, i]) => i === 'kick').map(([at]) => at)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it('Akzent im leeren Takt', () => {
+    let song = songOf([], [{ name: 'Intro', bars: 1 }]);
+    song = addAccent(song, barIds(song)[0]!, { instrument: 'crash', beat: 0, position: 0 });
+    expect(hitsAt(song)).toEqual([[0, 'crash']]);
+  });
+
+  it('Akzent zusätzlich zum Groove; gleiches Instrument an gleicher Stelle entfällt', () => {
+    const groove = patternOf([{ hits: { kick: [1], crash: [3] } }, {}, {}, {}]);
+    let song = songOf([groove], [{ name: 'Verse', bars: 1, grooveId: groove.id }]);
+    const [bar] = barIds(song);
+    song = addAccent(song, bar!, { instrument: 'crash', beat: 0, position: 0 });
+    song = addAccent(song, bar!, { instrument: 'crash', beat: 0, position: 2 });
+    song = addAccent(song, bar!, { instrument: 'ride', beat: 2, position: 1 });
+    expect(hitsAt(song)).toEqual([
+      [0, 'kick'],
+      [0, 'crash'],
+      [0.5, 'crash'],
+      [2.25, 'ride'],
+    ]);
+  });
+
+  it('Spielweisen aus Groove und Fill bleiben erhalten', () => {
+    const groove = patternOf([{ hits: { snare: [1, 3] } }, {}, {}, {}]);
+    groove.beats[0] = { ...groove.beats[0]!, articulations: { snare: { 0: 'ghost', 2: 'flam' } } };
+    const song = songOf([groove], [{ name: 'Verse', bars: 1, grooveId: groove.id }]);
+    const hits = songTimeline(song, whole(song))!.hits;
+    expect(hits[0]).toMatchObject({ at: 0, gain: GHOST_GAIN });
+    expect(hits[1]).toMatchObject({ at: 0.5, gain: 1, graceBefore: FLAM_GRACE_SECONDS });
+  });
+});
+
+describe('Spec song-playback › Ab hier und Schleife (Bereich)', () => {
+  const kicks = patternOf(Array.from({ length: 4 }, () => ({ hits: { kick: [1] } })));
+  const fourBars = () => songOf([kicks], [{ name: 'Verse', bars: 4, grooveId: kicks.id }]);
+
+  it('Ab einem Takt: Zeiten relativ zum Bereichsanfang, Länge bis Songende', () => {
+    const song = fourBars();
+    const timeline = songTimeline(song, { from: barIds(song)[2]!, to: 'end' })!;
+    expect(timeline.length).toBe(8);
+    expect(timeline.hits.map((h) => h.at)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(timeline.marks).toEqual([
+      { at: 0, mark: barIds(song)[2] },
+      { at: 4, mark: barIds(song)[3] },
+    ]);
+  });
+
+  it('„end“ ist dynamisch: angefügte Takte spielen mit', () => {
+    const song = fourBars();
+    const range = { from: barIds(song)[2]!, to: 'end' as const };
+    const longer = appendSegment(song, { name: 'Outro', bars: 1 });
+    expect(songTimeline(longer, range)!.length).toBe(12);
+  });
+
+  it('Schleifenbereich Takte 2–3', () => {
+    const song = fourBars();
+    const timeline = songTimeline(song, { from: barIds(song)[1]!, to: barIds(song)[2]! })!;
+    expect(timeline.length).toBe(8);
+    expect(timeline.marks.map((m) => m.mark)).toEqual([barIds(song)[1], barIds(song)[2]]);
+  });
+
+  it('Fehlender Anfangs- oder Endtakt: null', () => {
+    const song = fourBars();
+    expect(songTimeline(song, { from: 'weg', to: 'end' })).toBeNull();
+    expect(songTimeline(song, { from: barIds(song)[0]!, to: 'weg' })).toBeNull();
+  });
+
+  it('Zwischenspeicher: gleicher Song und Bereich liefern dasselbe Objekt', () => {
+    const song = fourBars();
+    const range = whole(song);
+    expect(songTimeline(song, { ...range })).toBe(songTimeline(song, { ...range }));
   });
 });

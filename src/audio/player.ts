@@ -9,10 +9,12 @@ export interface Player {
   start(source: PlaybackSource): void;
   stop(): void;
   getState(): PlaybackState;
+  /** Position in Beats ab Quellenanfang; für flüssige Anzeigen pro Frame abfragen. */
+  getPosition(): number | null;
   subscribe(listener: () => void): () => void;
 }
 
-const IDLE: PlaybackState = { playing: false, step: null };
+const IDLE: PlaybackState = { playing: false, mark: null };
 
 type AudioWindow = { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
 
@@ -51,6 +53,7 @@ export function createWebAudioPlayer(win: AudioWindow = globalThis as AudioWindo
     },
     stop: () => audio?.scheduler.stop(),
     getState: () => audio?.scheduler.getState() ?? IDLE,
+    getPosition: () => audio?.scheduler.getPosition() ?? null,
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

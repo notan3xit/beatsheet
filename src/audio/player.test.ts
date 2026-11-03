@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { patternTimeline } from '../domain/playback';
 import { patternOf } from '../test/patterns';
 import { FakeAudioContext } from '../test/fakeAudio';
 import { createWebAudioPlayer } from './player';
 
-const source = { pattern: () => patternOf([{ hits: { kick: [1] } }]), tempo: () => 120 };
+const source = { timeline: () => patternTimeline(patternOf([{ hits: { kick: [1] } }])), tempo: () => 120, loop: true };
 
 describe('Spec pattern-playback › Audio nicht verfügbar', () => {
   it('Browser ohne Web Audio: Player nicht verfügbar, start ohne Wirkung', () => {
     const player = createWebAudioPlayer({});
     expect(player.available).toBe(false);
     player.start(source);
-    expect(player.getState()).toEqual({ playing: false, step: null });
+    expect(player.getState()).toEqual({ playing: false, mark: null });
   });
 });
 
@@ -37,6 +38,6 @@ describe('createWebAudioPlayer', () => {
     player.start(source);
     expect(created).toHaveLength(1);
     player.stop();
-    expect(player.getState()).toEqual({ playing: false, step: null });
+    expect(player.getState()).toEqual({ playing: false, mark: null });
   });
 });

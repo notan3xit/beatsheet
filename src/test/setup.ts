@@ -17,6 +17,9 @@ HTMLCanvasElement.prototype.getContext = function getContext() {
   };
 } as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
+// jsdom kennt kein scrollIntoView; die Song-Wiedergabe scrollt damit zum laufenden Takt (song-playback, design.md D4)
+Element.prototype.scrollIntoView ??= function scrollIntoView() {};
+
 afterEach(() => {
   cleanup();
 });

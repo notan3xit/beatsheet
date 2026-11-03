@@ -20,6 +20,7 @@ import { AccentEditor } from './AccentEditor';
 import { CommitField } from './CommitField';
 import { useConfirm } from './ConfirmDialog';
 import { PatternChips } from './PatternChips';
+import { useSongPlayback } from './playback';
 import { useOpenSong, useStore } from './useLibrary';
 
 /** Breite des Popovers in Beats, für die Begrenzung am rechten Zeilenrand (design.md D4). */
@@ -55,12 +56,29 @@ function useApply() {
   return { apply, alert };
 }
 
+/** Abspiel-Aktionen eines Popovers: ab dem ersten Takt bis Songende, oder vom ersten bis letzten Takt in Schleife. */
+function PlayActions({ first, last }: { first?: string; last?: string }) {
+  const playback = useSongPlayback();
+  const disabled = !playback.available || !first || !last;
+  return (
+    <div className="popover-actions">
+      <button type="button" disabled={disabled} onClick={() => first && playback.start({ from: first, to: 'end' }, false)}>
+        Ab hier abspielen
+      </button>
+      <button type="button" disabled={disabled} onClick={() => first && last && playback.start({ from: first, to: last }, true)}>
+        In Schleife abspielen
+      </button>
+    </div>
+  );
+}
+
 export function SegmentPopover({ segmentId, onSelectSegment }: { segmentId: string; onSelectSegment: (id: string) => void }) {
   const store = useStore();
   const song = useOpenSong();
   const confirm = useConfirm();
   const index = song.segments.findIndex((s) => s.id === segmentId);
   const segment = song.segments[index]!;
+  const segmentBars = segment.blocks.flatMap((b) => b.bars);
   const update = (change: (s: Song) => Song) => store.updateSong(change);
 
   const insertAfter = () => {
@@ -112,6 +130,7 @@ export function SegmentPopover({ segmentId, onSelectSegment }: { segmentId: stri
           Löschen
         </button>
       </div>
+      <PlayActions first={segmentBars[0]?.id} last={segmentBars.at(-1)?.id} />
     </>
   );
 }
@@ -167,6 +186,7 @@ export function BarPopover({ barIds }: { barIds: string[] }) {
           Löschen
         </button>
       </div>
+      <PlayActions first={first.id} last={last.id} />
       {bars.length === 1 && <AccentEditor key={first.id} barId={first.id} beats={first.beats} accents={first.accents} />}
       {alert}
     </>

@@ -4,7 +4,7 @@ import { openDB } from 'idb';
 import { describe, expect, it, vi } from 'vitest';
 import type { PlaybackSource, PlaybackState, Player } from '../audio/player';
 import { createPattern } from '../domain/pattern';
-import type { Step } from '../domain/playback';
+import { patternTimeline, type Step } from '../domain/playback';
 import type { Pattern } from '../domain/types';
 import { openRepository } from '../persistence/repository';
 import { createNotebookStore } from '../state/notebookStore';
@@ -14,7 +14,8 @@ import { App } from './App';
 
 /** Nachgebildeter Player: zeichnet Aufrufe auf, die Position meldet der Test selbst. */
 function fakePlayer(available = true) {
-  let state: PlaybackState = { playing: false, step: null };
+  let state: PlaybackState = { playing: false, mark: null };
+  let position: number | null = null;
   let source: PlaybackSource | null = null;
   const listeners = new Set<() => void>();
   const set = (next: PlaybackState) => {
@@ -25,10 +26,11 @@ function fakePlayer(available = true) {
     available,
     start: vi.fn((s: PlaybackSource) => {
       source = s;
-      set({ playing: true, step: null });
+      set({ playing: true, mark: null });
     }),
-    stop: vi.fn(() => set({ playing: false, step: null })),
+    stop: vi.fn(() => set({ playing: false, mark: null })),
     getState: () => state,
+    getPosition: () => position,
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -38,7 +40,9 @@ function fakePlayer(available = true) {
     player,
     source: () => source!,
     /** Die Wiedergabe erreicht eine Rasterposition. */
-    reach: (step: Step) => act(() => set({ playing: true, step })),
+    reach: (step: Step) => act(() => set({ playing: true, mark: step })),
+    /** Fortlaufende Position in Beats, wie der Scheduler sie liefert. */
+    at: (beat: number | null) => (position = beat),
   };
 }
 
@@ -77,7 +81,8 @@ describe('Spec pattern-playback › Wiedergabe starten und stoppen (UI)', () => 
   it('Quelle liefert das geöffnete Pattern und das Tempo des Songs', async () => {
     const { user, source, patternsNow } = setup();
     await user.click(playButton());
-    expect(source().pattern()).toBe(patternsNow()[0]);
+    expect(source().timeline()).toEqual(patternTimeline(patternsNow()[0]!));
+    expect(source().loop).toBe(true);
     expect(source().tempo()).toBe(120);
   });
 });
@@ -87,7 +92,7 @@ describe('Spec pattern-playback › Änderungen während der Wiedergabe (UI)', (
     const { user, source, player } = setup();
     await user.click(playButton());
     await user.click(cell('Bassdrum', 1, 1));
-    expect(source().pattern().beats[0]!.hits.kick).toEqual([0]);
+    expect(source().timeline()!.hits.map((h) => [h.instrument, h.at])).toEqual([['kick', 0]]);
     expect(player.start).toHaveBeenCalledTimes(1);
   });
 });

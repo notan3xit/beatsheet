@@ -1,11 +1,34 @@
+import { useEffect } from 'react';
+import { allBars } from '../domain/songPatterns';
 import { Breadcrumbs } from './Breadcrumbs';
 import { useConfirm } from './ConfirmDialog';
 import { DragProvider } from './dragPattern';
 import { EditableHeading } from './EditableHeading';
 import { PatternPage } from './PatternPage';
 import { StructurePage } from './StructurePage';
+import { NoAudioNote, usePlayer, useSongPlayback } from './playback';
 import { TempoMark } from './TempoMark';
 import { useOpenSong, useStore } from './useLibrary';
+
+/** Kopftaste: ganzen Song einmal abspielen; während jeder Song-Wiedergabe „Stopp“. */
+function SongTransport() {
+  const song = useOpenSong();
+  const playback = useSongPlayback();
+  const first = allBars(song)[0];
+  return (
+    <>
+      <button
+        type="button"
+        className="primary play"
+        disabled={!playback.available || (!playback.playing && !first)}
+        onClick={() => (playback.playing ? playback.stop() : first && playback.start({ from: first.id, to: 'end' }, false))}
+      >
+        {playback.playing ? 'Stopp' : 'Song abspielen'}
+      </button>
+      {!playback.available && <NoAudioNote />}
+    </>
+  );
+}
 
 function SongHeader() {
   const store = useStore();
@@ -24,6 +47,7 @@ function SongHeader() {
       <div className="page-title">
         <EditableHeading key={song.id} label="Songtitel" value={song.title} onCommit={(draft) => store.renameSong(song.id, draft)} />
         <TempoMark />
+        <SongTransport />
         <button type="button" className="danger" onClick={() => void remove()}>
           Song löschen
         </button>
@@ -34,6 +58,9 @@ function SongHeader() {
 
 /** Doppelseite: links die Struktur, rechts die Patterns des Songs. */
 export function Songbook() {
+  const player = usePlayer();
+  // Wer die Doppelseite verlässt, beendet die Song-Wiedergabe (song-playback, design.md D3)
+  useEffect(() => () => player.stop(), [player]);
   return (
     <main className="songbook" aria-label="Song">
       <SongHeader />
