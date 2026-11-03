@@ -26,6 +26,9 @@ function richSong(title = 'Hysteria'): Song {
 /** Exportdatei als Objekt, um einzelne Stellen gezielt zu verändern. */
 const fileOf = (songs: Song[]) => JSON.parse(serializeNotebook(songs, NOW));
 
+/** Erfolgreiches Ergebnis einer Datei der eigenen oder einer älteren Version. */
+const imported = (songs: Song[]) => ({ ok: true, songs, fromNewerVersion: false });
+
 describe('Spec library-persistence › Export der Bibliothek', () => {
   it('Export herunterladen: Dateiname und Inhalt', () => {
     expect(exportFileName(NOW)).toBe('drumstuff-2026-11-01.drumbook.json');
@@ -39,7 +42,7 @@ describe('Spec library-persistence › Export der Bibliothek', () => {
 
   it('Export ist verlustfrei', () => {
     const songs = [richSong(), songWith({ title: 'Leer' })];
-    expect(parseNotebookFile(serializeNotebook(songs, NOW))).toEqual({ ok: true, songs });
+    expect(parseNotebookFile(serializeNotebook(songs, NOW))).toEqual(imported(songs));
   });
 });
 
@@ -47,7 +50,7 @@ describe('Spec library-persistence › Tempo im Format', () => {
   it('Tempo im Export', () => {
     const songs = [songWith({ title: 'Langsam', tempo: 96 })];
     const result = parseNotebookFile(serializeNotebook(songs, NOW));
-    expect(result).toEqual({ ok: true, songs });
+    expect(result).toEqual(imported(songs));
     expect(result.ok && result.songs[0]!.tempo).toBe(96);
   });
 
@@ -63,14 +66,14 @@ describe('Spec library-persistence › Tempo im Format', () => {
     const file = fileOf([song]);
     delete file.songs[0].tempo;
     expect(file.schemaVersion).toBe(3);
-    expect(parseNotebookFile(JSON.stringify(file))).toEqual({ ok: true, songs: [{ ...song, tempo: 120 }] });
+    expect(parseNotebookFile(JSON.stringify(file))).toEqual(imported([{ ...song, tempo: 120 }]));
   });
 
   it('Datei der Schemaversion 2', () => {
     const song = songWith({ title: 'Alt', tempo: 140 });
     const file = { ...fileOf([song]), schemaVersion: 2 };
     delete file.songs[0].tempo;
-    expect(parseNotebookFile(JSON.stringify(file))).toEqual({ ok: true, songs: [{ ...song, tempo: 120 }] });
+    expect(parseNotebookFile(JSON.stringify(file))).toEqual(imported([{ ...song, tempo: 120 }]));
   });
 });
 
@@ -87,14 +90,31 @@ describe('Spec library-persistence › Unbekannte Felder in Importdateien', () =
     file.songs[0].patterns[0].swing = 0.6;
     file.songs[0].patterns[0].beats[0].humanize = true;
     const result = parseNotebookFile(JSON.stringify(file));
-    expect(result).toEqual({ ok: true, songs: [song] });
+    expect(result).toEqual(imported([song]));
   });
 });
 
 describe('Spec library-persistence › Ungültige Importdateien', () => {
   it('Neuere Schemaversion', () => {
-    const result = parseNotebookFile(JSON.stringify({ ...fileOf([]), schemaVersion: 4 }));
-    expect(!result.ok && result.error).toMatch(/neueren Version/);
+    const songs = [richSong()];
+    const result = parseNotebookFile(JSON.stringify({ ...fileOf(songs), schemaVersion: 4 }));
+    expect(result).toEqual({ ok: true, songs, fromNewerVersion: true });
+  });
+
+  it('Neuere Schemaversion: Strukturregeln gelten weiter', () => {
+    const file = { ...fileOf([richSong()]), schemaVersion: 4 };
+    file.songs[0].patterns[0].beats = [];
+    const result = parseNotebookFile(JSON.stringify(file));
+    expect(!result.ok && result.error).toMatch(/beschädigt/);
+  });
+
+  it('Keine erkennbaren Songs', () => {
+    for (const data of [{ format: 'drumstuff.library', schemaVersion: 3 }, { songs: 'nein' }, [], 42]) {
+      expect(parseNotebookFile(JSON.stringify(data))).toEqual({
+        ok: false,
+        error: 'Die Datei enthält keine importierbaren Songs.',
+      });
+    }
   });
 
   it('Beschädigte Datei', () => {
@@ -127,12 +147,52 @@ describe('Spec library-persistence › Ungültige Importdateien', () => {
     expect(!result.ok && result.error).toMatch(/beschädigt/);
   });
 
-  it('Kein gültiges JSON und fremde Formatkennung', () => {
+  it('Kein gültiges JSON', () => {
     expect(parseNotebookFile('{ nope')).toMatchObject({ ok: false, error: expect.stringMatching(/kein gültiges JSON/) });
-    expect(parseNotebookFile(JSON.stringify({ format: 'x', schemaVersion: 2, songs: [] }))).toMatchObject({
-      ok: false,
-      error: expect.stringMatching(/keine Drumstuff-Bibliothek/),
-    });
+  });
+
+  it('Fehlermeldungen nennen keinen Projektnamen', () => {
+    const file = fileOf([richSong()]);
+    file.songs[0].title = ' ';
+    for (const text of ['{ nope', '{}', JSON.stringify(file)]) {
+      const result = parseNotebookFile(text);
+      expect(!result.ok && result.error).not.toMatch(/drumstuff/i);
+    }
+  });
+});
+
+describe('Spec library-persistence › Formatkennung und Schemaversion beim Import', () => {
+  it('Fremde Formatkennung', () => {
+    const songs = [richSong()];
+    expect(parseNotebookFile(JSON.stringify({ ...fileOf(songs), format: 'anderes.format' }))).toEqual(imported(songs));
+  });
+
+  it('Ohne Formatkennung und Schemaversion', () => {
+    const songs = [richSong()];
+    expect(parseNotebookFile(JSON.stringify({ songs: fileOf(songs).songs }))).toEqual(imported(songs));
+  });
+
+  it('Schemaversion keine Zahl', () => {
+    const songs = [richSong()];
+    expect(parseNotebookFile(JSON.stringify({ ...fileOf(songs), schemaVersion: '9' }))).toEqual(imported(songs));
+  });
+
+  it('Altes Format ohne Schemaversion', () => {
+    const patterns = [patternOf(emptyBeats(4)), patternOf(emptyBeats(1), 'fill')];
+    const result = parseNotebookFile(JSON.stringify({ patterns: patterns.map(({ color: _color, ...rest }) => rest) }));
+    expect(result.ok && result.fromNewerVersion).toBe(false);
+    if (!result.ok) return;
+    expect(result.songs.map((s) => s.title)).toEqual(['Importierte Patterns']);
+    expect(result.songs[0]!.patterns.map((p) => p.id)).toEqual(patterns.map((p) => p.id));
+  });
+
+  it('Struktur hat Vorrang vor der Schemaversion', () => {
+    const songs = [richSong()];
+    expect(parseNotebookFile(JSON.stringify({ ...fileOf(songs), schemaVersion: 1 }))).toEqual(imported(songs));
+  });
+
+  it('Export schreibt Formatkennung und Schemaversion', () => {
+    expect(fileOf([])).toMatchObject({ format: 'drumstuff.library', schemaVersion: 3 });
   });
 });
 
@@ -179,7 +239,7 @@ describe('Spec library-persistence › Spielweisen (Schemaversion 3)', () => {
   it('Spielweisen im Export', () => {
     const songs = [songWithArticulations()];
     const result = parseNotebookFile(serializeNotebook(songs, NOW));
-    expect(result).toEqual({ ok: true, songs });
+    expect(result).toEqual(imported(songs));
     expect(result.ok && result.songs[0]!.patterns[0]!.beats[0]!.articulations).toEqual({ snare: { 0: 'flam', 1: 'ghost' } });
   });
 
@@ -206,7 +266,7 @@ describe('Spec library-persistence › Import von Dateien der Schemaversion 2', 
   it('Export der Vorversion importieren', () => {
     const songs = [richSong()];
     const result = parseNotebookFile(JSON.stringify({ ...fileOf(songs), schemaVersion: 2 }));
-    expect(result).toEqual({ ok: true, songs });
+    expect(result).toEqual(imported(songs));
   });
 });
 
@@ -217,12 +277,12 @@ describe('Dateiformat mit Zweiunddreißigsteln (thirty-second-notes)', () => {
     const songs = [rollSong()];
     const file = serializeNotebook(songs, NOW);
     expect(JSON.parse(file).schemaVersion).toBe(3);
-    expect(parseNotebookFile(file)).toEqual({ ok: true, songs });
+    expect(parseNotebookFile(file)).toEqual(imported(songs));
   });
 
   it('Rundlauf mit Unterteilung 12', () => {
     const songs = [songWith({ title: 'Triolen', patterns: [patternOf([{ sub: 12, hits: { snare: [1, 5, 9, 12] } }], 'fill')] })];
-    expect(parseNotebookFile(serializeNotebook(songs, NOW))).toEqual({ ok: true, songs });
+    expect(parseNotebookFile(serializeNotebook(songs, NOW))).toEqual(imported(songs));
   });
 
   it('Position außerhalb des Zweiunddreißigstel-Rasters wird abgewiesen', () => {

@@ -114,25 +114,19 @@ const songSchema = z
   });
 
 /**
- * Schemaversion 2 und 3 teilen die Form; Version 2 enthält nur keine Spielweisen.
+ * Aktuelle Form (Schemaversion 2 und 3; Version 2 enthält nur keine Spielweisen).
+ * Kopfangaben (Formatkennung, Schemaversion, Exportzeitpunkt) werden nicht geprüft.
  * Unbekannte Felder werden auf allen Ebenen entfernt statt abgewiesen: Neue optionale Felder
  * brauchen so keine neue Schemaversion (siehe AGENTS.md).
  */
-const fileSchemaV2 = z.object({
-  format: z.literal(FORMAT_ID),
-  schemaVersion: z.union([z.literal(2), z.literal(3)]),
-  exportedAt: z.iso.datetime(),
-  songs: z.array(songSchema),
-});
+const fileSchema = z.object({ songs: z.array(songSchema) });
 
-const fileSchemaV1 = z.object({
-  format: z.literal(FORMAT_ID),
-  schemaVersion: z.literal(1),
-  exportedAt: z.iso.datetime(),
-  patterns: z.array(patternV1Schema),
-});
+/** Schemaversion 1: nur Patterns. */
+const fileSchemaV1 = z.object({ patterns: z.array(patternV1Schema) });
 
-export type ParseResult = { ok: true; songs: Song[] } | { ok: false; error: string };
+export type ParseResult =
+  | { ok: true; songs: Song[]; /** Datei trägt eine höhere Schemaversion als die eigene. */ fromNewerVersion: boolean }
+  | { ok: false; error: string };
 
 export function serializeNotebook(songs: readonly Song[], now: Date): string {
   return JSON.stringify(
@@ -178,28 +172,24 @@ export function parseNotebookFile(text: string, deps?: Deps): ParseResult {
     return { ok: false, error: 'Die Datei ist kein gültiges JSON.' };
   }
 
-  const header = z.object({ format: z.string(), schemaVersion: z.number() }).safeParse(data);
-  if (!header.success || header.data.format !== FORMAT_ID) {
-    return { ok: false, error: 'Die Datei ist keine Drumstuff-Bibliothek.' };
-  }
-  if (header.data.schemaVersion > SCHEMA_VERSION) {
-    return {
-      ok: false,
-      error: `Die Datei wurde mit einer neueren Version von Drumstuff erstellt (Schemaversion ${header.data.schemaVersion}) und kann nicht importiert werden.`,
-    };
-  }
+  const file = data !== null && typeof data === 'object' && !Array.isArray(data) ? (data as Record<string, unknown>) : {};
+  const { schemaVersion } = file;
+  const fromNewerVersion = typeof schemaVersion === 'number' && schemaVersion > SCHEMA_VERSION;
 
-  if (header.data.schemaVersion === 1) {
-    const v1 = fileSchemaV1.safeParse(data);
+  // Die Struktur entscheidet, nicht die Versionsangabe (design.md D1).
+  if (Array.isArray(file.songs)) {
+    const parsed = fileSchema.safeParse(file);
+    if (!parsed.success) {
+      return { ok: false, error: `Die Datei ist beschädigt: ${describeIssue(parsed.error.issues[0]!.path, 'Song')}. Es wurde nichts importiert.` };
+    }
+    return { ok: true, songs: parsed.data.songs as Song[], fromNewerVersion };
+  }
+  if (Array.isArray(file.patterns)) {
+    const v1 = fileSchemaV1.safeParse(file);
     if (!v1.success) {
       return { ok: false, error: `Die Datei ist beschädigt: ${describeIssue(v1.error.issues[0]!.path, 'Pattern')}. Es wurde nichts importiert.` };
     }
-    return { ok: true, songs: [songFromV1Patterns(v1.data.patterns as Omit<Pattern, 'color'>[], deps)] };
+    return { ok: true, songs: [songFromV1Patterns(v1.data.patterns as Omit<Pattern, 'color'>[], deps)], fromNewerVersion };
   }
-
-  const parsed = fileSchemaV2.safeParse(data);
-  if (!parsed.success) {
-    return { ok: false, error: `Die Datei ist beschädigt: ${describeIssue(parsed.error.issues[0]!.path, 'Song')}. Es wurde nichts importiert.` };
-  }
-  return { ok: true, songs: parsed.data.songs as Song[] };
+  return { ok: false, error: 'Die Datei enthält keine importierbaren Songs.' };
 }

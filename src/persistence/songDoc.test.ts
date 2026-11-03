@@ -7,7 +7,7 @@ import { addAccent, appendSegment, changeBarLength, setBarProps } from '../domai
 import type { Instrument, Pattern, Song } from '../domain/types';
 import { songWith } from '../test/songs';
 import { parseNotebookFile, serializeNotebook } from './fileFormat';
-import { mergeImport } from './merge';
+import { planImport } from './merge';
 import { applySong, createSongDoc, fromDocShape, mergeSongDocs, songOf, toDocShape, type SongDocument } from './songDoc';
 
 const NOW = new Date('2026-11-03T12:00:00.000Z');
@@ -50,7 +50,7 @@ function merged(a: SongDocument, b: SongDocument): Song {
   const ba = songOf(mergeSongDocs(b, a));
   expect(ab).toEqual(ba);
   const parsed = parseNotebookFile(serializeNotebook([ab], NOW));
-  expect(parsed).toEqual({ ok: true, songs: [ab] });
+  expect(parsed).toEqual({ ok: true, songs: [ab], fromNewerVersion: false });
   return ab;
 }
 
@@ -179,7 +179,7 @@ describe('Spec song-merge › Revision nach dem Zusammenführen', () => {
   it('Import der Ausgangsfassung', () => {
     const { changedA, changedB, song } = fiveAndOne();
     for (const exported of [songOf(changedA), songOf(changedB)]) {
-      expect(mergeImport([song], [exported]).summary).toEqual({ added: 0, updated: 0, unchanged: 1 });
+      expect(planImport([song], [exported], { fromNewerVersion: false })[0]).toMatchObject({ newer: 'local', choice: 'skip' });
     }
   });
 });

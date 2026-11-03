@@ -1,48 +1,89 @@
-/** Alles, was nach Revision zusammengeführt wird (heute: Songs). */
-export interface Versioned {
-  id: string;
-  revision: number;
-  updatedAt: string;
+import type { Deps } from '../domain/pattern';
+import type { Song } from '../domain/types';
+
+/** Song der Datei, dessen ID lokal unbekannt ist. */
+export interface NewEntry {
+  kind: 'new';
+  song: Song;
+  choice: 'add' | 'skip';
 }
+
+/** Song der Datei, dessen ID lokal existiert. */
+export interface ExistingEntry {
+  kind: 'existing';
+  song: Song;
+  existing: Song;
+  /** Welche Fassung nach Revision und Änderungszeitpunkt neuer ist. */
+  newer: 'file' | 'local';
+  choice: 'replace' | 'copy' | 'skip';
+}
+
+export type ImportEntry = NewEntry | ExistingEntry;
 
 export interface ImportSummary {
   added: number;
-  updated: number;
-  unchanged: number;
+  replaced: number;
+  copied: number;
+  skipped: number;
 }
 
-export interface MergeResult<T extends Versioned> {
-  /** Bestand nach dem Import. */
-  items: T[];
-  /** Hinzugefügte und aktualisierte Einträge. */
-  changed: T[];
+export interface ImportResult {
+  /** Zu übernehmende Songs (für `store.importSongs`). */
+  songs: Song[];
   summary: ImportSummary;
 }
 
-const isNewer = (candidate: Versioned, current: Versioned) =>
+const isNewer = (candidate: Song, current: Song) =>
   candidate.revision !== current.revision
     ? candidate.revision > current.revision
     : candidate.updatedAt > current.updatedAt;
 
-/** Höhere Revision gewinnt, bei Gleichstand der spätere Änderungszeitpunkt. */
-export function mergeImport<T extends Versioned>(local: readonly T[], incoming: readonly T[]): MergeResult<T> {
-  const byId = new Map(local.map((item) => [item.id, item]));
-  const changed: T[] = [];
-  const summary: ImportSummary = { added: 0, updated: 0, unchanged: 0 };
+/** Ein Eintrag je Song der Datei, mit Vorbelegung (design.md D2). */
+export function planImport(
+  local: readonly Song[],
+  incoming: readonly Song[],
+  { fromNewerVersion }: { fromNewerVersion: boolean },
+): ImportEntry[] {
+  const byId = new Map(local.map((song) => [song.id, song]));
+  return incoming.map((song): ImportEntry => {
+    const existing = byId.get(song.id);
+    if (!existing) return { kind: 'new', song, choice: 'add' };
+    const newer = isNewer(song, existing) ? 'file' : 'local';
+    const choice = fromNewerVersion ? 'copy' : newer === 'file' ? 'replace' : 'skip';
+    return { kind: 'existing', song, existing, newer, choice };
+  });
+}
 
-  for (const item of incoming) {
-    const current = byId.get(item.id);
-    if (!current) {
+/** Wendet die Auswahl an; der lokale Bestand selbst bleibt unberührt. */
+export function applyImport(plan: readonly ImportEntry[], deps: Deps): ImportResult {
+  const songs: Song[] = [];
+  const summary: ImportSummary = { added: 0, replaced: 0, copied: 0, skipped: 0 };
+  const now = () => deps.now().toISOString();
+
+  for (const entry of plan) {
+    if (entry.choice === 'skip') {
+      summary.skipped++;
+    } else if (entry.kind === 'new') {
       summary.added++;
-    } else if (isNewer(item, current)) {
-      summary.updated++;
+      songs.push(entry.song);
+    } else if (entry.choice === 'replace') {
+      summary.replaced++;
+      // Eine bewusst übernommene ältere Fassung gilt als jüngste Änderung.
+      songs.push(
+        entry.newer === 'file' ? entry.song : { ...entry.song, revision: entry.existing.revision + 1, updatedAt: now() },
+      );
     } else {
-      summary.unchanged++;
-      continue;
+      summary.copied++;
+      const timestamp = now();
+      songs.push({
+        ...entry.song,
+        id: deps.newId(),
+        title: `${entry.song.title} (Kopie)`,
+        revision: 1,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
     }
-    byId.set(item.id, item);
-    changed.push(item);
   }
-
-  return { items: [...byId.values()], changed, summary };
+  return { songs, summary };
 }

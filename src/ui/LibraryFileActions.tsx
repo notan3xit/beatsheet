@@ -1,15 +1,18 @@
 import { useState, type ChangeEvent } from 'react';
 import { exportFileName, parseNotebookFile, serializeNotebook } from '../persistence/fileFormat';
-import { mergeImport } from '../persistence/merge';
+import { applyImport, planImport, type ImportEntry } from '../persistence/merge';
 import { downloadFile } from './download';
+import { ImportDialog } from './ImportDialog';
 import { useStore } from './useLibrary';
 
 type Message = { kind: 'status' | 'alert'; text: string };
+type Pending = { plan: ImportEntry[]; fromNewerVersion: boolean };
 
 /** Export und Import aller Songs. */
 export function LibraryFileActions() {
   const store = useStore();
   const [message, setMessage] = useState<Message | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
 
   const exportLibrary = () => {
     const now = new Date();
@@ -26,11 +29,18 @@ export function LibraryFileActions() {
       setMessage({ kind: 'alert', text: `Import fehlgeschlagen: ${parsed.error}` });
       return;
     }
-    const { changed, summary } = mergeImport(store.getState().songs, parsed.songs);
-    store.importSongs(changed);
+    setMessage(null);
+    const { fromNewerVersion } = parsed;
+    setPending({ plan: planImport(store.getState().songs, parsed.songs, { fromNewerVersion }), fromNewerVersion });
+  };
+
+  const confirmImport = (plan: ImportEntry[]) => {
+    setPending(null);
+    const { songs, summary } = applyImport(plan, { now: () => new Date(), newId: () => crypto.randomUUID() });
+    store.importSongs(songs);
     setMessage({
       kind: 'status',
-      text: `Import abgeschlossen (Songs): ${summary.added} hinzugefügt, ${summary.updated} aktualisiert, ${summary.unchanged} unverändert.`,
+      text: `Import abgeschlossen (Songs): ${summary.added} hinzugefügt, ${summary.replaced} ersetzt, ${summary.copied} als Kopie, ${summary.skipped} übersprungen.`,
     });
   };
 
@@ -48,6 +58,14 @@ export function LibraryFileActions() {
           onChange={(e) => void importLibrary(e)}
         />
       </label>
+      {pending && (
+        <ImportDialog
+          plan={pending.plan}
+          fromNewerVersion={pending.fromNewerVersion}
+          onCancel={() => setPending(null)}
+          onConfirm={confirmImport}
+        />
+      )}
       {message && (
         <div role={message.kind} className={`message ${message.kind}`}>
           <span>{message.text}</span>
