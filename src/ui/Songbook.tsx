@@ -4,6 +4,7 @@ import { DragProvider } from './dragPattern';
 import { EditableHeading } from './EditableHeading';
 import { PatternPage } from './PatternPage';
 import { StructurePage } from './StructurePage';
+import { TempoMark } from './TempoMark';
 import { useOpenSong, useStore } from './useLibrary';
 
 function SongHeader() {
@@ -22,6 +23,7 @@ function SongHeader() {
       <Breadcrumbs />
       <div className="page-title">
         <EditableHeading key={song.id} label="Songtitel" value={song.title} onCommit={(draft) => store.renameSong(song.id, draft)} />
+        <TempoMark />
         <button type="button" className="danger" onClick={() => void remove()}>
           Song löschen
         </button>

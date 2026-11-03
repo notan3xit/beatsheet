@@ -57,7 +57,7 @@ function setup({ available = true } = {}) {
 }
 
 const playButton = () => screen.getByRole('button', { name: /^(Abspielen|Stopp)$/ });
-const tempoField = () => screen.getByLabelText('Tempo (BPM)') as HTMLInputElement;
+const tempoField = () => screen.getByLabelText('Song-Tempo (BPM)') as HTMLInputElement;
 const cell = (instrument: string, beat: number, position: number) =>
   screen.getByRole('button', { name: new RegExp(`^${instrument}, Beat ${beat}, Position ${position}`) });
 const highlighted = () => Array.from(document.querySelectorAll('.step.playing')).map((el) => el.getAttribute('aria-label'));
@@ -140,6 +140,11 @@ describe('Spec pattern-playback › Tempo im Pattern-Editor', () => {
     expect(tempoField().value).toBe('90');
     act(() => store.openPattern(patternsNow()[1]!.id));
     expect(tempoField().value).toBe('90');
+  });
+
+  it('Kennzeichnung als Song-Tempo', () => {
+    setup();
+    expect(tempoField()).toHaveAccessibleDescription('gilt für alle Patterns von „Test“');
   });
 
   it('Tempo während der Wiedergabe', async () => {

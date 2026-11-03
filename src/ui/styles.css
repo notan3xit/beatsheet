@@ -339,6 +339,34 @@ input {
   outline: none;
 }
 
+/* Tempoangabe neben dem Songtitel, wie in Noten: ♩ = 120; Klick zum Ändern wie bei der Überschrift */
+.tempo-mark,
+.tempo-mark-input {
+  font: inherit;
+  font-size: 1rem;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+}
+
+.tempo-mark {
+  cursor: text;
+  border-bottom: 1px dashed transparent;
+}
+
+.tempo-mark:hover {
+  border-bottom-color: var(--muted);
+}
+
+.tempo-mark-input {
+  width: 4.5rem;
+  color: var(--text);
+  border-bottom: 1px solid var(--accent);
+  outline: none;
+}
+
 .pages {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
@@ -1008,6 +1036,17 @@ button.link {
 /* Feste Breite, damit „Abspielen“/„Stopp“ die Zeile nicht verschiebt */
 .transport .play {
   min-width: 6.5rem;
+}
+
+/* Im Kopf stehen Felder sonst in einer Zeile; hier Beschriftung, Feld und Hinweis untereinander */
+.tempo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.tempo-hint {
+  font-size: 0.75rem;
 }
 
 .transport .tempo-field input {
