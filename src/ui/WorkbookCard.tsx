@@ -3,11 +3,24 @@ import type { Song, Workbook } from '../domain/types';
 import type { ActionResult, WorkbookActions } from '../sync/sync';
 import { useConfirm } from './ConfirmDialog';
 import { EditableHeading } from './EditableHeading';
+import { useReport } from './messages';
 import { SongTable } from './SongTable';
 import { useDismiss } from './useDismiss';
 import { useEmail, syncMessage } from './useWorkbooks';
 
-export function useActionError() {
+/** Aktion, deren Fehler im Stapel oben erscheint; `true` bei Erfolg. */
+export function useReportedAction() {
+  const report = useReport();
+  return async (action: () => Promise<ActionResult>) => {
+    const result = await action();
+    if (result.ok) report();
+    else report('alert', syncMessage(result.error));
+    return result.ok;
+  };
+}
+
+/** Aktion aus einem Formular: Der Fehler bleibt am Feld. */
+function useActionError() {
   const [error, setError] = useState<string | null>(null);
   /** Führt die Aktion aus und zeigt ihren Fehler; `true` bei Erfolg. */
   const run = async (action: () => Promise<ActionResult>) => {
@@ -18,7 +31,7 @@ export function useActionError() {
   return [error, run] as const;
 }
 
-export function ActionError({ text }: { text: string | null }) {
+function ActionError({ text }: { text: string | null }) {
   return text ? (
     <p role="alert" className="message alert">
       {text}
@@ -99,7 +112,7 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
   const [membersOpen, setMembersOpen] = useState(false);
   const membersArea = useRef<HTMLDivElement>(null);
   useDismiss(membersOpen, membersArea, useCallback(() => setMembersOpen(false), []));
-  const [error, run] = useActionError();
+  const run = useReportedAction();
   const isOwner = workbook.owner === email;
 
   const rename = (draft: string) => {
@@ -137,7 +150,6 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
           </button>
         )}
       </div>
-      <ActionError text={error} />
     </section>
   );
 }

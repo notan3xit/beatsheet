@@ -28,6 +28,14 @@
   --warning: var(--ctp-yellow);
   --backdrop: color-mix(in srgb, var(--ctp-crust) 60%, transparent);
   --shadow: color-mix(in srgb, var(--ctp-crust) 35%, transparent);
+  /* Ebenen von unten nach oben; z-index nur über diese Tokens */
+  --z-local-1: 1;
+  --z-local-2: 2;
+  --z-local-3: 3;
+  --z-messages: 10;
+  --z-popover: 20;
+  --z-modal: 30;
+  --z-drag: 40;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -98,20 +106,18 @@ input {
 }
 
 .app {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  /* Kopf, Hinweise (ggf. leer), Inhalt */
-  grid-template-rows: auto auto 1fr;
+  /* Flex statt Grid: Ein klebendes Element verließe seine Grid-Zeile nicht */
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
 }
 
 .app > main {
-  grid-row: 3;
+  flex: 1;
   min-width: 0;
 }
 
 .app-header {
-  grid-column: 1 / -1;
   padding: 0.6rem 1.25rem;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
@@ -180,19 +186,30 @@ input {
 }
 
 .app-notes {
-  grid-row: 2;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-messages);
   display: flex;
   flex-direction: column;
   min-width: 0;
+  background: var(--bg);
 }
 
-.storage-note {
+.app-notes > .message {
+  max-width: none;
   margin: 0;
-  padding: 0.5rem 1.25rem;
+  padding: 0.4rem 0.75rem 0.4rem 1.25rem;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-notes > .message > span {
+  flex: 1;
+}
+
+.message.note {
   background: color-mix(in srgb, var(--warning) 25%, transparent);
   color: var(--text);
-  font-size: 0.85rem;
-  border-bottom: 1px solid var(--border);
 }
 
 .account {
@@ -212,7 +229,7 @@ input {
   position: absolute;
   top: calc(100% + 0.5rem);
   right: 0;
-  z-index: 10;
+  z-index: var(--z-popover);
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -275,7 +292,7 @@ input {
   position: absolute;
   top: calc(100% + 0.35rem);
   right: 0;
-  z-index: 5;
+  z-index: var(--z-popover);
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -309,10 +326,6 @@ input {
   display: flex;
   align-items: end;
   gap: 0.5rem;
-}
-
-.notice {
-  margin: 0.75rem 1.25rem 0;
 }
 
 .songs .song-action {
@@ -606,7 +619,7 @@ input {
   margin-left: -1px;
   background: var(--playhead);
   pointer-events: none;
-  z-index: 2;
+  z-index: var(--z-local-2);
 }
 
 .row-end {
@@ -671,7 +684,7 @@ input {
 .shorthand {
   position: absolute;
   inset: 0;
-  z-index: 2; /* über Nachbarzeilen und Akzenten, in die die Stufen hineinragen */
+  z-index: var(--z-local-2); /* über Nachbarzeilen und Akzenten, in die die Stufen hineinragen */
   pointer-events: none;
 }
 
@@ -743,7 +756,7 @@ input {
 /* Akzente ragen über die Oberkante, ohne Groove oder Fill zu verdecken */
 .accent {
   top: -0.35rem;
-  z-index: 1;
+  z-index: var(--z-local-1);
   transform: translateX(-2px);
   font-size: 0.55rem;
   font-weight: 700;
@@ -758,7 +771,7 @@ input {
 .insert-bar {
   position: absolute;
   top: -0.5rem;
-  z-index: 3;
+  z-index: var(--z-local-3);
   display: block;
   width: 1rem;
   height: 1rem;
@@ -805,7 +818,7 @@ input {
   position: absolute;
   top: 100%;
   left: var(--row-gutter);
-  z-index: 3;
+  z-index: var(--z-local-3);
   display: flex;
   gap: 0.4rem;
   padding-top: 0.15rem;
@@ -842,7 +855,7 @@ body.dragging-pattern * {
 
 .drag-image {
   position: fixed;
-  z-index: 20;
+  z-index: var(--z-drag);
   transform: translate(0.6rem, 0.6rem);
   padding: 0.15rem 0.5rem;
   border-left: 3px solid var(--pc);
@@ -867,7 +880,7 @@ body.dragging-pattern * {
 .structure-popover {
   position: absolute;
   top: calc(100% + 0.35rem);
-  z-index: 5;
+  z-index: var(--z-popover);
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -1325,7 +1338,7 @@ button.link {
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: var(--z-modal);
   background: var(--backdrop);
   display: grid;
   place-items: center;

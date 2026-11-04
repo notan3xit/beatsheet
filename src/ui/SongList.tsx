@@ -5,9 +5,9 @@ import { SongTable, sortedByTitle } from './SongTable';
 import { useDismiss } from './useDismiss';
 import { useNotebook, useStore } from './useLibrary';
 import { useEmail, useSync } from './useWorkbooks';
-import { ActionError, useActionError, WorkbookCard } from './WorkbookCard';
+import { useReportedAction, WorkbookCard } from './WorkbookCard';
 
-function MoveMenu({ song, sync, run }: { song: Song; sync: WorkbookActions; run: ReturnType<typeof useActionError>[1] }) {
+function MoveMenu({ song, sync, run }: { song: Song; sync: WorkbookActions; run: ReturnType<typeof useReportedAction> }) {
   const { workbooks } = useNotebook();
   const [open, setOpen] = useState(false);
   const area = useRef<HTMLDivElement>(null);
@@ -43,7 +43,7 @@ function MySongs({ songs, sync }: { songs: readonly Song[]; sync: WorkbookAction
   const { workbooks } = useNotebook();
   const email = useEmail();
   const [title, setTitle] = useState('');
-  const [error, run] = useActionError();
+  const run = useReportedAction();
   const canMove = sync && email && workbooks.some((w) => !w.personal);
 
   return (
@@ -70,31 +70,27 @@ function MySongs({ songs, sync }: { songs: readonly Song[]; sync: WorkbookAction
       ) : (
         <SongTable songs={songs} action={canMove ? (song) => <MoveMenu song={song} sync={sync} run={run} /> : undefined} />
       )}
-      <ActionError text={error} />
     </section>
   );
 }
 
 function NewWorkbook({ sync }: { sync: WorkbookActions }) {
   const [title, setTitle] = useState('');
-  const [error, run] = useActionError();
+  const run = useReportedAction();
   return (
-    <>
-      <form
-        className="song-create"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void run(() => sync.createWorkbook(title)).then((ok) => ok && setTitle(''));
-        }}
-      >
-        <label className="field">
-          Titel des neuen Workbooks
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Neues Workbook" />
-        </label>
-        <button type="submit">Neues Workbook</button>
-      </form>
-      <ActionError text={error} />
-    </>
+    <form
+      className="song-create"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void run(() => sync.createWorkbook(title)).then((ok) => ok && setTitle(''));
+      }}
+    >
+      <label className="field">
+        Titel des neuen Workbooks
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Neues Workbook" />
+      </label>
+      <button type="submit">Neues Workbook</button>
+    </form>
   );
 }
 

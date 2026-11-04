@@ -26,11 +26,17 @@ Test-first gemäß `AGENTS.md`: In jeder Gruppe zuerst die Szenarien als Tests e
 
 - [x] 5.1 Tests erfassen (rot), `src/ui/workbooks.test.tsx` mit Fake-Sync: persönliches Workbook erscheint nicht als Karte und nicht in „Zu Workbook …“; seine Songs stehen in „Meine Songs“; „Zu Workbook …“ fehlt ohne weitere Workbooks; Löschnachfrage und Import-Hinweis nennen bei eigenen Songs keine Mitglieder; Löschen eines eigenen Songs ruft `deleteSong`; Hinweis nach der Übernahme erscheint. `src/ui/account.test.tsx` an die geänderte Anforderung „Abmelden“ anpassen, soweit nötig. Prüfen: `npm test -- workbooks account` rot
 - [x] 5.2 Filter und Texte nach D2 umsetzen. Prüfen: Tests aus 5.1 und `npm test -- styles` grün, `npm test` grün
+- [x] 5.3 Tests erfassen (rot), `src/ui/workbooks.test.tsx`: Hinweis auf fehlenden dauerhaften Speicher abgemeldet mit Verweis auf „Exportieren“, angemeldet mit Account und nicht übertragenen Änderungen, ohne Export; Wechsel beim Anmelden und Abmelden. Prüfen: `npm test -- workbooks` rot
+- [x] 5.4 Hinweis nach `library-persistence` umsetzen. Prüfen: Tests aus 5.3 grün, `npm test` grün
+- [x] 5.5 Tests erfassen (rot), `src/ui/workbooks.test.tsx`: Szenarien aus `app-messages`; bestehende Tests zu Fehlern in Karten an die Anforderung anpassen. Prüfen: `npm test -- workbooks` rot
+- [x] 5.6 Stapel nach D10 umsetzen, Styles nur mit semantischen Tokens. Prüfen: Tests aus 5.5 und `npm test -- styles` grün, `npm test` grün
+- [x] 5.7 Tests erfassen (rot), `src/ui/styles.test.ts`: Jedes `z-index` verweist auf ein Token `--z-*`, Reihenfolge der Ebenen, Zuordnung von Stapel, Popovern, Dialogen und gezogenem Element. Prüfen: `npm test -- styles` rot
+- [x] 5.8 Ebenen nach D11 umsetzen, Regel in `AGENTS.md`. Prüfen: `npm test` grün
 
 ## 6. Integration
 
 - [x] 6.1 `AGENTS.md` im Abschnitt zu `sync` und `server/` um den persönlichen Bestand ergänzen. Prüfen: `npm test`, `npm run build` grün, `openspec validate account-songs --strict` fehlerfrei
-- [ ] 6.2 Ende-zu-Ende mit artjom: Server und Dev-Server auf einem freigegebenen Port, zwei Browser mit demselben Login: lokale Songs vor dem Anmelden anlegen, anmelden (Hinweis), Songs erscheinen auf dem zweiten Browser, Änderung und Löschen binnen 5 s, offline anlegen und löschen, dann wieder verbinden, Song nach „Band“ verschieben, abmelden und wieder anmelden, zweiter Account auf demselben Browser. Ergebnis in design.md festhalten
+- [x] 6.2 Ende-zu-Ende mit artjom: Server und Dev-Server auf einem freigegebenen Port, zwei Browser mit demselben Login: lokale Songs vor dem Anmelden anlegen, anmelden (Hinweis), Songs erscheinen auf dem zweiten Browser, Änderung und Löschen binnen 5 s, offline anlegen und löschen, dann wieder verbinden, Song nach „Band“ verschieben, abmelden und wieder anmelden, zweiter Account auf demselben Browser. Ergebnis in design.md festhalten
 
 ## Workflow follow-up
 

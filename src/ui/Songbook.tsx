@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { allBars } from '../domain/songPatterns';
 import { Breadcrumbs } from './Breadcrumbs';
 import { useConfirm } from './ConfirmDialog';
 import { DragProvider } from './dragPattern';
 import { EditableHeading } from './EditableHeading';
+import { useReport } from './messages';
 import { PatternPage } from './PatternPage';
 import { StructurePage } from './StructurePage';
 import { NoAudioNote, usePlayer, useSongPlayback } from './playback';
@@ -37,7 +38,7 @@ function SongHeader() {
   const confirm = useConfirm();
   const sync = useSync();
   const { placement, workbooks } = useNotebook();
-  const [error, setError] = useState<string | null>(null);
+  const report = useReport();
   const workbook = workbooks.find((w) => w.id === placement[song.id]);
 
   const remove = async () => {
@@ -45,7 +46,7 @@ function SongHeader() {
     if (!(await confirm(`„${song.title}“ löschen?${reach} Alle Patterns und die Struktur des Songs werden mitgelöscht.`))) return;
     if (!sync || !placement[song.id]) return store.deleteSong(song.id);
     const result = await sync.deleteSong(song.id);
-    if (!result.ok) setError(syncMessage(result.error));
+    if (!result.ok) report('alert', syncMessage(result.error));
   };
 
   return (
@@ -59,11 +60,6 @@ function SongHeader() {
           Song löschen
         </button>
       </div>
-      {error && (
-        <p role="alert" className="message alert">
-          {error}
-        </p>
-      )}
     </header>
   );
 }

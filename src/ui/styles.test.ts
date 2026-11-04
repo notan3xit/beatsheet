@@ -102,3 +102,36 @@ describe('Spec songbook-view › Kompakte Zeilen (Stylesheet)', () => {
     expect(rem(structureRow, 'margin-top')).toBeLessThanOrEqual(0.5);
   });
 });
+
+describe('Spec app-messages › Ebenen der Oberfläche (Stylesheet)', () => {
+  const zIndexOf = (selector: string) =>
+    new RegExp(`(?:^|\\n)${selector.replace(/[.]/g, '\\.')} \\{[^}]*z-index: ([^;]+);`).exec(css)?.[1]?.trim();
+  const level = (name: string) => Number(token(`z-${name}`));
+
+  it('Jedes z-index verweist auf ein Token', () => {
+    const values = [...css.matchAll(/z-index:\s*([^;]+);/g)].map((m) => m[1]!.trim());
+    expect(values.length).toBeGreaterThan(0);
+    expect(values.filter((value) => !/^var\(--z-[a-z0-9-]+\)$/.test(value))).toEqual([]);
+  });
+
+  it('Jedes verwendete Token ist definiert', () => {
+    for (const [, name] of css.matchAll(/var\(--z-([a-z0-9-]+)\)/g)) expect(Number.isInteger(level(name!))).toBe(true);
+  });
+
+  it('Reihenfolge: Inhalt, Meldungen, Popover, Dialoge, gezogene Elemente', () => {
+    const order = ['local-1', 'local-2', 'local-3', 'messages', 'popover', 'modal', 'drag'].map(level);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+    expect(new Set(order).size).toBe(order.length);
+  });
+
+  it.each([
+    ['.app-notes', 'messages'],
+    ['.account-form', 'popover'],
+    ['.card-popover', 'popover'],
+    ['.structure-popover', 'popover'],
+    ['.backdrop', 'modal'],
+    ['.drag-image', 'drag'],
+  ])('%s liegt auf der Ebene %s', (selector, name) => {
+    expect(zIndexOf(selector)).toBe(`var(--z-${name})`);
+  });
+});

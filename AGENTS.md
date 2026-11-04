@@ -23,6 +23,8 @@ Anweisungen an Agenten, Specs, Kommentare und Dokumente sind kurz, prägnant und
 
 **Farbregel:** Im CSS stehen keine Farbliterale (Hex, `rgb()`, benannte Farben). Komponenten verwenden die semantischen Tokens aus `src/ui/styles.css` (`--bg`, `--surface`, `--text`, `--accent`, `--danger` …), und die Tokens verweisen auf `--ctp-*`. `red` ist für Fehler und destruktive Aktionen reserviert (`--danger`). `src/ui/styles.test.ts` prüft das.
 
+**Ebenenregel:** Im CSS steht kein `z-index` als Zahl, nur die Tokens `--z-*` aus `src/ui/styles.css`. Von unten nach oben: Inhalt (`--z-local-*`), Meldungen, Popover, modale Dialoge, gezogene Elemente. Neue Popover und Dialoge nutzen die vorhandene Ebene. `src/ui/styles.test.ts` prüft das.
+
 Aufbau unter `src/`:
 - `domain`: reine Fachlogik (Datenmodell `Song` → `Segment` → `Block` → `Bar`, Patterns gehören zum Song), Normalisierung nach Strukturregeln
 - `notation`: Notationsmodell und VexFlow-Renderer

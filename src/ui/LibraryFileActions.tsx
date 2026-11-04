@@ -4,15 +4,15 @@ import { exportFileName, parseNotebookFile, serializeNotebook } from '../persist
 import { applyImport, planImport, type ImportEntry } from '../persistence/merge';
 import { downloadFile } from './download';
 import { ImportDialog } from './ImportDialog';
+import { useReport } from './messages';
 import { useStore } from './useLibrary';
 
-type Message = { kind: 'status' | 'alert'; text: string };
 type Pending = { plan: ImportEntry[]; fromNewerVersion: boolean };
 
 /** Export und Import aller Songs. */
 export function LibraryFileActions() {
   const store = useStore();
-  const [message, setMessage] = useState<Message | null>(null);
+  const report = useReport();
   const [pending, setPending] = useState<Pending | null>(null);
 
   const workbookTitleOf = (songId: string) => {
@@ -32,10 +32,10 @@ export function LibraryFileActions() {
     if (!file) return;
     const parsed = parseNotebookFile(await file.text());
     if (!parsed.ok) {
-      setMessage({ kind: 'alert', text: `Import fehlgeschlagen: ${parsed.error}` });
+      report('alert', `Import fehlgeschlagen: ${parsed.error}`);
       return;
     }
-    setMessage(null);
+    report();
     const { fromNewerVersion } = parsed;
     setPending({ plan: planImport(store.getState().songs, parsed.songs, { fromNewerVersion }), fromNewerVersion });
   };
@@ -44,10 +44,7 @@ export function LibraryFileActions() {
     setPending(null);
     const { songs, summary } = applyImport(plan, { now: () => new Date(), newId });
     store.importSongs(songs);
-    setMessage({
-      kind: 'status',
-      text: `Import abgeschlossen (Songs): ${summary.added} hinzugefügt, ${summary.replaced} ersetzt, ${summary.copied} als Kopie, ${summary.skipped} übersprungen.`,
-    });
+    report('status', `Import abgeschlossen (Songs): ${summary.added} hinzugefügt, ${summary.replaced} ersetzt, ${summary.copied} als Kopie, ${summary.skipped} übersprungen.`);
   };
 
   return (
@@ -72,14 +69,6 @@ export function LibraryFileActions() {
           onCancel={() => setPending(null)}
           onConfirm={confirmImport}
         />
-      )}
-      {message && (
-        <div role={message.kind} className={`message ${message.kind}`}>
-          <span>{message.text}</span>
-          <button type="button" className="message-close" aria-label="Meldung schließen" onClick={() => setMessage(null)}>
-            ×
-          </button>
-        </div>
       )}
     </div>
   );

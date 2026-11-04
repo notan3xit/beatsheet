@@ -2,6 +2,7 @@ import { useEffect, useId, useState, useSyncExternalStore } from 'react';
 import type { AccountError } from '../account/api';
 import type { AccountSession } from '../account/session';
 import { useConfirm } from './ConfirmDialog';
+import { useReport } from './messages';
 import { useSync } from './useWorkbooks';
 
 const MESSAGES: Record<AccountError, string> = {
@@ -21,6 +22,7 @@ export function AccountMenu({ session }: { session: AccountSession }) {
   const { api } = session;
   const sync = useSync();
   const confirm = useConfirm();
+  const report = useReport();
   const email = useSyncExternalStore(session.subscribe, session.getEmail);
   const [step, setStep] = useState<Step>({ kind: 'closed' });
   const [input, setInput] = useState('');
@@ -74,8 +76,9 @@ export function AccountMenu({ session }: { session: AccountSession }) {
         const discard = await confirm('Einige Änderungen an Workbook-Songs wurden nicht übertragen und gehen beim Abmelden verloren. Trotzdem abmelden?');
         if (!discard) return;
       }
+      report();
       const result = await api.logout();
-      if (!result.ok) return setError(result.error);
+      if (!result.ok) return report('alert', MESSAGES[result.error]);
       await sync?.afterLogout();
       session.setEmail(null);
     });
@@ -87,11 +90,6 @@ export function AccountMenu({ session }: { session: AccountSession }) {
         <button type="button" onClick={() => void logout()} disabled={busy}>
           Abmelden
         </button>
-        {error && (
-          <p role="alert" className="message alert">
-            {MESSAGES[error]}
-          </p>
-        )}
       </div>
     );
   }

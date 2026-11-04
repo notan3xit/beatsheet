@@ -110,6 +110,7 @@ function setup({
 }
 
 const card = (name: string) => screen.getByRole('region', { name });
+const stack = () => document.querySelector<HTMLElement>('.app-notes')!;
 const cardTitles = () => within(screen.getByRole('main', { name: 'Songs' })).getAllByRole('region').map((c) => c.getAttribute('aria-label'));
 const membersOf = (title: string) => within(card(title)).getByRole('button', { name: 'Mitglieder' });
 const popover = (title: string) => screen.getByRole('dialog', { name: `Mitglieder von ${title}` });
@@ -345,11 +346,6 @@ describe('Spec workbooks › Mitglied entfernen und austreten (UI)', () => {
     expect(popover('Band')).toBeInTheDocument();
   });
 
-  it('Die Nachfrage liegt über dem Popover', () => {
-    const css = readFileSync(resolve(process.cwd(), 'src/ui/styles.css'), 'utf8');
-    const zIndex = (selector: string) => Number(new RegExp(`\\n${selector.replace('.', '\\.')} \\{[^}]*z-index: (\\d+)`).exec(css)?.[1]);
-    expect(zIndex('.backdrop')).toBeGreaterThan(zIndex('.card-popover'));
-  });
 });
 
 describe('Spec workbooks › Songs nach dem Austritt (UI)', () => {
@@ -423,7 +419,7 @@ describe('Spec workbook-sync › Song in ein Workbook verschieben (UI)', () => {
     const { user } = setup({ songs: [uprising], workbooks: [workbook('Band')], overrides: { moveSong: vi.fn(async () => unreachable) } });
     await user.click(within(row('Uprising')).getByRole('button', { name: 'Zu Workbook …' }));
     await user.click(screen.getByRole('menuitem', { name: 'Band' }));
-    expect(within(card('Meine Songs')).getByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
+    expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
     expect(within(card('Meine Songs')).getByText('Uprising')).toBeInTheDocument();
   });
 
@@ -466,7 +462,8 @@ describe('Spec workbook-sync › Song in einem Workbook anlegen (UI)', () => {
   it('Server nicht erreichbar', async () => {
     const { user } = setup({ workbooks: [workbook('Band')], overrides: { createSongIn: vi.fn(async () => unreachable) } });
     await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
-    expect(within(card('Band')).getByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
+    expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
+    expect(within(card('Band')).queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 
@@ -630,6 +627,127 @@ describe('Spec account-songs › „Meine Songs“ im Account (UI)', () => {
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Bestätigen' }));
     expect(sync.deleteSong).not.toHaveBeenCalled();
     expect(store.getState().songs).toEqual([]);
+  });
+});
+
+describe('Spec library-persistence › Dauerhaften Speicher anfordern (UI)', () => {
+  const note = () => screen.getByRole('note');
+
+  it('Speicher nicht dauerhaft: abgemeldet mit Verweis auf den Export', () => {
+    setup({ email: null, storagePersisted: false });
+    expect(note()).toHaveTextContent('gelöscht werden');
+    expect(note()).toHaveTextContent('Exportieren');
+  });
+
+  it('Speicher nicht dauerhaft, angemeldet: nennt Account und nicht übertragene Änderungen', () => {
+    setup({ storagePersisted: false });
+    expect(note()).toHaveTextContent('dauerhaften Speicher');
+    expect(note()).toHaveTextContent('im Account');
+    expect(note()).toHaveTextContent('nicht übertragene Änderungen');
+    expect(note()).not.toHaveTextContent('Exportieren');
+  });
+
+  it('Der Hinweis wechselt mit der Anmeldung', () => {
+    const { session } = setup({ email: null, storagePersisted: false });
+    act(() => session.setEmail(ME));
+    expect(note()).toHaveTextContent('im Account');
+    act(() => session.setEmail(null));
+    expect(note()).toHaveTextContent('Exportieren');
+  });
+
+  it('Ohne Abgleich gilt der Hinweis für lokale Daten, auch angemeldet', () => {
+    const session = createAccountSession({
+      session: vi.fn(async () => ME),
+      requestCode: vi.fn(async () => ({ ok: true as const })),
+      verify: vi.fn(async () => ({ ok: true as const, email: ME })),
+      logout: vi.fn(async () => ({ ok: true as const })),
+    });
+    session.setEmail(ME);
+    render(<App store={createNotebookStore()} session={session} player={fakePlayer().player} storagePersisted={false} />);
+    expect(note()).toHaveTextContent('Exportieren');
+  });
+});
+
+describe('Spec app-messages › Meldungen gesammelt oben (UI)', () => {
+  const css = readFileSync(resolve(process.cwd(), 'src/ui/styles.css'), 'utf8');
+  const rule = (selector: string) => new RegExp(`\\n${selector.replace(/[.>]/g, (c) => `\\${c}`)} \\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+
+  it('Fehler einer Aktion in einer Karte; ein erfolgreicher neuer Versuch entfernt ihn', async () => {
+    const createSongIn = vi.fn<() => Promise<ActionResult>>().mockResolvedValueOnce(unreachable).mockResolvedValue(ok);
+    const { user } = setup({ workbooks: [workbook('Band')], overrides: { createSongIn } });
+    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    const alert = within(stack()).getByRole('alert');
+    expect(alert).toHaveTextContent('Der Server ist nicht erreichbar.');
+    expect(within(card('Band')).queryByRole('alert')).not.toBeInTheDocument();
+    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('Wiederholtes Scheitern derselben Stelle stapelt nicht', async () => {
+    const { user } = setup({ workbooks: [workbook('Band')], overrides: { createSongIn: vi.fn(async () => unreachable) } });
+    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    expect(within(stack()).getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('Mehrere Stellen stapeln sich; jede Meldung lässt sich einzeln schließen', async () => {
+    const { user, addNotice } = setup({ workbooks: [workbook('Band')], overrides: { createSongIn: vi.fn(async () => unreachable), createWorkbook: vi.fn(async () => unreachable) } });
+    act(() => addNotice('Hinweis'));
+    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    await user.click(screen.getByRole('button', { name: 'Neues Workbook' }));
+    expect(within(stack()).getAllByRole('alert')).toHaveLength(2);
+    expect(within(stack()).getAllByRole('status')).toHaveLength(1);
+    await user.click(within(within(stack()).getAllByRole('alert')[0]!).getByRole('button', { name: 'Meldung schließen' }));
+    expect(within(stack()).getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('Ergebnis des Imports', async () => {
+    const { user } = setup();
+    const file = new File([serializeNotebook([songWith({ title: 'Neu' })], new Date())], 'backup.json', { type: 'application/json' });
+    await user.upload(screen.getByLabelText('Importieren'), file);
+    await user.click(within(await screen.findByRole('dialog', { name: 'Songs importieren' })).getByRole('button', { name: 'Importieren' }));
+    const status = within(stack()).getByRole('status');
+    expect(status).toHaveTextContent('1 hinzugefügt');
+    expect(within(screen.getByRole('banner')).queryByRole('status')).not.toBeInTheDocument();
+    await user.click(within(status).getByRole('button', { name: 'Meldung schließen' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('Fehler beim Abmelden und beim Löschen stehen im Stapel', async () => {
+    const intro = songWith({ title: 'Intro' });
+    const ctx = setup({ songs: [intro], workbooks: [workbook('Band')], placement: { [intro.id]: 'wb-Band' }, overrides: { deleteSong: vi.fn(async () => unreachable) } });
+    await ctx.user.click(within(card('Band')).getByText('Intro'));
+    await ctx.user.click(screen.getByRole('button', { name: 'Song löschen' }));
+    await ctx.user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Bestätigen' }));
+    expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
+    vi.mocked(ctx.account.logout).mockResolvedValue({ ok: false, error: 'unreachable' });
+    const appHeader = document.querySelector<HTMLElement>('.app-header')!;
+    await ctx.user.click(within(appHeader).getByRole('button', { name: 'Abmelden' }));
+    await waitFor(() => expect(within(stack()).getAllByRole('alert')).toHaveLength(2));
+    expect(within(appHeader).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('Hinweise zu einem Zustand lassen sich nicht schließen', () => {
+    const { setOffline } = setup({ storagePersisted: false });
+    act(() => setOffline(true));
+    expect(within(stack()).getByRole('note')).toBeInTheDocument();
+    expect(within(stack()).getByRole('status')).toHaveTextContent('Keine Verbindung');
+    expect(within(stack()).queryByRole('button', { name: 'Meldung schließen' })).not.toBeInTheDocument();
+  });
+
+  it('Eingabefehler bleiben am Formular', async () => {
+    const { user } = setup({ workbooks: [workbook('Band')], overrides: { invite: vi.fn(async (): Promise<ActionResult> => ({ ok: false, error: 'invalid-email' })) } });
+    await user.click(membersOf('Band'));
+    await user.click(within(popover('Band')).getByRole('button', { name: 'Einladen' }));
+    expect(within(popover('Band')).getByRole('alert')).toBeInTheDocument();
+    expect(within(stack()).queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('Der Stapel klebt oben, das Kreuz steht rechts, und die Seite erlaubt das Kleben', () => {
+    expect(rule('.app-notes')).toMatch(/position: sticky/);
+    expect(rule('.app-notes')).toMatch(/top: 0/);
+    expect(rule('.app-notes > .message > span')).toMatch(/flex: 1/);
+    expect(rule('.app')).toMatch(/display: flex/);
   });
 });
 

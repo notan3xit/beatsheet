@@ -115,6 +115,18 @@ Der Ablauf aus D13 von `workbook-sync` bleibt. Änderungen:
 
 Läuft die Sitzung ab, bleiben eigene Songs auf dem Gerät. Meldet sich danach ein anderes Konto an, fehlt das alte persönliche Workbook in der Liste. D10 von `workbook-sync` greift mit neuen IDs, aber ohne Zusatz im Titel und ohne Hinweis zur Mitgliedschaft. Die Songs wandern in den Account, der sich anmeldet. Sie gelten als lokale Songs des Geräts, und der Hinweis aus D5 zählt sie.
 
+### D10: Meldungen
+
+`src/ui/messages.tsx` führt die Meldungen zentral, `useReport` ersetzt die vorige Meldung derselben Stelle. Der Stapel steht als eigene Zeile unter dem Kopf und klebt beim Scrollen oben (`position: sticky`). Dafür wird das Seitenlayout zur Flex-Spalte, weil ein klebendes Element seine Grid-Zeile nicht verlässt.
+
+Alternative Schwebende Toasts: Sie verdecken Inhalte, was bei dauerhaften Hinweisen wie „Keine Verbindung“ stört.
+
+### D11: Ebenen
+
+`src/ui/styles.css` definiert die Ebenen als Tokens `--z-*`, jedes `z-index` verweist darauf. `src/ui/styles.test.ts` prüft das samt Reihenfolge, wie bei der Farbregel. Tokens statt Zahlen, weil frei gewählte Werte sich nur im Zusammenspiel prüfen lassen und so unbemerkt in Konflikt geraten.
+
+Damit Popover über dem Stapel liegen können, darf kein Vorfahre einen Stapelkontext unterhalb von `--z-popover` bilden.
+
 ## Risks / Trade-offs
 
 - [Geteiltes Gerät: Lokale Songs eines Abgemeldeten wandern in den Account, der sich als Nächstes anmeldet] → So gefordert. Der Hinweis nennt die Anzahl, und übertragene Songs eines früheren Accounts liegen dann nicht mehr auf dem Gerät.
@@ -123,6 +135,12 @@ Läuft die Sitzung ab, bleiben eigene Songs auf dem Gerät. Meldet sich danach e
 - [Importe landen sofort im Account, auch versehentliche] → Der Nutzer kann sie löschen.
 - [Speicherbedarf ohne Grenze je Account] → Wie bisher bei Workbooks. Grenzen sind nicht Teil dieses Changes.
 - [Viele lokale Songs beim ersten Anmelden erzeugen viele Anfragen] → Sie laufen nacheinander, je Song höchstens 2 MB.
+
+## Ende-zu-Ende-Test
+
+2026-11-04, artjom, zwei Browser gegen Server und Dev-Server auf einem freigegebenen Port (reines HTTP): Alle Schritte aus Task 6.2 bestanden. Beim zweiten Account war die Adresse Mitglied von „Band“ und sah daher dessen Songs. Nach dem Entfernen wanderten sie als „(aus Band)“ in „Meine Songs“. Dass ein Account eigene Songs eines anderen nicht sieht, prüft der Test „Anderer Account auf demselben Gerät“.
+
+Im Test gefunden und behoben: Ort und Aussehen der Meldungen (D10).
 
 ## Migration Plan
 

@@ -8,6 +8,7 @@ import { AccountMenu } from './AccountMenu';
 import { ConfirmProvider } from './ConfirmDialog';
 import { HitTestContext, type HitTest } from './dragPattern';
 import { LibraryFileActions } from './LibraryFileActions';
+import { MessageRow, MessagesProvider, ReportedMessages } from './messages';
 import { PatternEditor } from './PatternEditor';
 import { PlayerContext } from './playback';
 import { SongList } from './SongList';
@@ -31,6 +32,19 @@ function CurrentView() {
   return <SongList />;
 }
 
+/** Angemeldet liegen die Songs im Account; gefährdet ist nur, was noch nicht übertragen wurde. */
+function StorageNote({ synced }: { synced: boolean }) {
+  const email = useEmail();
+  return (
+    <p role="note" className="message note">
+      Der Browser hat keinen dauerhaften Speicher gewährt.{' '}
+      {synced && email
+        ? 'Deine Songs liegen im Account, nur noch nicht übertragene Änderungen könnten verloren gehen.'
+        : 'Deine Daten könnten gelöscht werden. Sichere sie regelmäßig über „Exportieren“.'}
+    </p>
+  );
+}
+
 /** Ohne Anmeldung und Workbooks gibt es nichts abzugleichen, und der Hinweis entfällt. */
 function OfflineNote({ sync }: { sync: WorkbookActions }) {
   const offline = useSyncExternalStore(sync.subscribe, sync.isOffline);
@@ -38,7 +52,7 @@ function OfflineNote({ sync }: { sync: WorkbookActions }) {
   const email = useEmail();
   if (!offline || (!email && workbooks.length === 0)) return null;
   return (
-    <p role="status" className="storage-note">
+    <p role="status" className="message note">
       Keine Verbindung zum Server. Du kannst weiterarbeiten, deine Änderungen werden übertragen, sobald die Verbindung wieder steht.
     </p>
   );
@@ -47,14 +61,7 @@ function OfflineNote({ sync }: { sync: WorkbookActions }) {
 /** Hinweise des Abgleichs, etwa nach dem Verlust einer Mitgliedschaft. */
 function Notices({ sync }: { sync: WorkbookActions }) {
   const notices = useSyncExternalStore(sync.subscribe, sync.getNotices);
-  return notices.map((notice) => (
-    <div key={notice.id} role="status" className="message status notice">
-      <span>{notice.text}</span>
-      <button type="button" className="message-close" aria-label="Meldung schließen" onClick={() => sync.dismissNotice(notice.id)}>
-        ×
-      </button>
-    </div>
-  ));
+  return notices.map((notice) => <MessageRow key={notice.id} kind="status" text={notice.text} onClose={() => sync.dismissNotice(notice.id)} />);
 }
 
 export function App({
@@ -87,6 +94,7 @@ export function App({
         <SessionContext.Provider value={session}>
         <SyncContext.Provider value={sync ?? null}>
         <ConfirmProvider>
+        <MessagesProvider>
           <div className="app">
             <header className="app-header">
               <h1>Beatsheet</h1>
@@ -94,17 +102,14 @@ export function App({
               <AccountMenu session={session} />
             </header>
             <div className="app-notes">
-              {!storagePersisted && (
-                <p role="note" className="storage-note">
-                  Der Browser hat keinen dauerhaften Speicher gewährt. Deine Daten könnten gelöscht werden. Sichere sie
-                  regelmäßig über „Exportieren“.
-                </p>
-              )}
+              {!storagePersisted && <StorageNote synced={sync !== undefined} />}
               {sync && <OfflineNote sync={sync} />}
               {sync && <Notices sync={sync} />}
+              <ReportedMessages />
             </div>
             <CurrentView />
           </div>
+        </MessagesProvider>
         </ConfirmProvider>
         </SyncContext.Provider>
         </SessionContext.Provider>
