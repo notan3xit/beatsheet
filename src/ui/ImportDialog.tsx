@@ -5,6 +5,8 @@ import type { ExistingEntry, ImportEntry } from '../persistence/merge';
 interface Props {
   plan: ImportEntry[];
   fromNewerVersion: boolean;
+  /** Titel des Workbooks, zu dem ein Song gehört. */
+  workbookTitleOf: (songId: string) => string | undefined;
   onCancel: () => void;
   onConfirm: (plan: ImportEntry[]) => void;
 }
@@ -30,7 +32,7 @@ const describe = (song: Song) =>
   `Revision ${song.revision}, ${new Date(song.updatedAt).toLocaleString('de-DE', { dateStyle: 'medium', timeStyle: 'short' })}`;
 
 /** Auswahl vor jeder Übernahme einer Importdatei (design.md D3). */
-export function ImportDialog({ plan: initial, fromNewerVersion, onCancel, onConfirm }: Props) {
+export function ImportDialog({ plan: initial, fromNewerVersion, workbookTitleOf, onCancel, onConfirm }: Props) {
   const [plan, setPlan] = useState(initial);
   const titleId = useId();
   const name = useId();
@@ -58,6 +60,7 @@ export function ImportDialog({ plan: initial, fromNewerVersion, onCancel, onConf
         <div className="import-list">
           {plan.map((entry, index) => {
             const options = entry.kind === 'new' ? NEW_OPTIONS : EXISTING_OPTIONS;
+            const sharedIn = entry.choice === 'replace' ? workbookTitleOf(entry.song.id) : undefined;
             return (
               <fieldset key={`${entry.song.id}-${index}`} className="import-entry">
                 <legend>{entry.song.title}</legend>
@@ -85,6 +88,7 @@ export function ImportDialog({ plan: initial, fromNewerVersion, onCancel, onConf
                     </label>
                   ))}
                 </div>
+                {sharedIn && <p className="import-warning">„Ersetzen“ betrifft alle Mitglieder von „{sharedIn}“.</p>}
               </fieldset>
             );
           })}

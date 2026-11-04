@@ -1,21 +1,19 @@
 import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http';
 import { endSession, requestCode, SESSION_TTL, sessionEmail, verifyCode, type AuthDeps } from './auth.ts';
+import { createEvents } from './events.ts';
+import { HttpError } from './http.ts';
+import { handleWorkbookRequest } from './workbooks.ts';
 
 export interface AppDeps extends AuthDeps {
   /** `false` nur für Tests über reines HTTP (`--insecure-cookie`, design.md D7). */
   secureCookie: boolean;
+  /** Adresse der App für Links in Einladungsmails. */
+  appUrl?: string;
 }
 
 const COOKIE = 'beatsheet_session';
 const MAX_BODY = 4096;
-
-class HttpError extends Error {
-  readonly status: number;
-  constructor(status: number, code: string) {
-    super(code);
-    this.status = status;
-  }
-}
+const MAX_WORKBOOK_BODY = 2 * 1024 * 1024;
 
 function send(response: ServerResponse, status: number, body?: unknown, headers: Record<string, string> = {}) {
   if (body === undefined) {
@@ -26,13 +24,13 @@ function send(response: ServerResponse, status: number, body?: unknown, headers:
 }
 
 /** JSON-Körper mit Pflicht-Content-Type und Größenbegrenzung (design.md D4). */
-async function readJson(request: IncomingMessage): Promise<Record<string, unknown>> {
+async function readJson(request: IncomingMessage, limit = MAX_BODY): Promise<Record<string, unknown>> {
   if (!request.headers['content-type']?.toLowerCase().startsWith('application/json')) throw new HttpError(415, 'unsupported-media-type');
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of request as AsyncIterable<Buffer>) {
     size += chunk.length;
-    if (size > MAX_BODY) throw new HttpError(413, 'too-large');
+    if (size > limit) throw new HttpError(413, 'too-large');
     chunks.push(chunk);
   }
   try {
@@ -57,6 +55,8 @@ function cookie(value: string, maxAge: number, secure: boolean) {
 }
 
 export function createApp(deps: AppDeps): RequestListener {
+  const events = createEvents();
+
   async function handle(request: IncomingMessage, response: ServerResponse) {
     const path = (request.url ?? '/').split('?')[0];
     const route = `${request.method} ${path}`;
@@ -81,6 +81,22 @@ export function createApp(deps: AppDeps): RequestListener {
       await readJson(request);
       endSession(deps, tokenOf(request));
       return send(response, 204, undefined, { 'Set-Cookie': cookie('', 0, deps.secureCookie) });
+    }
+    if (route === 'GET /api/events') {
+      const email = sessionEmail(deps, tokenOf(request));
+      if (!email) return send(response, 401, { error: 'unauthenticated' });
+      return events.connect(email, response);
+    }
+    if (path === '/api/workbooks' || path?.startsWith('/api/workbooks/')) {
+      const email = sessionEmail(deps, tokenOf(request));
+      if (!email) return send(response, 401, { error: 'unauthenticated' });
+      const reply = await handleWorkbookRequest({ ...deps, events }, {
+        email,
+        method: request.method ?? 'GET',
+        path: path.split('/').slice(3),
+        body: () => readJson(request, MAX_WORKBOOK_BODY),
+      });
+      return send(response, reply.status, reply.body);
     }
     send(response, 404, { error: 'not-found' });
   }

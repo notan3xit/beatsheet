@@ -1,3 +1,4 @@
+import { newId } from './id';
 import {
   DEFAULT_SUBDIVISION,
   MAX_LENGTH,
@@ -16,7 +17,7 @@ export interface Deps {
 
 const defaultDeps: Deps = {
   now: () => new Date(),
-  newId: () => crypto.randomUUID(),
+  newId,
 };
 
 export class ValidationError extends Error {}

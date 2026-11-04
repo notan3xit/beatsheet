@@ -14,13 +14,13 @@ export interface AuthDeps {
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
-const HOUR = 60 * MINUTE;
+export const HOUR = 60 * MINUTE;
 export const CODE_TTL = 10 * MINUTE;
 export const SESSION_TTL = 90 * 24 * HOUR;
 const MAX_ATTEMPTS = 5;
 const PER_ADDRESS_INTERVAL = 30 * SECOND;
 const PER_ADDRESS_PER_HOUR = 10;
-const TOTAL_PER_HOUR = 50;
+export const TOTAL_PER_HOUR = 50;
 
 /** Getrimmt und klein geschrieben; `null`, wenn keine gültige Adresse (design.md D5). */
 export function normalizeEmail(raw: unknown): string | null {
@@ -34,6 +34,12 @@ const hashToken = (token: string) => createHash('sha256').update(token).digest('
 
 type Row = Record<string, unknown>;
 
+/** Mails der letzten Stunde über alle Adressen: Anmeldecodes und Einladungen. */
+export function mailsLastHour(db: Database, now: number): number {
+  const count = (table: string) => Number((db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE at > ?`).get(now - HOUR) as Row).n);
+  return count('code_requests') + count('invitations');
+}
+
 export type RequestCodeResult = 'sent' | 'invalid-email' | 'rate-limited';
 
 export async function requestCode(deps: AuthDeps, rawEmail: unknown): Promise<RequestCodeResult> {
@@ -46,7 +52,7 @@ export async function requestCode(deps: AuthDeps, rawEmail: unknown): Promise<Re
   if (
     count('SELECT COUNT(*) AS n FROM code_requests WHERE email = ? AND at > ?', email, now - PER_ADDRESS_INTERVAL) > 0 ||
     count('SELECT COUNT(*) AS n FROM code_requests WHERE email = ?', email) >= PER_ADDRESS_PER_HOUR ||
-    count('SELECT COUNT(*) AS n FROM code_requests') >= TOTAL_PER_HOUR
+    mailsLastHour(db, now) >= TOTAL_PER_HOUR
   ) {
     return 'rate-limited';
   }

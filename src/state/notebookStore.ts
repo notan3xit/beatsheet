@@ -5,8 +5,9 @@ import {
   touch,
   type Deps,
 } from '../domain/pattern';
+import { newId } from '../domain/id';
 import { addPattern, patternUsage, removePattern } from '../domain/songPatterns';
-import { DEFAULT_TEMPO, type Pattern, type PatternKind, type Song } from '../domain/types';
+import { DEFAULT_TEMPO, type Pattern, type PatternKind, type Song, type Workbook } from '../domain/types';
 
 export const HISTORY_LIMIT = 50;
 
@@ -14,6 +15,9 @@ export type View = { kind: 'list' } | { kind: 'book' } | { kind: 'pattern'; patt
 
 export interface NotebookState {
   songs: Song[];
+  workbooks: Workbook[];
+  /** Song-ID → Workbook-ID; Songs ohne Eintrag stehen in „Meine Songs“. */
+  placement: Record<string, string>;
   openSongId: string | null;
   view: View;
   canUndo: boolean;
@@ -25,7 +29,7 @@ export interface NotebookStore {
   subscribe(listener: () => void): () => void;
 
   // Songs und Navigation
-  createSong(title: string): Song;
+  createSong(title: string, workbookId?: string): Song;
   renameSong(id: string, title: string): void;
   deleteSong(id: string): void;
   openSong(id: string): void;
@@ -51,6 +55,12 @@ export interface NotebookStore {
 
   /** Übernimmt Songs unverändert (Import, ersetzt gleiche IDs). */
   importSongs(imported: Song[]): void;
+
+  // Abgleich mit dem Server
+  /** Übernimmt Songs vom Server, ohne Revisionserhöhung; die Ansicht wechselt nur, wenn ihr Inhalt verschwindet. */
+  applyRemote(changed: Song[], removedIds: string[]): void;
+  setWorkbooks(workbooks: Workbook[]): void;
+  place(songId: string, workbookId: string | null): void;
 }
 
 /** Verlauf des geöffneten Patterns (Undo/Redo). */
@@ -66,18 +76,24 @@ export function openSongOf(state: NotebookState): Song | undefined {
   return state.songs.find((s) => s.id === state.openSongId);
 }
 
-export function createNotebookStore(initial: Song[] = [], deps?: Deps): NotebookStore {
+export function createNotebookStore(
+  initial: Song[] = [],
+  deps?: Deps,
+  sync: { placement: Record<string, string>; workbooks: Workbook[] } = { placement: {}, workbooks: [] },
+): NotebookStore {
   let songs = [...initial];
+  let workbooks = sync.workbooks;
+  let placement = sync.placement;
   let openSongId: string | null = null;
   let view: View = { kind: 'list' };
   let history = emptyHistory();
   let state = snapshot();
   const listeners = new Set<() => void>();
   const now = () => deps?.now() ?? new Date();
-  const newId = () => deps?.newId() ?? crypto.randomUUID();
+  const nextId = () => deps?.newId() ?? newId();
 
   function snapshot(): NotebookState {
-    return { songs, openSongId, view, canUndo: history.past.length > 0, canRedo: history.future.length > 0 };
+    return { songs, workbooks, placement, openSongId, view, canUndo: history.past.length > 0, canRedo: history.future.length > 0 };
   }
 
   const emit = () => {
@@ -108,6 +124,12 @@ export function createNotebookStore(initial: Song[] = [], deps?: Deps): Notebook
   const setView = (next: View) => {
     view = next;
     history = emptyHistory();
+  };
+
+  const unplace = (ids: readonly string[]) => {
+    if (ids.some((id) => id in placement)) {
+      placement = Object.fromEntries(Object.entries(placement).filter(([id]) => !ids.includes(id)));
+    }
   };
 
   const replacePattern = (song: Song, pattern: Pattern): Song => ({
@@ -146,10 +168,10 @@ export function createNotebookStore(initial: Song[] = [], deps?: Deps): Notebook
       return () => listeners.delete(listener);
     },
 
-    createSong(title) {
+    createSong(title, workbookId) {
       const timestamp = now().toISOString();
       const song: Song = {
-        id: newId(),
+        id: nextId(),
         title: title.trim() || 'Neuer Song',
         tempo: DEFAULT_TEMPO,
         patterns: [],
@@ -159,6 +181,7 @@ export function createNotebookStore(initial: Song[] = [], deps?: Deps): Notebook
         revision: 1,
       };
       songs = [...songs, song];
+      if (workbookId) placement = { ...placement, [song.id]: workbookId };
       emit();
       return song;
     },
@@ -173,6 +196,7 @@ export function createNotebookStore(initial: Song[] = [], deps?: Deps): Notebook
     },
     deleteSong(id) {
       songs = songs.filter((s) => s.id !== id);
+      unplace([id]);
       if (openSongId === id) {
         openSongId = null;
         setView({ kind: 'list' });
@@ -240,6 +264,31 @@ export function createNotebookStore(initial: Song[] = [], deps?: Deps): Notebook
         const stillThere = current.kind !== 'pattern' || replaced.patterns.some((p) => p.id === current.patternId);
         setView(stillThere ? current : { kind: 'book' });
       }
+      emit();
+    },
+
+    applyRemote(changed, removedIds) {
+      const byId = new Map(changed.map((s) => [s.id, s]));
+      songs = [...songs.filter((s) => !removedIds.includes(s.id)).map((s) => byId.get(s.id) ?? s), ...changed.filter((s) => !songs.some((e) => e.id === s.id))];
+      unplace(removedIds);
+      const open = songs.find((s) => s.id === openSongId);
+      if (openSongId && !open) {
+        openSongId = null;
+        setView({ kind: 'list' });
+      } else if (open && view.kind === 'pattern') {
+        const { patternId } = view;
+        // Der Verlauf bleibt, solange das Pattern da ist; `setView` würde ihn leeren
+        if (!open.patterns.some((p) => p.id === patternId)) setView({ kind: 'book' });
+      }
+      emit();
+    },
+    setWorkbooks(next) {
+      workbooks = next;
+      emit();
+    },
+    place(songId, workbookId) {
+      if (workbookId) placement = { ...placement, [songId]: workbookId };
+      else unplace([songId]);
       emit();
     },
   };

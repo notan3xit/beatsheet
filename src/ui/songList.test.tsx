@@ -37,7 +37,7 @@ describe('Spec song-library › Song-Liste (UI)', () => {
     const patterns = [createPattern([], { kind: 'groove', name: 'A' }), createPattern([], { kind: 'groove', name: 'B' }), createPattern([], { kind: 'fill', name: 'f' })];
     const uprising = appendSegment(songWith({ title: 'Uprising', patterns }), { name: 'V', bars: 32 });
     setup([uprising, songWith({ title: 'Hysteria' })]);
-    const rows = within(within(songList()).getByRole('table')).getAllByRole('row');
+    const rows = within(within(screen.getByRole('region', { name: 'Meine Songs' })).getByRole('table')).getAllByRole('row');
     const cells = (row: HTMLElement) =>
       [...within(row).queryAllByRole('columnheader'), ...within(row).queryAllByRole('cell')].map((c) => c.textContent);
     expect(rows.map(cells)).toEqual([
@@ -49,7 +49,14 @@ describe('Spec song-library › Song-Liste (UI)', () => {
 
   it('Leere Liste', () => {
     setup();
-    expect(within(songList()).getByText(/Noch keine Songs/)).toBeInTheDocument();
+    expect(within(screen.getByRole('region', { name: 'Meine Songs' })).getByText(/Noch keine Songs/)).toBeInTheDocument();
+  });
+
+  it('Neuer Song landet in „Meine Songs“', async () => {
+    const { user } = setup();
+    await user.type(screen.getByLabelText('Titel des neuen Songs'), 'Skizze');
+    await user.click(screen.getByRole('button', { name: 'Song anlegen' }));
+    expect(within(screen.getByRole('region', { name: 'Meine Songs' })).getByText('Skizze')).toBeInTheDocument();
   });
 
   it('Song öffnen', async () => {

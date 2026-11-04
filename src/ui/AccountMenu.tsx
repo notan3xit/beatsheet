@@ -1,5 +1,8 @@
-import { useEffect, useId, useState } from 'react';
-import type { AccountApi, AccountError } from '../account/api';
+import { useEffect, useId, useState, useSyncExternalStore } from 'react';
+import type { AccountError } from '../account/api';
+import type { AccountSession } from '../account/session';
+import { useConfirm } from './ConfirmDialog';
+import { useSync } from './useWorkbooks';
 
 const MESSAGES: Record<AccountError, string> = {
   'invalid-email': 'Bitte gib eine gültige Mail-Adresse ein.',
@@ -14,8 +17,11 @@ const MESSAGES: Record<AccountError, string> = {
 type Step = { kind: 'closed' } | { kind: 'email' } | { kind: 'code'; email: string };
 
 /** Anmelden/Abmelden im App-Kopf (server-auth, design.md D8); der Anmeldestatus gehört nicht zum Notebook. */
-export function AccountMenu({ api }: { api: AccountApi }) {
-  const [email, setEmail] = useState<string | null>(null);
+export function AccountMenu({ session }: { session: AccountSession }) {
+  const { api } = session;
+  const sync = useSync();
+  const confirm = useConfirm();
+  const email = useSyncExternalStore(session.subscribe, session.getEmail);
   const [step, setStep] = useState<Step>({ kind: 'closed' });
   const [input, setInput] = useState('');
   const [code, setCode] = useState('');
@@ -25,12 +31,8 @@ export function AccountMenu({ api }: { api: AccountApi }) {
   const codeId = useId();
 
   useEffect(() => {
-    let active = true;
-    void api.session().then((current) => active && current && setEmail(current));
-    return () => {
-      active = false;
-    };
-  }, [api]);
+    void session.refresh();
+  }, [session]);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -60,16 +62,22 @@ export function AccountMenu({ api }: { api: AccountApi }) {
     run(async () => {
       const result = await api.verify(address, code);
       if (!result.ok) return setError(result.error);
-      setEmail(result.email);
+      session.setEmail(result.email);
       setInput('');
       close();
     });
 
   const logout = () =>
     run(async () => {
+      // Reihenfolge nach workbook-sync, design.md D13
+      if (sync && !(await sync.prepareLogout())) {
+        const discard = await confirm('Einige Änderungen an Workbook-Songs wurden nicht übertragen und gehen beim Abmelden verloren. Trotzdem abmelden?');
+        if (!discard) return;
+      }
       const result = await api.logout();
       if (!result.ok) return setError(result.error);
-      setEmail(null);
+      await sync?.afterLogout();
+      session.setEmail(null);
     });
 
   if (email) {

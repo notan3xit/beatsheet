@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { toggleHit } from '../domain/sequencer';
 import { setTempo } from '../domain/playback';
 import { appendSegment } from '../domain/structure';
+import type { Workbook } from '../domain/types';
 import { notebookWith } from '../test/notebook';
 import { emptyBeats, patternOf } from '../test/patterns';
 import { createNotebookStore } from './notebookStore';
@@ -150,5 +151,80 @@ describe('Pattern-API wirkt im geöffneten Song', () => {
     store.remove(id);
     const bars = currentSong().segments[0]!.blocks[0]!.bars;
     expect(bars.every((b) => b.grooveId === null)).toBe(true);
+  });
+});
+
+describe('Spec workbook-sync › Store', () => {
+  const band: Workbook = { id: 'wb', title: 'Band', owner: 'ich@example.com', members: ['ich@example.com'] };
+
+  it('applyRemote übernimmt Songs ohne Revisionserhöhung und ohne Ansichtswechsel', () => {
+    const store = createNotebookStore();
+    const song = store.createSong('Intro');
+    store.openSong(song.id);
+    store.applyRemote([{ ...song, title: 'Neu', revision: 7 }], []);
+    expect(store.getState().songs[0]).toMatchObject({ title: 'Neu', revision: 7 });
+    expect(store.getState().view).toEqual({ kind: 'book' });
+    expect(store.getState().openSongId).toBe(song.id);
+  });
+
+  it('applyRemote fügt unbekannte Songs hinzu und entfernt genannte', () => {
+    const store = createNotebookStore();
+    const song = store.createSong('Intro');
+    const other = { ...song, id: 'anders', title: 'Anders' };
+    store.applyRemote([other], [song.id]);
+    expect(store.getState().songs.map((s) => s.id)).toEqual(['anders']);
+  });
+
+  it('wechselt zur Startseite, wenn der geöffnete Song entfernt wird', () => {
+    const store = createNotebookStore();
+    const song = store.createSong('Intro');
+    store.openSong(song.id);
+    store.applyRemote([], [song.id]);
+    expect(store.getState().view).toEqual({ kind: 'list' });
+    expect(store.getState().openSongId).toBeNull();
+  });
+
+  it('wechselt zur Doppelseite, wenn das geöffnete Pattern fremd entfernt wird', () => {
+    const store = createNotebookStore();
+    const song = store.createSong('Intro');
+    store.openSong(song.id);
+    const pattern = store.createPattern('groove');
+    expect(store.getState().view).toEqual({ kind: 'pattern', patternId: pattern.id });
+    store.applyRemote([{ ...store.getState().songs[0]!, patterns: [] }], []);
+    expect(store.getState().view).toEqual({ kind: 'book' });
+  });
+
+  it('place setzt und löst die Zugehörigkeit', () => {
+    const store = createNotebookStore();
+    const song = store.createSong('Intro');
+    store.place(song.id, band.id);
+    expect(store.getState().placement).toEqual({ [song.id]: band.id });
+    store.place(song.id, null);
+    expect(store.getState().placement).toEqual({});
+  });
+
+  it('createSong mit Workbook legt den Song dort an', () => {
+    const store = createNotebookStore();
+    const song = store.createSong('', band.id);
+    expect(song.title).toBe('Neuer Song');
+    expect(store.getState().placement).toEqual({ [song.id]: band.id });
+  });
+
+  it('Entfernte Songs verlieren ihre Zugehörigkeit', () => {
+    const store = createNotebookStore();
+    const first = store.createSong('A', band.id);
+    const second = store.createSong('B', band.id);
+    store.deleteSong(first.id);
+    store.applyRemote([], [second.id]);
+    expect(store.getState().placement).toEqual({});
+  });
+
+  it('setWorkbooks und Anfangszustand', () => {
+    const song = createNotebookStore().createSong('A');
+    const store = createNotebookStore([song], undefined, { placement: { [song.id]: band.id }, workbooks: [band] });
+    expect(store.getState().workbooks).toEqual([band]);
+    expect(store.getState().placement).toEqual({ [song.id]: band.id });
+    store.setWorkbooks([]);
+    expect(store.getState().workbooks).toEqual([]);
   });
 });

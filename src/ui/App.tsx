@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { createHttpAccountApi, type AccountApi } from '../account/api';
+import { createAccountSession, type AccountSession } from '../account/session';
 import { createWebAudioPlayer, type Player } from '../audio/player';
 import type { NotebookStore } from '../state/notebookStore';
+import type { WorkbookActions } from '../sync/sync';
 import { AccountMenu } from './AccountMenu';
 import { ConfirmProvider } from './ConfirmDialog';
 import { HitTestContext, type HitTest } from './dragPattern';
@@ -11,6 +13,7 @@ import { PlayerContext } from './playback';
 import { SongList } from './SongList';
 import { Songbook } from './Songbook';
 import { StoreContext, useNotebook, useOpenSong } from './useLibrary';
+import { SessionContext, SyncContext, useEmail } from './useWorkbooks';
 
 function OpenPattern({ patternId }: { patternId: string }) {
   const pattern = useOpenSong().patterns.find((p) => p.id === patternId);
@@ -28,12 +31,40 @@ function CurrentView() {
   return <SongList />;
 }
 
+/** Ohne Anmeldung und Workbooks gibt es nichts abzugleichen, und der Hinweis entfällt. */
+function OfflineNote({ sync }: { sync: WorkbookActions }) {
+  const offline = useSyncExternalStore(sync.subscribe, sync.isOffline);
+  const { workbooks } = useNotebook();
+  const email = useEmail();
+  if (!offline || (!email && workbooks.length === 0)) return null;
+  return (
+    <p role="status" className="storage-note">
+      Keine Verbindung zum Server. Du kannst weiterarbeiten, deine Änderungen werden übertragen, sobald die Verbindung wieder steht.
+    </p>
+  );
+}
+
+/** Hinweise des Abgleichs, etwa nach dem Verlust einer Mitgliedschaft. */
+function Notices({ sync }: { sync: WorkbookActions }) {
+  const notices = useSyncExternalStore(sync.subscribe, sync.getNotices);
+  return notices.map((notice) => (
+    <div key={notice.id} role="status" className="message status notice">
+      <span>{notice.text}</span>
+      <button type="button" className="message-close" aria-label="Meldung schließen" onClick={() => sync.dismissNotice(notice.id)}>
+        ×
+      </button>
+    </div>
+  ));
+}
+
 export function App({
   store,
   storagePersisted = true,
   hitTest,
   player: playerProp,
   account: accountProp,
+  session: sessionProp,
+  sync,
 }: {
   store: NotebookStore;
   storagePersisted?: boolean;
@@ -43,28 +74,40 @@ export function App({
   player?: Player;
   /** Anmeldeserver; Vorgabe HTTP über `/api`, in Tests ein Nachbau. */
   account?: AccountApi;
+  /** Anmeldestatus, wenn ihn auch andere Teile der App brauchen; sonst aus `account` erzeugt. */
+  session?: AccountSession;
+  /** Workbooks und Abgleich; ohne sie gibt es nur „Meine Songs“. */
+  sync?: WorkbookActions;
 }) {
   const [player] = useState(() => playerProp ?? createWebAudioPlayer());
-  const [account] = useState(() => accountProp ?? createHttpAccountApi());
+  const [session] = useState(() => sessionProp ?? createAccountSession(accountProp ?? createHttpAccountApi()));
   const app = (
     <StoreContext.Provider value={store}>
       <PlayerContext.Provider value={player}>
+        <SessionContext.Provider value={session}>
+        <SyncContext.Provider value={sync ?? null}>
         <ConfirmProvider>
           <div className="app">
             <header className="app-header">
               <h1>Beatsheet</h1>
               <LibraryFileActions />
-              <AccountMenu api={account} />
+              <AccountMenu session={session} />
             </header>
-            {!storagePersisted && (
-              <p role="note" className="storage-note">
-                Der Browser hat keinen dauerhaften Speicher gewährt. Deine Daten könnten gelöscht werden. Sichere sie
-                regelmäßig über „Exportieren“.
-              </p>
-            )}
+            <div className="app-notes">
+              {!storagePersisted && (
+                <p role="note" className="storage-note">
+                  Der Browser hat keinen dauerhaften Speicher gewährt. Deine Daten könnten gelöscht werden. Sichere sie
+                  regelmäßig über „Exportieren“.
+                </p>
+              )}
+              {sync && <OfflineNote sync={sync} />}
+              {sync && <Notices sync={sync} />}
+            </div>
             <CurrentView />
           </div>
         </ConfirmProvider>
+        </SyncContext.Provider>
+        </SessionContext.Provider>
       </PlayerContext.Provider>
     </StoreContext.Provider>
   );

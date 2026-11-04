@@ -77,6 +77,8 @@ Alle Endpunkte erfordern eine Sitzung (sonst 401). Ein Workbook, in dem der Nutz
 
 `POST /songs` verschiebt einen Song ins Workbook: Er bringt das vollständige Dokument mit. Ein Song, der in einer Karte angelegt wird, nutzt denselben Endpunkt.
 
+Titel haben höchstens 200 Zeichen und keine Steuerzeichen, weil sie im Betreff der Einladungsmail stehen.
+
 ### D4: Abgleich mit Heads
 
 Der Client merkt sich je Workbook-Song `serverHeads`: den letzten Stand, den er mit dem Server geteilt hat.
@@ -93,7 +95,7 @@ Server je bekanntem Song des Workbooks:
 Client nennt einen unbekannten Song -> { id, status: 'deleted' }
 ```
 
-`clientHeads` sind die Heads nach dem Einspielen der Client-Änderungen. Der Client bekommt also nichts zurück, was er selbst geschickt hat.
+`clientHeads` sind die Heads des Client-Stands: Der Server spielt `changes` in eine Kopie seines Dokuments zum Stand `base` ein (`clone(view(serverDoc, base))`) und liest die Heads ab. Die Heads des zusammengeführten Dokuments taugen nicht, weil `saveSince` damit immer leer bliebe. Der Client bekommt also genau die fremden Änderungen zurück, nichts, was er selbst geschickt hat.
 
 **Erkennen getrennter Herkunft:** Lokal entsteht ein Dokument nur über `createSongDoc`, also ohne Server-Stand (`base` leer). Hat der Server den Song schon, ist ein leeres oder unbekanntes `base` genau der Fall der unabhängig entstandenen Fassung. Bei `unrelated` und `invalid` übernimmt der Client das Server-Dokument und legt seine eigene Fassung als „<Titel> (Kopie)“ mit neuer ID in „Meine Songs“ ab.
 
@@ -128,8 +130,8 @@ IndexedDB Version 4:
 - Vorhandene Daten bleiben unverändert, alle Songs gelten als lokal.
 
 Repository-Erweiterungen:
-- `loadAll` liefert zusätzlich Zugehörigkeit und Workbooks.
 - Neue Funktionen:
+  - `loadSyncState()`: Zugehörigkeit und Workbooks, nach `loadAll`.
   - `outgoing(id)`: liefert `base` und `changes`.
   - `receive(id, song, response)`: synchron, siehe D8.
   - `adopt(id, bytes, workbookId)`: Server-Dokument übernehmen.
@@ -149,6 +151,8 @@ Die Zugehörigkeit gehört weder zum `Song` noch ins Dokument oder ins Dateiform
 4. `serverHeads` setzen.
 
 Danach findet `connectStore` keinen Unterschied mehr, `applySong` erzeugt also keine Änderung. Die Speicherung in IndexedDB folgt asynchron. Vor jeder Anfrage schreibt der Sync ausstehende Änderungen mit `flush` ins Dokument.
+
+`flush` überträgt die Songs noch im selben Schritt ins Dokument, nur die Speicherung folgt später. Andernfalls könnte ein aufgeschobener Schreibvorgang nach Schritt 3 laufen und den alten Stand zurückschreiben.
 
 ### D8a: Store und Account-Status
 
@@ -175,7 +179,10 @@ Account-Status:
   - `online`
   - alle 60 s, solange der Tab sichtbar ist
   - Store-Änderung an einem Workbook-Song, 500 ms nach der letzten Änderung
-- **Ablauf:** Je Workbook läuft höchstens eine Anfrage. Auslöser während einer laufenden Anfrage führen zu genau einer weiteren.
+- **Ablauf:** Je Workbook läuft höchstens eine Anfrage, auch beim Verschieben, Anlegen und Löschen. Auslöser während einer laufenden Anfrage führen zu genau einer weiteren.
+- **Verbindungsstatus:** `unreachable` bei einer Anfrage oder das Browser-Ereignis `offline` setzt ihn, eine erfolgreiche Antwort löscht ihn. Ohne Sitzung, aber mit bekannten Workbooks prüft der Auslöser die Erreichbarkeit über `GET /api/workbooks`, weil `session()` Netzwerkfehler und fehlende Sitzung nicht unterscheidet.
+- **Löschen ohne Server:** Der Song bleibt mit einer Meldung erhalten. Ein nur lokal gelöschter Song käme sonst beim nächsten Abgleich als `new` zurück.
+- **Abmelden:** Antworten auf Anfragen von vor dem Abmelden werden verworfen.
 - **Fehler:**
   - 404 für ein Workbook oder sein Fehlen in `GET /api/workbooks`: Mitgliedschaft beendet (D10).
   - 401: Sync ruht, der Account-Status wechselt auf abgemeldet, die Songs bleiben.
@@ -183,11 +190,11 @@ Account-Status:
 
 ### D10: Abkoppeln nach dem Austritt
 
-Für jeden Song des verlorenen Workbooks gilt:
-- Er bekommt eine neue ID und ein neues Dokument (`createSongDoc`) aus dem aktuellen lokalen Stand, einschließlich nicht übertragener Änderungen.
+Für jeden Song des verlorenen Workbooks gilt (bei einem Workbook ohne Songs entfällt die Meldung):
+- Er bekommt eine neue ID, den Titel „<Titel> (aus <Workbook>)“ und ein neues Dokument (`createSongDoc`) aus dem aktuellen lokalen Stand, einschließlich nicht übertragener Änderungen.
 - Zugehörigkeit und alte ID werden entfernt.
 
-Die App meldet einmal je Workbook „Du bist nicht mehr Mitglied von ‚<Titel>‘. Die Songs liegen jetzt unter Meine Songs.“ Dieselbe Routine erzeugt die Kopien bei `unrelated` und `invalid` (D4), dort mit dem Zusatz „(Kopie)“ im Titel.
+Die App meldet einmal je Workbook „Du bist nicht mehr Mitglied von ‚<Titel>‘. Unter ‚Meine Songs‘ liegen jetzt: <Songs>.“ Dieselbe Routine erzeugt die Kopien bei `unrelated` und `invalid` (D4), dort mit dem Zusatz „(Kopie)“ im Titel.
 
 ### D11: Einladungsmail und Begrenzung
 
@@ -199,6 +206,7 @@ Begrenzung: 20 Einladungen je Besitzer und Stunde (`invitations`). Einladungen z
 
 - **`SongList`:** Sie wird zur Startseite mit Karten.
 - **`WorkbookCard`:** Titel (für den Besitzer an Ort und Stelle umbenennbar, wie `EditableHeading`), Mitgliederzeile, Knopf „Mitglieder“, Song-Tabelle, „Song anlegen“, für den Besitzer bei leerem Workbook „Workbook löschen“.
+- **Popover:** „Mitglieder“ und „Zu Workbook …“ schließen sich bei Klick außerhalb und mit Escape (`useDismiss`), außer während einer Nachfrage. Die Nachfrage liegt darüber.
 - **Popover „Mitglieder“:** Liste der Mitglieder.
   - Für den Besitzer zusätzlich ein Feld zum Einladen und „Entfernen“ je Mitglied.
   - Für andere Mitglieder „Workbook verlassen“.
@@ -225,8 +233,22 @@ Läuft die Sitzung ab (401), bleiben die Workbook-Songs erhalten, bis der Nutzer
 - [Fremde Änderung am geöffneten Pattern und Undo] → Undo stellt den eigenen Vorzustand her und kann die fremde Änderung überschreiben. Bekannt und akzeptiert.
 - [Ein Mitglied mit manipuliertem Client kann Inhalte zerstören (Schreibrechte für alle)] → Der Server prüft Form und Größe (D5). Inhaltliche Zerstörung bleibt möglich, Schutz davor gibt es erst mit Leserechten oder Verlauf.
 - [Gemeinsam genutzter Code: Änderungen in `src/persistence` können den Server brechen] → `tsc -p server` prüft beides, und die Server-Tests nutzen die echten Module.
-- [Reines HTTP beim Test] → wie in `server-auth`: Betrieb erst mit HTTPS-Namen.
+- [Reines HTTP beim Test] → wie in `server-auth`: Betrieb erst mit HTTPS-Namen. Über HTTP auf einer IP-Adresse fehlt der sichere Kontext: IDs entstehen dann über `getRandomValues`, und die App zeigt den Hinweis auf fehlenden dauerhaften Speicher.
 - [Dokumente wachsen mit ihrer Historie] → Für Songs unkritisch, die Grenze von 2 MB je Anfrage greift sonst.
+
+## Ende-zu-Ende-Test
+
+2026-11-04, artjom, zwei Browser gegen Server und Dev-Server auf einem freigegebenen Port (reines HTTP): Alle Schritte aus Task 7.2 bestanden, einschließlich Einladungsmail und Abgleich binnen 5 Sekunden.
+
+Im Test gefunden und behoben:
+- IDs ohne sicheren Kontext (`crypto.randomUUID` fehlt über HTTP)
+- Popover schließen bei Klick außerhalb und mit Escape, Nachfrage liegt darüber
+- Hinweis ohne Verbindung, Hinweise gestapelt unter dem Kopf
+- Titel „<Titel> (aus <Workbook>)“ nach dem Austritt
+
+Im Test gefunden, außerhalb dieses Changes:
+- Neuladen ohne Netz lädt nichts, weil die App ihre Dateien nicht selbst vorhält.
+- „Meine Songs“ sind nicht an den Account gebunden und erreichen andere Geräte nicht.
 
 ## Migration Plan
 

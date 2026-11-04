@@ -92,19 +92,30 @@ Der Besitzer MUST jedes andere Mitglied entfernen können. Ein Mitglied, das nic
 - **WHEN** der Besitzer die Mitglieder von „Band“ öffnet
 - **THEN** bietet die App ihm kein Verlassen an
 
+### Requirement: Popover schließen
+Die Popover „Mitglieder“ und „Zu Workbook …“ MUST sich bei einem Klick außerhalb und mit Escape schließen. Eine Nachfrage MUST über dem Popover liegen; solange sie offen ist, MUST das Popover offen bleiben.
+
+#### Scenario: Klick außerhalb
+- **WHEN** das Popover „Mitglieder“ von „Band“ offen ist und der Nutzer außerhalb klickt
+- **THEN** schließt es sich
+
+#### Scenario: Nachfrage aus dem Popover
+- **WHEN** der Besitzer im Popover „Entfernen“ wählt und die Nachfrage „Abbrechen“ anklickt
+- **THEN** ist das Popover weiterhin offen
+
 ### Requirement: Songs nach dem Austritt
-Wer ein Workbook verlässt oder daraus entfernt wird, MUST dessen Songs als eigene Songs in „Meine Songs“ behalten, einschließlich Änderungen, die noch nicht übertragen waren. Diese Songs MUST neue IDs haben und vom Workbook unabhängig sein. Die App MUST darauf hinweisen.
+Wer ein Workbook verlässt oder daraus entfernt wird, MUST dessen Songs als eigene Songs in „Meine Songs“ behalten, einschließlich Änderungen, die noch nicht übertragen waren. Diese Songs MUST neue IDs haben, „<Titel> (aus <Workbook>)“ heißen und vom Workbook unabhängig sein. Die App MUST darauf hinweisen und die Songs dabei nennen.
 
 #### Scenario: Entfernt während offline
 - **GIVEN** anna@example.com ändert offline den Song „Intro“ aus „Band“
 - **AND** währenddessen entfernt der Besitzer sie aus „Band“
 - **WHEN** ihre App wieder den Server erreicht
-- **THEN** steht „Intro“ mit ihrer Änderung in ihren „Meine Songs“
-- **AND** die App meldet, dass sie nicht mehr Mitglied von „Band“ ist und die Songs unter „Meine Songs“ liegen
+- **THEN** steht „Intro (aus Band)“ mit ihrer Änderung in ihren „Meine Songs“
+- **AND** die App meldet, dass sie nicht mehr Mitglied von „Band“ ist und „Intro (aus Band)“ unter „Meine Songs“ liegt
 - **AND** ihre Änderung erreicht „Band“ nicht
 
 #### Scenario: Weiterarbeiten nach dem Austritt
-- **WHEN** anna@example.com ihre Kopie von „Intro“ nach dem Austritt ändert
+- **WHEN** anna@example.com „Intro (aus Band)“ nach dem Austritt ändert
 - **THEN** bleibt „Intro“ in „Band“ unverändert
 
 ### Requirement: Zugriff nur für Mitglieder

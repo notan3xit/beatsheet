@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { newId } from '../domain/id';
 import { nextColor, type Deps } from '../domain/pattern';
 import {
   ARTICULATED,
@@ -146,7 +147,7 @@ export function songFromV1Patterns(patterns: readonly Omit<Pattern, 'color'>[], 
   for (const pattern of patterns) colored.push({ ...pattern, color: nextColor(colored) });
   const timestamp = (deps?.now() ?? new Date()).toISOString();
   return {
-    id: deps?.newId() ?? crypto.randomUUID(),
+    id: deps?.newId() ?? newId(),
     title: IMPORTED_SONG_TITLE,
     tempo: DEFAULT_TEMPO,
     patterns: colored,

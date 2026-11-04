@@ -1,3 +1,4 @@
+import { newId as randomId } from './id';
 import { ValidationError, type Deps } from './pattern';
 import { addPattern, allBars, mapBars } from './songPatterns';
 import {
@@ -12,7 +13,7 @@ import {
   type Song,
 } from './types';
 
-const newId = (deps?: Deps) => deps?.newId() ?? crypto.randomUUID();
+const newId = (deps?: Deps) => deps?.newId() ?? randomId();
 
 function assertRange(value: number, max: number, what: string) {
   if (!Number.isInteger(value) || value < 1 || value > max) {

@@ -26,11 +26,15 @@ In der Karte eines Workbooks MUST der Nutzer einen Song anlegen können. Er MUST
 - **THEN** steht „Neuer Song“ in der Karte „Band“ und bei allen Mitgliedern
 
 ### Requirement: Workbook-Song löschen
-Das Löschen eines Songs, der zu einem Workbook gehört, MUST ihn für alle Mitglieder löschen. Die Nachfrage MUST darauf hinweisen. Ein gelöschter Song MUST auch auf Geräten verschwinden, die ihn in der Zwischenzeit offline geändert haben.
+Das Löschen eines Songs, der zu einem Workbook gehört, MUST ihn für alle Mitglieder löschen. Die Nachfrage MUST darauf hinweisen. Ein gelöschter Song MUST auch auf Geräten verschwinden, die ihn in der Zwischenzeit offline geändert haben. Ist der Server nicht erreichbar, MUST die App das melden und den Song behalten.
 
 #### Scenario: Löschen für alle
 - **WHEN** ein Mitglied „Intro“ aus „Band“ löscht und die Nachfrage bestätigt, die nennt, dass der Song für alle Mitglieder von „Band“ gelöscht wird
 - **THEN** ist „Intro“ bei allen Mitgliedern nicht mehr vorhanden
+
+#### Scenario: Löschen bei nicht erreichbarem Server
+- **WHEN** der Nutzer „Intro“ aus „Band“ bei nicht erreichbarem Server löschen will
+- **THEN** meldet die App, dass der Server nicht erreichbar ist, und „Intro“ bleibt erhalten
 
 #### Scenario: Offline geändert, inzwischen gelöscht
 - **GIVEN** ein Mitglied ändert „Intro“ offline
@@ -51,7 +55,13 @@ Das Löschen eines Songs, der zu einem Workbook gehört, MUST ihn für alle Mitg
 - **THEN** erscheint der Song binnen 5 Sekunden in dessen Karte „Band“
 
 ### Requirement: Offline arbeiten
-Workbook-Songs MUST ohne erreichbaren Server lesbar und bearbeitbar bleiben. Offline gemachte Änderungen MUST lokal gespeichert und beim nächsten Kontakt mit dem Server übertragen werden. Gleichzeitige Änderungen MUST nach den Regeln von `song-merge` zusammengeführt werden.
+Workbook-Songs MUST ohne erreichbaren Server lesbar und bearbeitbar bleiben. Offline gemachte Änderungen MUST lokal gespeichert und beim nächsten Kontakt mit dem Server übertragen werden. Gleichzeitige Änderungen MUST nach den Regeln von `song-merge` zusammengeführt werden. Solange ein angemeldeter Nutzer oder ein Nutzer mit bekannten Workbooks den Server nicht erreicht, MUST die App oben einen Hinweis zeigen, dass er weiterarbeiten kann und die Änderungen später übertragen werden.
+
+#### Scenario: Hinweis ohne Verbindung
+- **GIVEN** der Nutzer ist angemeldet
+- **WHEN** der Server nicht mehr erreichbar ist
+- **THEN** zeigt die App einen Hinweis, dass er weiterarbeiten kann und die Änderungen später übertragen werden
+- **AND** der Hinweis verschwindet, sobald der Server wieder erreichbar ist
 
 #### Scenario: Gleichzeitig offline
 - **GIVEN** zwei Mitglieder sind offline

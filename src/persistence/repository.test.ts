@@ -1,12 +1,15 @@
+import * as A from '@automerge/automerge/slim';
 import { openDB } from 'idb';
 import { describe, expect, it, vi } from 'vitest';
 import { cycleArticulation, toggleHit } from '../domain/sequencer';
 import { appendSegment } from '../domain/structure';
+import type { Workbook } from '../domain/types';
 import { createNotebookStore } from '../state/notebookStore';
 import { emptyBeats, patternOf } from '../test/patterns';
 import { createV2Database } from '../test/legacyDb';
 import { songWith } from '../test/songs';
 import { connectStore, openRepository, requestPersistentStorage } from './repository';
+import { applySong, createSongDoc, songOf } from './songDoc';
 
 const uniqueDb = () => `beatsheet-test-${crypto.randomUUID()}`;
 
@@ -215,13 +218,157 @@ describe('Spec library-persistence › Übernahme lokal gespeicherter Songs in d
     expect(loaded!.patterns).toHaveLength(2);
   });
 
-  it('danach gibt es nur noch den Store für Dokumente', async () => {
+  it('danach sind die alten Stores verschwunden', async () => {
     const dbName = uniqueDb();
     await createV2Database(dbName, [legacySongs().song]);
     (await openRepository(dbName)).close();
     const raw = await openDB(dbName);
-    expect([...raw.objectStoreNames]).toEqual(['documents']);
-    expect(raw.version).toBe(3);
+    expect([...raw.objectStoreNames]).toEqual(['documents', 'workbooks']);
+    expect(raw.version).toBe(4);
     raw.close();
+  });
+});
+
+describe('Spec workbook-sync › Client-Speicher', () => {
+  const band: Workbook = { id: 'wb', title: 'Band', owner: 'ich@example.com', members: ['ich@example.com'] };
+
+  async function storedSong(title: string) {
+    const name = uniqueDb();
+    const repo = await openRepository(name);
+    const song = songWith({ title });
+    await repo.write({ put: [song], remove: [] });
+    return { name, repo, song };
+  }
+
+  it('Version 4 übernimmt Daten aus Version 3 unverändert, alle Songs sind lokal', async () => {
+    const name = uniqueDb();
+    const song = songWith({ title: 'Alt' });
+    const old = await openDB(name, 3, {
+      upgrade(database) {
+        database.createObjectStore('documents', { keyPath: 'id' });
+      },
+    });
+    await old.put('documents', { id: song.id, bytes: A.save(createSongDoc(song)) });
+    old.close();
+
+    const repo = await openRepository(name);
+    expect((await repo.loadAll()).map((s) => s.title)).toEqual(['Alt']);
+    expect(await repo.loadSyncState()).toEqual({ placement: {}, workbooks: [] });
+    expect(repo.outgoing(song.id)).toBeNull();
+  });
+
+  it('Zugehörigkeit, Server-Stand und Workbook-Liste überstehen Neuladen', async () => {
+    const { name, repo, song } = await storedSong('Intro');
+    const heads = A.getHeads(A.load(repo.documentBytes(song.id)));
+    repo.place(song.id, band.id, heads);
+    await repo.saveWorkbooks([band]);
+    await repo.settled();
+    repo.close();
+
+    const reopened = await openRepository(name);
+    await reopened.loadAll();
+    expect(await reopened.loadSyncState()).toEqual({ placement: { [song.id]: band.id }, workbooks: [band] });
+    expect(reopened.outgoing(song.id)?.base).toEqual(heads);
+  });
+
+  it('Ein späteres Schreiben behält Zugehörigkeit und Server-Stand', async () => {
+    const { name, repo, song } = await storedSong('Intro');
+    const heads = A.getHeads(A.load(repo.documentBytes(song.id)));
+    repo.place(song.id, band.id, heads);
+    await repo.write({ put: [{ ...song, title: 'Neu', revision: 2 }], remove: [] });
+    await repo.settled();
+    repo.close();
+
+    const reopened = await openRepository(name);
+    await reopened.loadAll();
+    expect((await reopened.loadSyncState()).placement).toEqual({ [song.id]: band.id });
+  });
+
+  it('outgoing liefert nur die Änderungen seit dem Server-Stand', async () => {
+    const { repo, song } = await storedSong('Intro');
+    const heads = A.getHeads(A.load(repo.documentBytes(song.id)));
+    repo.place(song.id, band.id, heads);
+    expect(repo.outgoing(song.id)!.changes).toHaveLength(0);
+    expect(repo.hasUnsent()).toBe(false);
+    await repo.write({ put: [{ ...song, title: 'Neu', revision: 2 }], remove: [] });
+    expect(repo.outgoing(song.id)!.changes.length).toBeGreaterThan(0);
+    expect(repo.hasUnsent()).toBe(true);
+  });
+
+  it('forgetWorkbookSongs entfernt Workbook-Songs und Liste, lokale Songs bleiben', async () => {
+    const { name, repo, song } = await storedSong('Intro');
+    const local = songWith({ title: 'Skizze' });
+    await repo.write({ put: [local], remove: [] });
+    repo.place(song.id, band.id, A.getHeads(A.load(repo.documentBytes(song.id))));
+    await repo.saveWorkbooks([band]);
+    expect(await repo.forgetWorkbookSongs()).toEqual([song.id]);
+    repo.close();
+
+    const reopened = await openRepository(name);
+    expect((await reopened.loadAll()).map((s) => s.title)).toEqual(['Skizze']);
+    expect(await reopened.loadSyncState()).toEqual({ placement: {}, workbooks: [] });
+  });
+
+  it('adopt übernimmt das Server-Dokument samt Zugehörigkeit und Server-Stand', async () => {
+    const repo = await openRepository(uniqueDb());
+    const server = createSongDoc(songWith({ title: 'Server' }));
+    const song = repo.adopt(songOf(server).id, A.save(server), band.id);
+    expect(song.title).toBe('Server');
+    expect(repo.outgoing(song.id)).toEqual({ base: A.getHeads(server), changes: new Uint8Array() });
+    expect((await repo.loadSyncState()).placement).toEqual({ [song.id]: band.id });
+  });
+
+  describe('receive (keine verlorenen Änderungen)', () => {
+    it('Store-Änderung während der Anfrage und Server-Änderung bleiben beide erhalten, ohne weitere Dokumentänderung', async () => {
+      const repo = await openRepository(uniqueDb());
+      const store = createNotebookStore();
+      const connection = connectStore(store, repo);
+      const created = store.createSong('Intro');
+      await connection.flush();
+      const base = A.getHeads(A.load(repo.documentBytes(created.id)));
+      repo.place(created.id, band.id, base);
+
+      // Fremdes Gerät ändert das Tempo; der Server liefert genau das
+      const foreign = applySong(A.load(repo.documentBytes(created.id)), { ...created, tempo: 90, revision: 2 });
+      const foreignChanges = A.saveSince(foreign, base);
+      const serverHeads = A.getHeads(foreign);
+
+      // Während die Anfrage läuft, ändert der Nutzer den Titel; `connectStore` hat das noch nicht geschrieben
+      store.renameSong(created.id, 'Eigener Titel');
+      const current = store.getState().songs[0]!;
+      const merged = repo.receive(created.id, current, { changes: foreignChanges, heads: serverHeads });
+      store.applyRemote([merged], []);
+      expect(store.getState().songs[0]).toMatchObject({ title: 'Eigener Titel', tempo: 90 });
+
+      const before = A.getHeads(A.load(repo.documentBytes(created.id)));
+      await connection.flush();
+      expect(A.getHeads(A.load(repo.documentBytes(created.id)))).toEqual(before);
+      expect(repo.outgoing(created.id)!.base).toEqual(serverHeads);
+      // Die eigene Änderung ist noch nicht beim Server und geht beim nächsten Abgleich hinaus
+      expect(repo.outgoing(created.id)!.changes.length).toBeGreaterThan(0);
+    });
+
+    it('Ein vor dem Empfang angestoßener Schreibvorgang schreibt keinen alten Stand zurück', async () => {
+      const repo = await openRepository(uniqueDb());
+      const store = createNotebookStore();
+      const connection = connectStore(store, repo);
+      const created = store.createSong('Intro');
+      await connection.flush();
+      const base = A.getHeads(A.load(repo.documentBytes(created.id)));
+      repo.place(created.id, band.id, base);
+
+      const foreign = applySong(A.load(repo.documentBytes(created.id)), { ...created, tempo: 90, revision: 2 });
+      store.renameSong(created.id, 'Eigener Titel');
+      // Schreibvorgang läuft, seine Speicherung ist noch nicht abgeschlossen
+      const writing = connection.flush();
+      const merged = repo.receive(created.id, store.getState().songs[0]!, { changes: A.saveSince(foreign, base), heads: A.getHeads(foreign) });
+      store.applyRemote([merged], []);
+      const heads = A.getHeads(A.load(repo.documentBytes(created.id)));
+      await writing;
+      await connection.flush();
+
+      expect(A.getHeads(A.load(repo.documentBytes(created.id)))).toEqual(heads);
+      expect(songOf(A.load(repo.documentBytes(created.id)))).toMatchObject({ title: 'Eigener Titel', tempo: 90 });
+    });
   });
 });

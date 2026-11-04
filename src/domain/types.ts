@@ -150,3 +150,11 @@ export const DEFAULT_SUBDIVISION: Subdivision = 4;
 export const DEFAULT_TEMPO = 120;
 export const MIN_TEMPO = 30;
 export const MAX_TEMPO = 300;
+
+/** Workbook, wie es der Server liefert; Mitglieder als Mail-Adressen, der Besitzer zuerst. */
+export interface Workbook {
+  id: string;
+  title: string;
+  owner: string;
+  members: string[];
+}

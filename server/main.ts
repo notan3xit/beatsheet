@@ -14,6 +14,7 @@ const { values } = parseArgs({
     host: { type: 'string', default: '127.0.0.1' },
     data: { type: 'string', default: './server-data' },
     'insecure-cookie': { type: 'boolean', default: false },
+    'app-url': { type: 'string' },
   },
 });
 
@@ -28,6 +29,7 @@ const server = createServer(
     newCode: () => String(randomInt(0, 1_000_000)).padStart(6, '0'),
     mail: outbox ? createOutboxMailer(outbox) : createConsoleMailer(),
     secureCookie: !values['insecure-cookie'],
+    appUrl: values['app-url'],
   }),
 );
 

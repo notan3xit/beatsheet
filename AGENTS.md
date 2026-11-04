@@ -17,7 +17,7 @@ Anweisungen an Agenten, Specs, Kommentare und Dokumente sind kurz, prägnant und
 - TypeScript (strict), React, Vite
 - Notenrendering: VexFlow
 - Persistenz: IndexedDB (`idb`), Automerge (`@automerge/automerge`) für zusammenführbare Song-Dokumente, Dateiformat-Validierung mit `zod`
-- Server: Node 24 führt `server/*.ts` ohne Build aus (nur entfernbare TypeScript-Syntax, Importe mit `.ts`), SQLite über `node:sqlite`
+- Server: Node 24 führt `server/*.ts` ohne Build aus (nur entfernbare TypeScript-Syntax, Importe mit `.ts`), SQLite über `node:sqlite`. Der Server nutzt `src/persistence/songDoc.ts` und `fileFormat.ts` samt deren Importen mit; dafür ergänzt der Resolve-Hook `server/resolve.ts` fehlende Endungen, und diese Module unterliegen ebenfalls `erasableSyntaxOnly`
 - Tests: Vitest (Projekte `app` in jsdom und `server` in Node), Testing Library, jsdom, fake-indexeddb
 - Farben: Catppuccin, Latte (hell) bzw. Mocha (dunkel) nach Systemeinstellung, Werte aus `@catppuccin/palette` (`src/ui/theme.ts` erzeugt die Variablen `--ctp-<name>`)
 
@@ -30,10 +30,11 @@ Aufbau unter `src/`:
 - `audio`: Wiedergabe über Web Audio; `player` ist die einzige Stelle mit `AudioContext`
 - `persistence`: Dateiformat, Import nach Revision, IndexedDB mit einem Automerge-Dokument pro Song (`songDoc`: Dokumentform, Brücke vom `Song` ins Dokument, Zusammenführen)
 - `state`: Store mit Songs und Navigation
-- `account`: Client für die Anmeldung am Server
+- `account`: Client für die Anmeldung am Server, geteilter Anmeldestatus
+- `sync`: Abgleich der Workbook-Songs mit dem Server
 - `ui`: React-Komponenten
 
-`server/`: HTTP-Server mit Anmeldung per Mail und Einmalcode; Mails als JSON-Dateien in `$MAIL_OUTBOX`, ohne die Variable auf der Konsole.
+`server/`: HTTP-Server mit Anmeldung per Mail und Einmalcode, Workbooks, Song-Abgleich und Ereigniskanal (Server-Sent Events); Mails als JSON-Dateien in `$MAIL_OUTBOX`, ohne die Variable auf der Konsole.
 
 **Dateiformat erweitern:** Ein neues Feld, das eine ältere Version gefahrlos übergehen kann, kommt optional mit Vorgabewert dazu, ohne neue Schemaversion. Der Import ignoriert unbekannte Felder (keine `.strict()`-Schemata), damit ältere Versionen neuere Dateien lesen können. Die Schemaversion steigt nur, wenn eine ältere Version die Datei sonst falsch verstünde (Bedeutung eines Felds ändert sich, Pflichtfeld entfällt, Struktur wird umgebaut).
 
@@ -48,7 +49,7 @@ Aufbau unter `src/`:
 
 - `npm install`: Abhängigkeiten installieren
 - `npm run dev`: Dev-Server starten; leitet `/api` an `http://localhost:8787` weiter (anderes Ziel über `BEATSHEET_API`)
-- `npm run server`: Server starten (`-- --port`, `--host`, `--data`, `--insecure-cookie` für Tests über reines HTTP)
+- `npm run server`: Server starten (`-- --port`, `--host`, `--data`, `--insecure-cookie` für Tests über reines HTTP, `--app-url` für den Link in Einladungsmails)
 - `npm run build`: Typprüfung (App und Server) und Produktions-Build
 - `npm test`: alle Tests einmal ausführen (`npm run test:watch` im Watch-Modus)
 

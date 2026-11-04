@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc && tsc -p server && vite build",
     "preview": "vite preview",
-    "server": "node server/main.ts",
+    "server": "node --import ./server/register.ts server/main.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepare": "node -e \"try{require('child_process').execSync('git config core.hooksPath .githooks',{stdio:'ignore'})}catch{}\""

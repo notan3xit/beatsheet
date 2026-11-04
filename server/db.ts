@@ -29,6 +29,32 @@ const SCHEMA = `
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS workbooks (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    owner TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS members (
+    workbook_id TEXT NOT NULL REFERENCES workbooks (id),
+    email TEXT NOT NULL,
+    added_at INTEGER NOT NULL,
+    PRIMARY KEY (workbook_id, email)
+  );
+  CREATE INDEX IF NOT EXISTS members_email ON members (email);
+  CREATE TABLE IF NOT EXISTS songs (
+    id TEXT PRIMARY KEY,
+    workbook_id TEXT NOT NULL REFERENCES workbooks (id),
+    doc BLOB NOT NULL,
+    deleted INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS songs_workbook ON songs (workbook_id);
+  CREATE TABLE IF NOT EXISTS invitations (
+    owner TEXT NOT NULL,
+    at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS invitations_at ON invitations (at);
 `;
 
 export function openDatabase(path: string): Database {

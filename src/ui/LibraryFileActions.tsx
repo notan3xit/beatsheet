@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent } from 'react';
+import { newId } from '../domain/id';
 import { exportFileName, parseNotebookFile, serializeNotebook } from '../persistence/fileFormat';
 import { applyImport, planImport, type ImportEntry } from '../persistence/merge';
 import { downloadFile } from './download';
@@ -13,6 +14,11 @@ export function LibraryFileActions() {
   const store = useStore();
   const [message, setMessage] = useState<Message | null>(null);
   const [pending, setPending] = useState<Pending | null>(null);
+
+  const workbookTitleOf = (songId: string) => {
+    const { placement, workbooks } = store.getState();
+    return workbooks.find((w) => w.id === placement[songId])?.title;
+  };
 
   const exportLibrary = () => {
     const now = new Date();
@@ -36,7 +42,7 @@ export function LibraryFileActions() {
 
   const confirmImport = (plan: ImportEntry[]) => {
     setPending(null);
-    const { songs, summary } = applyImport(plan, { now: () => new Date(), newId: () => crypto.randomUUID() });
+    const { songs, summary } = applyImport(plan, { now: () => new Date(), newId });
     store.importSongs(songs);
     setMessage({
       kind: 'status',
@@ -62,6 +68,7 @@ export function LibraryFileActions() {
         <ImportDialog
           plan={pending.plan}
           fromNewerVersion={pending.fromNewerVersion}
+          workbookTitleOf={workbookTitleOf}
           onCancel={() => setPending(null)}
           onConfirm={confirmImport}
         />

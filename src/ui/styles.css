@@ -100,7 +100,7 @@ input {
 .app {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  /* Kopf, optionaler Speicherhinweis, Inhalt */
+  /* Kopf, Hinweise (ggf. leer), Inhalt */
   grid-template-rows: auto auto 1fr;
   min-height: 100vh;
 }
@@ -179,8 +179,14 @@ input {
   color: inherit;
 }
 
+.app-notes {
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .storage-note {
-  grid-column: 1 / -1;
   margin: 0;
   padding: 0.5rem 1.25rem;
   background: color-mix(in srgb, var(--warning) 25%, transparent);
@@ -233,6 +239,84 @@ input {
 .song-list {
   padding: 1.25rem;
   max-width: 40rem;
+}
+
+.card {
+  margin-bottom: 1.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.card-members {
+  position: relative;
+}
+
+.card-popover {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: max-content;
+  max-width: 24rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  box-shadow: 0 6px 18px var(--shadow);
+  cursor: default;
+}
+
+.member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.member-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.member-invite {
+  display: flex;
+  align-items: end;
+  gap: 0.5rem;
+}
+
+.notice {
+  margin: 0.75rem 1.25rem 0;
+}
+
+.songs .song-action {
+  text-align: right;
 }
 
 .song-create {
@@ -1241,6 +1325,7 @@ button.link {
 .backdrop {
   position: fixed;
   inset: 0;
+  z-index: 30;
   background: var(--backdrop);
   display: grid;
   place-items: center;

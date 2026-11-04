@@ -9,18 +9,21 @@ export function EditableHeading({
   label,
   value,
   onCommit,
+  level = 2,
 }: {
   label: string;
   value: string;
   onCommit: (draft: string) => void;
+  level?: 2 | 3;
 }) {
+  const Heading = level === 3 ? 'h3' : 'h2';
   const [draft, setDraft] = useState<string | null>(null);
   const discard = useRef(false);
 
   if (draft === null) {
     return (
       // Klick irgendwo auf die Überschrift; der Knopf macht sie per Tastatur erreichbar (Klick bubbelt hierher)
-      <h2
+      <Heading
         className="editable-heading"
         onClick={() => {
           discard.current = false;
@@ -30,12 +33,12 @@ export function EditableHeading({
         <button type="button" className="heading-edit" title="Zum Umbenennen klicken">
           {value}
         </button>
-      </h2>
+      </Heading>
     );
   }
 
   return (
-    <h2 className="editable-heading">
+    <Heading className="editable-heading">
       <input
         aria-label={label}
         value={draft}
@@ -54,6 +57,6 @@ export function EditableHeading({
           }
         }}
       />
-    </h2>
+    </Heading>
   );
 }

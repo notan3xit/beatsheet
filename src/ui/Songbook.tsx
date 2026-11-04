@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { allBars } from '../domain/songPatterns';
 import { Breadcrumbs } from './Breadcrumbs';
 import { useConfirm } from './ConfirmDialog';
@@ -8,7 +8,8 @@ import { PatternPage } from './PatternPage';
 import { StructurePage } from './StructurePage';
 import { NoAudioNote, usePlayer, useSongPlayback } from './playback';
 import { TempoMark } from './TempoMark';
-import { useOpenSong, useStore } from './useLibrary';
+import { useNotebook, useOpenSong, useStore } from './useLibrary';
+import { syncMessage, useSync } from './useWorkbooks';
 
 /** Kopftaste: ganzen Song einmal abspielen; während jeder Song-Wiedergabe „Stopp“. */
 function SongTransport() {
@@ -34,11 +35,17 @@ function SongHeader() {
   const store = useStore();
   const song = useOpenSong();
   const confirm = useConfirm();
+  const sync = useSync();
+  const { placement, workbooks } = useNotebook();
+  const [error, setError] = useState<string | null>(null);
+  const workbook = workbooks.find((w) => w.id === placement[song.id]);
 
   const remove = async () => {
-    if (await confirm(`„${song.title}“ löschen? Alle Patterns und die Struktur des Songs werden mitgelöscht.`)) {
-      store.deleteSong(song.id);
-    }
+    const reach = workbook ? ` Der Song wird für alle Mitglieder von „${workbook.title}“ gelöscht.` : '';
+    if (!(await confirm(`„${song.title}“ löschen?${reach} Alle Patterns und die Struktur des Songs werden mitgelöscht.`))) return;
+    if (!sync || !placement[song.id]) return store.deleteSong(song.id);
+    const result = await sync.deleteSong(song.id);
+    if (!result.ok) setError(syncMessage(result.error));
   };
 
   return (
@@ -52,6 +59,11 @@ function SongHeader() {
           Song löschen
         </button>
       </div>
+      {error && (
+        <p role="alert" className="message alert">
+          {error}
+        </p>
+      )}
     </header>
   );
 }
