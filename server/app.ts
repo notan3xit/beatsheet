@@ -3,6 +3,7 @@ import { endSession, requestCode, SESSION_TTL, sessionEmail, verifyCode, type Au
 import { createEvents } from './events.ts';
 import { HttpError } from './http.ts';
 import { createQuota, DEFAULT_LIMITS, type Limits } from './limits.ts';
+import { serveStatic } from './static.ts';
 import { handleWorkbookRequest } from './workbooks.ts';
 
 export interface AppDeps extends AuthDeps {
@@ -10,6 +11,8 @@ export interface AppDeps extends AuthDeps {
   secureCookie: boolean;
   /** Adresse der App für Links in Einladungsmails. */
   appUrl?: string;
+  /** Verzeichnis der gebauten Oberfläche; ohne Angabe nur die API. */
+  staticDir?: string;
   /** Abweichende Grenzen, für Tests. */
   limits?: Partial<Limits>;
 }
@@ -66,6 +69,16 @@ export function createApp(deps: AppDeps): RequestListener {
     const path = (request.url ?? '/').split('?')[0];
     const route = `${request.method} ${path}`;
 
+    if (route === 'GET /api/health') {
+      const noStore = { 'Cache-Control': 'no-store' };
+      try {
+        deps.db.prepare('SELECT COUNT(*) FROM sqlite_master').get();
+      } catch (error) {
+        console.error(error);
+        return send(response, 503, { error: 'unhealthy' }, noStore);
+      }
+      return send(response, 200, { status: 'ok' }, noStore);
+    }
     if (route === 'POST /api/auth/code') {
       const body = await readJson(request);
       const result = await requestCode(deps, body.email);
@@ -104,6 +117,7 @@ export function createApp(deps: AppDeps): RequestListener {
       });
       return send(response, reply.status, reply.body);
     }
+    if (deps.staticDir && (request.method === 'GET' || request.method === 'HEAD') && (await serveStatic(deps.staticDir, path ?? '/', request.method, response))) return;
     send(response, 404, { error: 'not-found' });
   }
 

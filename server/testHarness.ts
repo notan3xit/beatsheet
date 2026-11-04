@@ -20,7 +20,7 @@ export interface Harness {
 }
 
 /** Server mit In-Memory-Datenbank, fester Uhr und gesammelten Mails auf einem freien Port. */
-export async function startServer({ appUrl, limits }: { appUrl?: string; limits?: Partial<Limits> } = {}): Promise<Harness> {
+export async function startServer({ appUrl, limits, staticDir }: { appUrl?: string; limits?: Partial<Limits>; staticDir?: string } = {}): Promise<Harness> {
   let time = Date.parse('2026-11-04T12:00:00.000Z');
   const mails: Mail[] = [];
   const db = openDatabase(':memory:');
@@ -35,6 +35,7 @@ export async function startServer({ appUrl, limits }: { appUrl?: string; limits?
       secureCookie: false,
       appUrl,
       limits,
+      staticDir,
     }),
   );
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

@@ -38,6 +38,8 @@ Aufbau unter `src/`:
 
 `server/`: HTTP-Server mit Anmeldung per Mail und Einmalcode, Workbooks (je Account eines als eigener Bestand, angezeigt als „Meine Songs“), Song-Abgleich und Ereigniskanal (Server-Sent Events), mit Grenzen für Speicher, Workbooks, Mitglieder und Verbindungen in `server/limits.ts`; Mails als JSON-Dateien in `$MAIL_OUTBOX`, ohne die Variable auf der Konsole.
 
+**Betrieb:** Der Server bedient Oberfläche und API auf einem Port, `GET /api/health` meldet seinen Zustand ohne Anmeldung, und auf `SIGTERM` endet er sofort. Er läuft aus einem nur lesbaren Paket und schreibt nur ins Datenverzeichnis. Das Paket entsteht nach `npm ci`, `npm run build` und `npm prune --omit=dev` aus `package.json`, `dist`, `server`, `src/domain`, `src/persistence` und `node_modules`.
+
 **Dateiformat erweitern:** Ein neues Feld, das eine ältere Version gefahrlos übergehen kann, kommt optional mit Vorgabewert dazu, ohne neue Schemaversion. Der Import ignoriert unbekannte Felder (keine `.strict()`-Schemata), damit ältere Versionen neuere Dateien lesen können. Die Schemaversion steigt nur, wenn eine ältere Version die Datei sonst falsch verstünde (Bedeutung eines Felds ändert sich, Pflichtfeld entfällt, Struktur wird umgebaut).
 
 `domain`, `notation/model`, `songbook` und die Format-/Merge-Logik in `persistence` haben keine Abhängigkeit zu React oder Browser-APIs. Änderungen an einem Song laufen immer über reine Funktionen und `store.updateSong`, damit Revision und Speicherung stimmen.
@@ -51,7 +53,7 @@ Aufbau unter `src/`:
 
 - `npm install`: Abhängigkeiten installieren
 - `npm run dev`: Dev-Server starten; leitet `/api` an `http://localhost:8787` weiter (anderes Ziel über `BEATSHEET_API`)
-- `npm run server`: Server starten (`-- --port`, `--host`, `--data`, `--insecure-cookie` für Tests über reines HTTP, `--app-url` für den Link in Einladungsmails)
+- `npm run server`: Server starten (`-- --port`, `--host`, `--data`, `--static` für das Verzeichnis der gebauten Oberfläche, `--insecure-cookie` für Tests über reines HTTP, `--app-url` oder `$BEATSHEET_APP_URL` für den Link in Einladungsmails)
 - `npm run build`: Typprüfung (App und Server) und Produktions-Build
 - `npm test`: alle Tests einmal ausführen (`npm run test:watch` im Watch-Modus)
 
