@@ -31,10 +31,10 @@ Aufbau unter `src/`:
 - `persistence`: Dateiformat, Import nach Revision, IndexedDB mit einem Automerge-Dokument pro Song (`songDoc`: Dokumentform, Brücke vom `Song` ins Dokument, Zusammenführen)
 - `state`: Store mit Songs und Navigation
 - `account`: Client für die Anmeldung am Server, geteilter Anmeldestatus
-- `sync`: Abgleich der Workbook-Songs mit dem Server
+- `sync`: Abgleich der Songs mit dem Server; angemeldet wandern Songs ohne Zugehörigkeit in den eigenen Bestand
 - `ui`: React-Komponenten
 
-`server/`: HTTP-Server mit Anmeldung per Mail und Einmalcode, Workbooks, Song-Abgleich und Ereigniskanal (Server-Sent Events); Mails als JSON-Dateien in `$MAIL_OUTBOX`, ohne die Variable auf der Konsole.
+`server/`: HTTP-Server mit Anmeldung per Mail und Einmalcode, Workbooks (je Account eines als eigener Bestand, angezeigt als „Meine Songs“), Song-Abgleich und Ereigniskanal (Server-Sent Events); Mails als JSON-Dateien in `$MAIL_OUTBOX`, ohne die Variable auf der Konsole.
 
 **Dateiformat erweitern:** Ein neues Feld, das eine ältere Version gefahrlos übergehen kann, kommt optional mit Vorgabewert dazu, ohne neue Schemaversion. Der Import ignoriert unbekannte Felder (keine `.strict()`-Schemata), damit ältere Versionen neuere Dateien lesen können. Die Schemaversion steigt nur, wenn eine ältere Version die Datei sonst falsch verstünde (Bedeutung eines Felds ändert sich, Pflichtfeld entfällt, Struktur wird umgebaut).
 

@@ -3,7 +3,7 @@ import { HOUR, mailsLastHour, normalizeEmail, TOTAL_PER_HOUR, type AuthDeps } fr
 import type { Database } from './db.ts';
 import type { Events } from './events.ts';
 import { HttpError, type Reply } from './http.ts';
-import { addSong, deleteSong, syncSongs } from './songs.ts';
+import { addSong, deleteSong, moveSong, syncSongs } from './songs.ts';
 
 export interface WorkbookDeps extends AuthDeps {
   appUrl?: string;
@@ -26,6 +26,7 @@ interface WorkbookRow {
 }
 
 const DEFAULT_TITLE = 'Neues Workbook';
+const PERSONAL_TITLE = 'Meine Songs';
 const MAX_TITLE = 200;
 const INVITATIONS_PER_HOUR = 20;
 
@@ -44,7 +45,26 @@ export const membersOf = (db: Database, id: string, owner: string) => {
   return [owner, ...rows.map((m) => m.email).filter((email) => email !== owner)];
 };
 
-const present = (db: Database, row: WorkbookRow) => ({ id: row.id, title: row.title, owner: row.owner, members: membersOf(db, row.id, row.owner) });
+const isPersonal = (db: Database, id: string) => db.prepare('SELECT 1 FROM personal_workbooks WHERE workbook_id = ?').get(id) !== undefined;
+
+const present = (db: Database, row: WorkbookRow) => ({
+  id: row.id,
+  title: row.title,
+  owner: row.owner,
+  members: membersOf(db, row.id, row.owner),
+  ...(isPersonal(db, row.id) ? { personal: true } : {}),
+});
+
+/** Der eigene Bestand eines Accounts, beim ersten Abruf angelegt (account-songs, design.md D1). */
+function ensurePersonal(deps: WorkbookDeps, email: string) {
+  const { db } = deps;
+  if (db.prepare('SELECT 1 FROM personal_workbooks WHERE owner = ?').get(email)) return;
+  const id = randomUUID();
+  const now = deps.now().getTime();
+  db.prepare('INSERT INTO workbooks (id, title, owner, created_at) VALUES (?, ?, ?, ?)').run(id, PERSONAL_TITLE, email, now);
+  db.prepare('INSERT INTO members (workbook_id, email, added_at) VALUES (?, ?, ?)').run(id, email, now);
+  db.prepare('INSERT INTO personal_workbooks (owner, workbook_id) VALUES (?, ?)').run(email, id);
+}
 
 function findWorkbook(db: Database, id: string, email: string): WorkbookRow {
   const row = db
@@ -137,15 +157,20 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
   } catch {
     throw notFound();
   }
-  const [id, resource, item] = path;
+  const [id, resource, item, action] = path;
 
   if (id === undefined) {
-    if (method === 'GET') return list(db, email);
+    if (method === 'GET') {
+      ensurePersonal(deps, email);
+      return list(db, email);
+    }
     if (method === 'POST') return create(deps, email, await body());
     throw notFound();
   }
 
   const row = findWorkbook(db, id, email);
+  // Teilen, Umbenennen und Löschen gibt es für den eigenen Bestand nicht
+  if ((resource === undefined || resource === 'members') && isPersonal(db, id)) throw new HttpError(403, 'personal');
   if (resource === undefined) {
     if (method === 'PATCH') {
       requireOwner(row, email);
@@ -165,6 +190,16 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
   }
   const songsChanged = () => events.send(membersOf(db, id, row.owner), 'workbook', { id });
   if (resource === 'songs') {
+    if (item !== undefined && action === 'move' && method === 'POST') {
+      const { to } = await body();
+      if (typeof to !== 'string' || to === id) throw notFound();
+      const target = findWorkbook(db, to, email);
+      if (!isPersonal(db, id)) throw new HttpError(403, 'not-personal');
+      const reply = await moveSong(db, id, to, item, deps.now());
+      songsChanged();
+      events.send(membersOf(db, to, target.owner), 'workbook', { id: to });
+      return reply;
+    }
     if (item === undefined && method === 'POST') {
       const reply = await addSong(db, id, await body(), deps.now());
       songsChanged();
@@ -177,7 +212,7 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
     }
   }
   if (resource === 'sync' && item === undefined && method === 'POST') {
-    const { changed, ...reply } = await syncSongs(db, id, await body(), deps.now());
+    const { changed, ...reply } = await syncSongs(db, id, email, await body(), deps.now());
     if (changed) songsChanged();
     return reply;
   }

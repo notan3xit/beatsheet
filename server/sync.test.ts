@@ -205,9 +205,10 @@ describe('Abgleich', () => {
   });
 
   it('behandelt den Song eines anderen Workbooks wie unbekannt und gibt nichts davon heraus', async () => {
-    const other = ((await (await h.api('POST', '/api/workbooks', { cookie: owner, body: { title: 'Anders' } })).json()) as { id: string }).id;
+    const anna = await h.login(ANNA);
+    const other = ((await (await h.api('POST', '/api/workbooks', { cookie: anna, body: { title: 'Anders' } })).json()) as { id: string }).id;
     const doc = createSongDoc(song());
-    await addSong(doc, 'intro', owner, other);
+    await addSong(doc, 'intro', anna, other);
     expect(await sync([{ id: 'intro', base: A.getHeads(doc) }])).toEqual([{ id: 'intro', status: 'deleted' }]);
   });
 

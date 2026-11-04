@@ -19,7 +19,7 @@ function MoveMenu({ song, sync, run }: { song: Song; sync: WorkbookActions; run:
       </button>
       {open && (
         <div role="menu" className="card-popover move-menu">
-          {sortedByTitle(workbooks, (w) => w.title).map((workbook) => (
+          {sortedByTitle(workbooks.filter((w) => !w.personal), (w) => w.title).map((workbook) => (
             <button
               key={workbook.id}
               type="button"
@@ -44,7 +44,7 @@ function MySongs({ songs, sync }: { songs: readonly Song[]; sync: WorkbookAction
   const email = useEmail();
   const [title, setTitle] = useState('');
   const [error, run] = useActionError();
-  const canMove = sync && email && workbooks.length > 0;
+  const canMove = sync && email && workbooks.some((w) => !w.personal);
 
   return (
     <section aria-label="Meine Songs" className="card">
@@ -103,15 +103,16 @@ export function SongList() {
   const { songs, workbooks, placement } = useNotebook();
   const sync = useSync();
   const email = useEmail();
+  const personalId = workbooks.find((w) => w.personal)?.id;
   return (
     <main className="song-list" aria-label="Songs">
       <h2 className="page-heading">Songs</h2>
       {sync && email && <NewWorkbook sync={sync} />}
       {sync &&
-        sortedByTitle(workbooks, (w) => w.title).map((workbook) => (
+        sortedByTitle(workbooks.filter((w) => !w.personal), (w) => w.title).map((workbook) => (
           <WorkbookCard key={workbook.id} workbook={workbook} songs={songs.filter((s) => placement[s.id] === workbook.id)} sync={sync} />
         ))}
-      <MySongs songs={songs.filter((s) => !placement[s.id])} sync={sync} />
+      <MySongs songs={songs.filter((s) => !placement[s.id] || placement[s.id] === personalId)} sync={sync} />
     </main>
   );
 }

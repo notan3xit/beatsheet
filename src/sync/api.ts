@@ -13,7 +13,9 @@ export type SyncError =
   | 'not-empty'
   | 'exists'
   | 'invalid-song'
-  | 'too-large';
+  | 'too-large'
+  | 'personal'
+  | 'not-personal';
 
 export type SyncResult<T = object> = ({ ok: true } & T) | { ok: false; error: SyncError };
 
@@ -26,6 +28,7 @@ export interface OutgoingSong {
 export type SyncReply =
   | { id: string; status: 'new' | 'unrelated' | 'invalid'; doc: Uint8Array }
   | { id: string; status: 'deleted' }
+  | { id: string; status: 'moved'; to: string }
   | { id: string; status: 'ok'; changes?: Uint8Array; heads: string[] };
 
 /** Schnittstelle zum Server (workbook-sync, design.md D3). */
@@ -38,12 +41,13 @@ export interface SyncApi {
   removeMember(id: string, email: string): Promise<SyncResult>;
   addSong(workbookId: string, songId: string, doc: Uint8Array): Promise<SyncResult<{ heads: string[] }>>;
   deleteSong(workbookId: string, songId: string): Promise<SyncResult>;
+  moveSong(from: string, songId: string, to: string): Promise<SyncResult>;
   sync(workbookId: string, songs: OutgoingSong[]): Promise<SyncResult<{ songs: SyncReply[] }>>;
 }
 
 export type SyncFetch = (path: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<Response>;
 
-const KNOWN_ERRORS = new Set<SyncError>(['invalid-title', 'invalid-email', 'already-member', 'rate-limited', 'not-owner', 'not-empty', 'exists', 'invalid-song', 'too-large']);
+const KNOWN_ERRORS = new Set<SyncError>(['invalid-title', 'invalid-email', 'already-member', 'rate-limited', 'not-owner', 'not-empty', 'exists', 'invalid-song', 'too-large', 'personal', 'not-personal']);
 
 function toBase64(bytes: Uint8Array): string {
   const CHUNK = 0x8000;
@@ -54,10 +58,11 @@ function toBase64(bytes: Uint8Array): string {
 
 const fromBase64 = (text: string) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 
-type RawReply = { id: string; status: SyncReply['status']; doc?: string; changes?: string; heads?: string[] };
+type RawReply = { id: string; status: SyncReply['status']; doc?: string; changes?: string; heads?: string[]; to?: string };
 
-function decodeReply({ id, status, doc, changes, heads }: RawReply): SyncReply {
+function decodeReply({ id, status, doc, changes, heads, to }: RawReply): SyncReply {
   if (status === 'deleted') return { id, status };
+  if (status === 'moved') return { id, status, to: to! };
   if (status === 'ok') return { id, status, heads: heads!, ...(changes ? { changes: fromBase64(changes) } : {}) };
   return { id, status, doc: fromBase64(doc!) };
 }
@@ -91,6 +96,7 @@ export function createSyncApi(fetcher: SyncFetch = (path, init) => fetch(path, i
     removeMember: (id, email) => request('DELETE', member(id, email)),
     addSong: (workbookId, songId, doc) => request('POST', `${workbook(workbookId)}/songs`, { id: songId, doc: toBase64(doc) }),
     deleteSong: (workbookId, songId) => request('DELETE', `${workbook(workbookId)}/songs/${encodeURIComponent(songId)}`),
+    moveSong: (from, songId, to) => request('POST', `${workbook(from)}/songs/${encodeURIComponent(songId)}/move`, { to }),
     async sync(workbookId, songs) {
       const result = await request<{ songs: RawReply[] }>('POST', `${workbook(workbookId)}/sync`, {
         songs: songs.map(({ id, base, changes }) => ({ id, base, ...(changes.length > 0 ? { changes: toBase64(changes) } : {}) })),

@@ -564,6 +564,75 @@ describe('Spec library-persistence › Workbook-Songs im Import (UI)', () => {
   });
 });
 
+describe('Spec account-songs › „Meine Songs“ im Account (UI)', () => {
+  const personal: Workbook = { id: 'wb-me', title: 'Meine Songs', owner: ME, members: [ME], personal: true };
+  const placed = (title: string) => {
+    const song = songWith({ title });
+    return { song, placement: { [song.id]: personal.id } };
+  };
+  const row = (title: string) => within(card('Meine Songs')).getByText(title).closest('tr')!;
+
+  it('Der eigene Bestand erscheint nicht als Workbook-Karte, seine Songs stehen in „Meine Songs“', () => {
+    const { song, placement } = placed('Skizze');
+    setup({ songs: [song], workbooks: [personal, workbook('Band')], placement });
+    expect(cardTitles()).toEqual(['Band', 'Meine Songs']);
+    expect(within(card('Meine Songs')).getByText('Skizze')).toBeInTheDocument();
+  });
+
+  it('„Zu Workbook …“ nennt den eigenen Bestand nicht', async () => {
+    const { song, placement } = placed('Skizze');
+    const { user, sync } = setup({ songs: [song], workbooks: [personal, workbook('Band')], placement });
+    await user.click(within(row('Skizze')).getByRole('button', { name: 'Zu Workbook …' }));
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Band']);
+    await user.click(screen.getByRole('menuitem', { name: 'Band' }));
+    expect(sync.moveSong).toHaveBeenCalledWith(song.id, 'wb-Band');
+  });
+
+  it('Ohne Workbooks', () => {
+    const { song, placement } = placed('Skizze');
+    setup({ songs: [song], workbooks: [personal], placement });
+    expect(cardTitles()).toEqual(['Meine Songs']);
+    expect(screen.queryByRole('button', { name: 'Zu Workbook …' })).not.toBeInTheDocument();
+  });
+
+  it('Löschen: Die Nachfrage nennt keine Mitglieder, der Sync übernimmt', async () => {
+    const { song, placement } = placed('Skizze');
+    const { user, sync } = setup({ songs: [song], workbooks: [personal], placement });
+    await user.click(within(card('Meine Songs')).getByText('Skizze'));
+    await user.click(screen.getByRole('button', { name: 'Song löschen' }));
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).not.toHaveTextContent('Mitglieder');
+    await user.click(within(dialog).getByRole('button', { name: 'Bestätigen' }));
+    expect(sync.deleteSong).toHaveBeenCalledWith(song.id);
+  });
+
+  it('Import: Ersetzen eines eigenen Songs nennt keine Mitglieder', async () => {
+    const { song, placement } = placed('Skizze');
+    const ctx = setup({ songs: [song], workbooks: [personal], placement });
+    const file = new File([serializeNotebook([{ ...song, tempo: 77, revision: 9 }], new Date())], 'backup.json', { type: 'application/json' });
+    await ctx.user.upload(screen.getByLabelText('Importieren'), file);
+    const dialog = await screen.findByRole('dialog', { name: 'Songs importieren' });
+    expect(within(dialog).getByRole('radio', { name: 'Ersetzen' })).toBeChecked();
+    expect(dialog).not.toHaveTextContent('betrifft alle Mitglieder');
+  });
+
+  it('Hinweis nach der Übernahme', async () => {
+    const { addNotice } = setup();
+    act(() => addNotice('2 Songs wurden in deinen Account übernommen.'));
+    expect(screen.getByRole('status')).toHaveTextContent('2 Songs wurden in deinen Account übernommen.');
+  });
+
+  it('Ein noch nicht hochgeladener Song lässt sich ohne Sync löschen', async () => {
+    const song = songWith({ title: 'Neu' });
+    const { user, sync, store } = setup({ songs: [song], workbooks: [personal] });
+    await user.click(within(card('Meine Songs')).getByText('Neu'));
+    await user.click(screen.getByRole('button', { name: 'Song löschen' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Bestätigen' }));
+    expect(sync.deleteSong).not.toHaveBeenCalled();
+    expect(store.getState().songs).toEqual([]);
+  });
+});
+
 describe('Spec workbook-sync › Abmelden mit Workbook-Songs (UI)', () => {
   const logout = () => within(screen.getByRole('banner')).getByRole('button', { name: 'Abmelden' });
   const placedSetup = (overrides: Partial<WorkbookActions> = {}) => {

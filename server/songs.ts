@@ -68,6 +68,15 @@ export function deleteSong(db: Database, workbookId: string, id: string, now: Da
   return { status: 204 };
 }
 
+/** Verschiebt einen Song; Dokument und Heads bleiben (account-songs, design.md D7). */
+export async function moveSong(db: Database, from: string, to: string, id: string, now: Date): Promise<Reply> {
+  await initAutomerge();
+  const row = db.prepare('SELECT doc FROM songs WHERE id = ? AND workbook_id = ? AND deleted = 0').get(id, from) as { doc: Uint8Array } | undefined;
+  if (!row) throw new HttpError(404, 'not-found');
+  db.prepare('UPDATE songs SET workbook_id = ?, updated_at = ? WHERE id = ?').run(to, now.getTime(), id);
+  return { status: 200, body: { heads: A.getHeads(A.load(row.doc)) } };
+}
+
 function parseSongs(body: Record<string, unknown>): ClientSong[] {
   const { songs } = body;
   const valid =
@@ -84,8 +93,16 @@ function parseSongs(body: Record<string, unknown>): ClientSong[] {
   return songs as ClientSong[];
 }
 
+/** Das Workbook, in dem der Song jetzt liegt, sofern die Adresse dort Mitglied ist. */
+function movedTo(db: Database, id: string, email: string): string | undefined {
+  const row = db
+    .prepare('SELECT s.workbook_id AS id FROM songs s JOIN members m ON m.workbook_id = s.workbook_id WHERE s.id = ? AND s.deleted = 0 AND m.email = ?')
+    .get(id, email) as { id: string } | undefined;
+  return row?.id;
+}
+
 /** Abgleich mit Heads (design.md D4); `changed` meldet, ob sich der Stand des Workbooks geändert hat. */
-export async function syncSongs(db: Database, workbookId: string, body: Record<string, unknown>, now: Date): Promise<Reply & { changed: boolean }> {
+export async function syncSongs(db: Database, workbookId: string, email: string, body: Record<string, unknown>, now: Date): Promise<Reply & { changed: boolean }> {
   await initAutomerge();
   const client = parseSongs(body);
   const rows = db.prepare('SELECT id, doc, deleted FROM songs WHERE workbook_id = ?').all(workbookId) as unknown as SongRow[];
@@ -101,7 +118,8 @@ export async function syncSongs(db: Database, workbookId: string, body: Record<s
   for (const { id, base, changes } of client) {
     const row = byId.get(id);
     if (!row || row.deleted) {
-      replies.push({ id, status: 'deleted' });
+      const to = row ? undefined : movedTo(db, id, email);
+      replies.push(to ? { id, status: 'moved', to } : { id, status: 'deleted' });
       continue;
     }
     const server: SongDocument = A.load(row.doc);

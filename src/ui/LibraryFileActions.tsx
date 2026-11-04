@@ -17,7 +17,7 @@ export function LibraryFileActions() {
 
   const workbookTitleOf = (songId: string) => {
     const { placement, workbooks } = store.getState();
-    return workbooks.find((w) => w.id === placement[songId])?.title;
+    return workbooks.find((w) => w.id === placement[songId] && !w.personal)?.title;
   };
 
   const exportLibrary = () => {

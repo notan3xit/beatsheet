@@ -27,8 +27,9 @@ const create = async (cookie: string, title?: string) => {
   expect(response.status).toBe(201);
   return (await response.json()) as Workbook;
 };
+/** Geteilte Workbooks; der eigene Bestand steht in `personal.test.ts`. */
 const list = async (cookie: string) =>
-  ((await (await h.api('GET', '/api/workbooks', { cookie })).json()) as { workbooks: Workbook[] }).workbooks;
+  ((await (await h.api('GET', '/api/workbooks', { cookie })).json()) as { workbooks: (Workbook & { personal?: boolean })[] }).workbooks.filter((w) => !w.personal);
 const invite = (id: string, email: string, cookie = owner) => h.api('POST', `/api/workbooks/${id}/members`, { cookie, body: { email } });
 const removeMember = (id: string, email: string, cookie = owner) =>
   h.api('DELETE', `/api/workbooks/${id}/members/${encodeURIComponent(email)}`, { cookie });

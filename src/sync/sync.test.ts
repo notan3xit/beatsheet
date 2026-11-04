@@ -1,6 +1,7 @@
 import * as A from '@automerge/automerge/slim';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { appendSegment } from '../domain/structure';
+import type { Workbook } from '../domain/types';
 import { setTempo } from '../domain/playback';
 import { createAccountSession } from '../account/session';
 import type { AccountApi } from '../account/api';
@@ -22,7 +23,7 @@ interface Device {
   /** Trennt das Gerät vom Netz oder verbindet es wieder. */
   setOnline(online: boolean): void;
   /** Laufende und höchstzeitig gleichzeitige Sync-Anfragen. */
-  concurrency: { current: number; max: number };
+  concurrency: { current: Map<string, number>; max: number };
   dbName: string;
   session: ReturnType<typeof createAccountSession>;
 }
@@ -42,16 +43,19 @@ const unreachable = () => new TypeError('fetch failed');
 /** Ein Gerät mit eigener Datenbank und Sitzung gegen den echten Server. */
 async function device(email: string, { live = true, dbName = `sync-test-${crypto.randomUUID()}`, cookie }: { live?: boolean; dbName?: string; cookie?: string } = {}): Promise<Device> {
   const sessionCookie = cookie ?? (await h.login(email));
-  const concurrency = { current: 0, max: 0 };
+  const concurrency = { current: new Map<string, number>(), max: 0 };
   let online = true;
   const fetcher: SyncFetch = async (path, init = {}) => {
     if (!online) throw unreachable();
     const isSync = path.endsWith('/sync');
-    if (isSync) concurrency.max = Math.max(concurrency.max, ++concurrency.current);
+    if (isSync) {
+      concurrency.current.set(path, (concurrency.current.get(path) ?? 0) + 1);
+      concurrency.max = Math.max(concurrency.max, concurrency.current.get(path)!);
+    }
     try {
       return await fetch(`${h.url}${path}`, { ...init, headers: { ...init.headers, Cookie: sessionCookie } });
     } finally {
-      if (isSync) concurrency.current--;
+      if (isSync) concurrency.current.set(path, concurrency.current.get(path)! - 1);
     }
   };
 
@@ -120,8 +124,13 @@ const songNamed = (d: Device, title: string) => d.store.getState().songs.find((s
 const workbookNamed = (d: Device, title: string) => d.store.getState().workbooks.find((w) => w.title === title)!;
 const inWorkbook = (d: Device, workbook: string) =>
   d.store.getState().songs.filter((s) => d.store.getState().placement[s.id] === workbook).map((s) => s.title).sort();
-const local = (d: Device) =>
-  d.store.getState().songs.filter((s) => !d.store.getState().placement[s.id]).map((s) => s.title).sort();
+/** Songs in „Meine Songs“: ohne Zugehörigkeit oder im eigenen Bestand. */
+const local = (d: Device) => {
+  const { songs, placement, workbooks } = d.store.getState();
+  const personal = workbooks.find((w) => w.personal)?.id;
+  return songs.filter((s) => !placement[s.id] || placement[s.id] === personal).map((s) => s.title).sort();
+};
+const shared = (workbooks: Workbook[]) => workbooks.filter((w) => !w.personal);
 
 const eventually = (assertion: () => void, timeout = 5000) => vi.waitFor(assertion, { timeout, interval: 20 });
 
@@ -310,13 +319,13 @@ describe('Spec workbook-sync › Offline arbeiten', () => {
     const { me, workbook } = await bandWithIntro();
     await me.connection.flush();
     await me.repo.settled();
-    await vi.waitFor(async () => expect((await me.repo.loadSyncState()).workbooks).toHaveLength(1));
+    await vi.waitFor(async () => expect(shared((await me.repo.loadSyncState()).workbooks)).toHaveLength(1));
     me.sync.stop();
     me.repo.close();
 
     const repo = await openRepository(me.dbName);
     const store = createNotebookStore(await repo.loadAll(), undefined, await repo.loadSyncState());
-    expect(store.getState().workbooks.map((w) => w.title)).toEqual(['Band']);
+    expect(shared(store.getState().workbooks).map((w) => w.title)).toEqual(['Band']);
     expect(store.getState().placement[store.getState().songs[0]!.id]).toBe(workbook);
     repo.close();
   });
@@ -438,7 +447,7 @@ describe('Spec workbooks › Songs nach dem Austritt', () => {
     anna.setOnline(true);
     await anna.sync.syncAll();
 
-    expect(anna.store.getState().workbooks).toEqual([]);
+    expect(shared(anna.store.getState().workbooks)).toEqual([]);
     expect(local(anna)).toEqual(['Offline (aus Band)']);
     const [kept] = anna.store.getState().songs;
     expect(kept!.id).not.toBe(intro.id);
@@ -464,7 +473,7 @@ describe('Spec workbooks › Songs nach dem Austritt', () => {
     const { me, anna, workbook } = await band();
     await me.sync.deleteWorkbook(workbook);
     await anna.sync.syncAll();
-    expect(anna.store.getState().workbooks).toEqual([]);
+    expect(shared(anna.store.getState().workbooks)).toEqual([]);
     expect(anna.sync.getNotices()).toEqual([]);
   });
 });
@@ -522,13 +531,12 @@ describe('Sync-Steuerung', () => {
 });
 
 describe('Spec workbook-sync › Abmelden mit Workbook-Songs', () => {
-  it('Abmelden: Noch offene Änderungen gehen hinaus, danach bleibt nur „Meine Songs“', async () => {
+  it('Abmelden: Noch offene Änderungen gehen hinaus, danach zeigt die Startseite keine Workbook-Karten', async () => {
     const { me, anna, intro } = await bandWithIntro();
-    me.store.createSong('Skizze');
     me.store.renameSong(intro.id, 'Zuletzt');
     expect(await me.sync.prepareLogout()).toBe(true);
     await me.sync.afterLogout();
-    expect(titles(me)).toEqual(['Skizze']);
+    expect(titles(me)).toEqual([]);
     expect(me.store.getState().workbooks).toEqual([]);
     expect(me.store.getState().placement).toEqual({});
 
@@ -561,9 +569,10 @@ describe('Spec workbook-sync › Abmelden mit Workbook-Songs', () => {
     expect(titles(me)).toEqual(['Offline']);
   });
 
-  it('Lokale Songs anderer bleiben unberührt', async () => {
+  it('Nie übertragene Songs bleiben unberührt', async () => {
     const { me } = await band();
     const song = songWith({ title: 'Skizze' });
+    me.setOnline(false);
     me.store.importSongs([song]);
     await me.sync.prepareLogout();
     await me.sync.afterLogout();

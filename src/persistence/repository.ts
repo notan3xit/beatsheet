@@ -12,6 +12,8 @@ interface DocumentRecord {
   /** Nur bei Workbook-Songs: die Zugehörigkeit und der letzte mit dem Server geteilte Stand. */
   workbookId?: string;
   serverHeads?: A.Heads;
+  /** Gelöscht, dem Server aber noch nicht gemeldet; ohne Inhalt (account-songs, design.md D6). */
+  pendingDelete?: boolean;
 }
 
 interface BeatsheetDB extends DBSchema {
@@ -45,13 +47,17 @@ export interface Repository {
   documentBytes(id: string): Uint8Array;
   /** `null`, solange der Song keinen Server-Stand hat. */
   outgoing(id: string): { base: A.Heads; changes: Uint8Array } | null;
-  /** Noch nicht übertragene Änderungen an Workbook-Songs; vorher `flush`. */
+  /** Noch nicht übertragene Änderungen und vorgemerktes Löschen; Songs ohne Server-Stand zählen nicht. Vorher `flush`. */
   hasUnsent(): boolean;
   /** Wendet eine Server-Antwort im selben Schritt an; liefert den Song für den Store (design.md D8). */
   receive(id: string, current: Song, response: ServerResponse): Song;
   /** Ersetzt das Dokument durch das des Servers; liefert den Song für den Store. */
   adopt(id: string, bytes: Uint8Array, workbookId: string): Song;
   place(id: string, workbookId: string, heads: A.Heads): void;
+  /** Merkt das Löschen eines Songs für den nächsten Kontakt mit dem Server vor. */
+  markDeleted(id: string): void;
+  pendingDeletes(): { id: string; workbookId: string }[];
+  clearDeleted(id: string): void;
   saveWorkbooks(workbooks: readonly Workbook[]): Promise<void>;
   /** Entfernt Workbook-Songs und die Workbook-Liste, beim Abmelden; liefert die entfernten Song-IDs. */
   forgetWorkbookSongs(): Promise<string[]>;
@@ -102,15 +108,16 @@ export async function openRepository(name = 'beatsheet'): Promise<Repository> {
   });
   const docs = new Map<string, SongDocument>();
   const placements = new Map<string, { workbookId: string; serverHeads: A.Heads }>();
+  const deletions = new Map<string, string>();
   let saving = Promise.resolve();
 
   const recordOfDoc = (id: string, doc: SongDocument): DocumentRecord => ({ id, bytes: A.save(doc), ...placements.get(id) });
 
   /** Speichert den Stand von jetzt; die Reihenfolge der Transaktionen entspricht der Reihenfolge der Aufrufe. */
-  const persist = (id: string) => {
-    const saved = db.put('documents', recordOfDoc(id, docs.get(id)!));
+  const track = (saved: Promise<unknown>) => {
     saving = saving.then(() => saved.then(() => undefined)).catch((error: unknown) => console.error(error));
   };
+  const persist = (id: string) => track(db.put('documents', recordOfDoc(id, docs.get(id)!)));
 
   const docOf = (id: string) => {
     const doc = docs.get(id);
@@ -121,11 +128,15 @@ export async function openRepository(name = 'beatsheet'): Promise<Repository> {
   return {
     async loadAll() {
       const records = await db.getAll('documents');
-      return records.map(({ id, bytes, workbookId, serverHeads }) => {
+      return records.flatMap(({ id, bytes, workbookId, serverHeads, pendingDelete }) => {
+        if (pendingDelete) {
+          deletions.set(id, workbookId!);
+          return [];
+        }
         const doc = A.load<{ v: number }>(bytes);
         docs.set(id, doc);
         if (workbookId && serverHeads) placements.set(id, { workbookId, serverHeads });
-        return songOf(doc);
+        return [songOf(doc)];
       });
     },
     async loadSyncState() {
@@ -144,7 +155,7 @@ export async function openRepository(name = 'beatsheet'): Promise<Repository> {
         placements.delete(id);
       }
       const tx = db.transaction('documents', 'readwrite');
-      await Promise.all([...records.map((r) => tx.store.put(r)), ...remove.map((id) => tx.store.delete(id)), tx.done]);
+      await Promise.all([...records.map((r) => tx.store.put(r)), ...remove.filter((id) => !deletions.has(id)).map((id) => tx.store.delete(id)), tx.done]);
     },
     documentBytes: (id) => A.save(docOf(id)),
     outgoing(id) {
@@ -153,7 +164,7 @@ export async function openRepository(name = 'beatsheet'): Promise<Repository> {
       return placed && doc ? { base: placed.serverHeads, changes: A.saveSince(doc, placed.serverHeads) } : null;
     },
     hasUnsent() {
-      return [...placements].some(([id, { serverHeads }]) => A.saveSince(docOf(id), serverHeads).length > 0);
+      return deletions.size > 0 || [...placements].some(([id, { serverHeads }]) => A.saveSince(docOf(id), serverHeads).length > 0);
     },
     receive(id, current, { changes, heads }) {
       let doc = applySong(docOf(id), current);
@@ -174,6 +185,19 @@ export async function openRepository(name = 'beatsheet'): Promise<Repository> {
       placements.set(id, { workbookId, serverHeads: heads });
       persist(id);
     },
+    markDeleted(id) {
+      const placed = placements.get(id);
+      if (!placed) throw new Error(`Song ${id} liegt nicht auf dem Server`);
+      docs.delete(id);
+      placements.delete(id);
+      deletions.set(id, placed.workbookId);
+      track(db.put('documents', { id, bytes: new Uint8Array(), workbookId: placed.workbookId, pendingDelete: true }));
+    },
+    pendingDeletes: () => [...deletions].map(([id, workbookId]) => ({ id, workbookId })),
+    clearDeleted(id) {
+      deletions.delete(id);
+      track(db.delete('documents', id));
+    },
     async saveWorkbooks(workbooks) {
       const tx = db.transaction('workbooks', 'readwrite');
       await Promise.all([tx.store.clear(), ...workbooks.map((w) => tx.store.put(w)), tx.done]);
@@ -184,8 +208,10 @@ export async function openRepository(name = 'beatsheet'): Promise<Repository> {
         docs.delete(id);
         placements.delete(id);
       }
+      const deleted = [...deletions.keys()];
+      deletions.clear();
       const tx = db.transaction(['documents', 'workbooks'], 'readwrite');
-      await Promise.all([...ids.map((id) => tx.objectStore('documents').delete(id)), tx.objectStore('workbooks').clear(), tx.done]);
+      await Promise.all([...[...ids, ...deleted].map((id) => tx.objectStore('documents').delete(id)), tx.objectStore('workbooks').clear(), tx.done]);
       return ids;
     },
     settled: () => saving,

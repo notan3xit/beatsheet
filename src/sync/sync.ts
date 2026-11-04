@@ -1,7 +1,8 @@
 import type { AccountSession } from '../account/session';
 import { newId } from '../domain/id';
-import type { Song } from '../domain/types';
+import type { Song, Workbook } from '../domain/types';
 import type { Connection, Repository } from '../persistence/repository';
+import { sameSong } from '../persistence/songDoc';
 import type { NotebookStore } from '../state/notebookStore';
 import type { EventsConnection, EventsOpener, SyncApi, SyncError, SyncReply } from './api';
 
@@ -25,7 +26,7 @@ export interface WorkbookActions {
   deleteSong(songId: string): Promise<ActionResult>;
   /** Überträgt alles Offene; `false`, wenn danach noch Änderungen nur auf diesem Gerät liegen. */
   prepareLogout(): Promise<boolean>;
-  /** Entfernt die Workbook-Songs vom Gerät, nach erfolgreichem Abmelden. */
+  /** Entfernt die Songs vom Gerät, die auf dem Server liegen, nach erfolgreichem Abmelden. */
   afterLogout(): Promise<void>;
   getNotices(): Notice[];
   dismissNotice(id: number): void;
@@ -65,8 +66,19 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
   /** Steigt beim Abmelden: Antworten auf ältere Anfragen dürfen nichts mehr zurückbringen. */
   let generation = 0;
 
+  /** Nach der Anmeldung meldet die App einmal, wie viele Songs in den Account gewandert sind (account-songs, design.md D5). */
+  let announcing = true;
+  let announced = 0;
+  /** Vom Server abgewiesene Songs mit ihrer Revision: erst nach einer weiteren Änderung ein neuer Versuch. */
+  const rejected = new Map<string, number>();
+  /** Läuft `syncAll`, lädt es selbst zuletzt hoch (account-songs, design.md D3). */
+  let syncAllRunning = 0;
+  /** Workbooks, die nach der laufenden Antwort abzugleichen sind. */
+  const followUps = new Set<string>();
+
   const queues = new Map<string, Promise<unknown>>();
   const waiting = new Map<string, Promise<boolean>>();
+  let uploadWaiting: Promise<boolean> | undefined;
 
   /** Je Workbook läuft höchstens eine Anfrage. */
   const exclusive = <T>(workbookId: string, task: () => Promise<T>): Promise<T> => {
@@ -102,10 +114,24 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     return songs.filter((s) => placement[s.id] === workbookId);
   };
 
+  const personalWorkbook = () => store.getState().workbooks.find((w) => w.personal);
+
+  const unplaced = () => {
+    const { songs, placement } = store.getState();
+    return songs.filter((s) => !placement[s.id]);
+  };
+
   /** Löst die Songs eines verlorenen Workbooks: neue IDs, aktueller Stand, der Rest läuft über `connectStore`. */
-  const detach = (workbookId: string, title: string) => {
+  const detach = (workbookId: string, workbook: Workbook | undefined) => {
     const songs = songsIn(workbookId);
     if (songs.length === 0) return;
+    if (workbook?.personal) {
+      // Der Bestand eines früheren Accounts: gilt als lokal und wandert in den angemeldeten (design.md D9)
+      const local = songs.map((song) => ({ ...song, id: newId() }));
+      whileApplying(() => store.applyRemote(local, songs.map((s) => s.id)));
+      return;
+    }
+    const title = workbook?.title ?? 'Workbook';
     const copies = songs.map((song) => ({ ...song, id: newId(), title: `${song.title} (aus ${title})` }));
     whileApplying(() => store.applyRemote(copies, songs.map((s) => s.id)));
     notify(`Du bist nicht mehr Mitglied von „${title}“. Unter „Meine Songs“ liegen jetzt: ${copies.map((c) => c.title).join(', ')}.`);
@@ -116,13 +142,16 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     const remaining = workbooks.filter((w) => w.id !== workbookId);
     whileApplying(() => store.setWorkbooks(remaining));
     await repo.saveWorkbooks(remaining);
-    detach(workbookId, workbooks.find((w) => w.id === workbookId)?.title ?? 'Workbook');
+    detach(workbookId, workbooks.find((w) => w.id === workbookId));
   };
 
   /** Eine abgelaufene Sitzung lässt die Songs stehen; der Sync ruht bis zur nächsten Anmeldung. */
   const noteFailure = (error: SyncError) => {
     setOffline(error === 'unreachable');
-    if (error === 'unauthenticated') session.setEmail(null);
+    if (error === 'unauthenticated') {
+      announcing = true;
+      session.setEmail(null);
+    }
   };
 
   const copyOf = (song: Song): Song => ({ ...song, id: newId(), title: `${song.title} (Kopie)` });
@@ -131,22 +160,35 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
   const applyReplies = (workbookId: string, replies: SyncReply[]) => {
     const updated: Song[] = [];
     const removed: string[] = [];
-    const placed: string[] = [];
+    const placed: [string, string][] = [];
     const { songs, placement } = store.getState();
     const current = new Map(songs.map((s) => [s.id, s]));
+    const deleting = new Set(repo.pendingDeletes().map((d) => d.id));
 
     for (const reply of replies) {
       const song = current.get(reply.id);
       if (reply.status === 'new') {
-        if (song) updated.push(copyOf(song));
-        updated.push(repo.adopt(reply.id, reply.doc, workbookId));
-        placed.push(reply.id);
+        if (deleting.has(reply.id)) continue;
+        const elsewhere = song && placement[reply.id];
+        if (elsewhere && elsewhere !== workbookId) {
+          // Auf einem anderen Gerät verschoben: Das alte Workbook meldet `moved`, offene Änderungen bleiben (design.md D7)
+          followUps.add(elsewhere);
+          continue;
+        }
+        const adopted = repo.adopt(reply.id, reply.doc, workbookId);
+        if (song && !sameSong(song, adopted)) updated.push(copyOf(song));
+        updated.push(adopted);
+        placed.push([reply.id, workbookId]);
         continue;
       }
       // Inzwischen gelöst oder gelöscht: Die Antwort betrifft diesen Song nicht mehr
       if (!song || placement[reply.id] !== workbookId) continue;
       if (reply.status === 'deleted') {
         removed.push(reply.id);
+      } else if (reply.status === 'moved') {
+        repo.place(reply.id, reply.to, repo.outgoing(reply.id)!.base);
+        placed.push([reply.id, reply.to]);
+        followUps.add(reply.to);
       } else if (reply.status === 'ok') {
         if (reply.changes) updated.push(repo.receive(reply.id, song, { changes: reply.changes, heads: reply.heads }));
         else repo.place(reply.id, workbookId, reply.heads);
@@ -155,16 +197,26 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
       }
     }
 
-    if (updated.length === 0 && removed.length === 0) return;
+    if (updated.length === 0 && removed.length === 0 && placed.length === 0) return;
     whileApplying(() => {
-      store.applyRemote(updated, removed);
-      placed.forEach((id) => store.place(id, workbookId));
+      if (updated.length > 0 || removed.length > 0) store.applyRemote(updated, removed);
+      placed.forEach(([id, target]) => store.place(id, target));
     });
   };
 
   const syncWorkbook = async (workbookId: string, started: number): Promise<boolean> => {
     if (started !== generation) return false;
     await connection.flush();
+    for (const { id, workbookId: from } of repo.pendingDeletes()) {
+      if (from !== workbookId) continue;
+      const deleted = await api.deleteSong(from, id);
+      if (started !== generation) return false;
+      if (!deleted.ok && deleted.error !== 'gone') {
+        noteFailure(deleted.error);
+        return false;
+      }
+      repo.clearDeleted(id);
+    }
     const outgoing = songsIn(workbookId).flatMap((song) => {
       const pending = repo.outgoing(song.id);
       return pending ? [{ id: song.id, ...pending }] : [];
@@ -189,11 +241,92 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     const run = exclusive(workbookId, () => {
       waiting.delete(workbookId);
       return syncWorkbook(workbookId, started);
-    }).catch((error: unknown) => {
-      console.error(error);
-      return false;
-    });
+    })
+      .then(async (done) => {
+        await runFollowUps();
+        if (syncAllRunning === 0 && session.getEmail() && unplaced().length > 0) await requestUpload();
+        return done;
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+        return false;
+      });
     waiting.set(workbookId, run);
+    return run;
+  };
+
+  const runFollowUps = async () => {
+    const targets = [...followUps];
+    followUps.clear();
+    if (targets.length === 0) return;
+    const { workbooks } = store.getState();
+    if (targets.some((id) => !workbooks.some((w) => w.id === id))) await syncAll();
+    else await Promise.all(targets.map(requestSync));
+  };
+
+  /** Bringt Songs ohne Zugehörigkeit ins persönliche Workbook (account-songs, design.md D3); `false`, wenn der Server fehlt. */
+  const uploadLocal = async (personalId: string, started: number): Promise<{ done: boolean; uploaded: number }> => {
+    let uploaded = 0;
+    const queue = unplaced();
+    for (const { id } of queue) {
+      if (started !== generation || !session.getEmail()) return { done: false, uploaded };
+      await connection.flush();
+      const song = unplaced().find((s) => s.id === id);
+      if (!song || rejected.get(id) === song.revision) continue;
+      const added = await api.addSong(personalId, id, repo.documentBytes(id));
+      if (started !== generation) return { done: false, uploaded };
+      const now = unplaced().find((s) => s.id === id);
+      if (added.ok) {
+        if (now) {
+          repo.place(id, personalId, added.heads);
+          whileApplying(() => store.place(id, personalId));
+          uploaded++;
+        } else {
+          // Während der Anfrage gelöscht
+          await api.deleteSong(personalId, id);
+        }
+      } else if (added.error === 'exists') {
+        if (!now) continue;
+        const copy = copyOf(now);
+        whileApplying(() => store.applyRemote([copy], [id]));
+        queue.push(copy);
+      } else if (added.error === 'invalid-song' || added.error === 'too-large') {
+        if (!rejected.has(id)) notify(`„${song.title}“ konnte nicht in deinen Account übernommen werden und bleibt nur auf diesem Gerät.`);
+        rejected.set(id, song.revision);
+      } else {
+        noteFailure(added.error);
+        return { done: false, uploaded };
+      }
+    }
+    return { done: true, uploaded };
+  };
+
+  const requestUpload = (): Promise<boolean> => {
+    const personal = personalWorkbook();
+    if (!personal || !session.getEmail()) return Promise.resolve(false);
+    if (uploadWaiting) return uploadWaiting;
+    const started = generation;
+    const run = exclusive(personal.id, () => {
+      uploadWaiting = undefined;
+      return uploadLocal(personal.id, started);
+    })
+      .then(async ({ done, uploaded }) => {
+        if (started !== generation) return false;
+        if (announcing) announced += uploaded;
+        if (done && announcing) {
+          if (announced > 0) notify(`${announced === 1 ? '1 Song wurde' : `${announced} Songs wurden`} in deinen Account übernommen.`);
+          announcing = false;
+          announced = 0;
+        }
+        // Änderungen, die während des Hochladens entstanden sind, gehen gleich hinterher
+        if (uploaded > 0) await requestSync(personal.id);
+        return done;
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+        return false;
+      });
+    uploadWaiting = run;
     return run;
   };
 
@@ -214,10 +347,18 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
       await repo.saveWorkbooks(result.workbooks);
     }
     for (const workbookId of new Set(Object.values(placement))) {
-      if (!listed.has(workbookId)) detach(workbookId, known.find((w) => w.id === workbookId)?.title ?? 'Workbook');
+      if (!listed.has(workbookId)) detach(workbookId, known.find((w) => w.id === workbookId));
     }
-    const done = await Promise.all(result.workbooks.map((w) => requestSync(w.id)));
-    return done.every(Boolean);
+    // Vorgemerktes Löschen eines Workbooks, das es für dieses Konto nicht mehr gibt, hat sich erledigt
+    for (const { id, workbookId } of repo.pendingDeletes()) if (!listed.has(workbookId)) repo.clearDeleted(id);
+    syncAllRunning++;
+    try {
+      const done = await Promise.all(result.workbooks.map((w) => requestSync(w.id)));
+      const uploaded = await requestUpload();
+      return done.every(Boolean) && uploaded;
+    } finally {
+      syncAllRunning--;
+    }
   };
 
   /** Aktion am Workbook; danach gilt der Stand des Servers. */
@@ -267,19 +408,26 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
   const watchStore = () => {
     let known = new Map(store.getState().songs.map((s) => [s.id, s]));
     const touched = new Set<string>();
+    let upload = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const unsubscribe = store.subscribe(() => {
       const { songs, placement } = store.getState();
       if (!applying) {
         for (const song of songs) {
+          if (known.get(song.id) === song) continue;
           const workbookId = placement[song.id];
-          if (workbookId && known.get(song.id) !== song) touched.add(workbookId);
+          if (workbookId) touched.add(workbookId);
+          else upload = true;
         }
-        if (touched.size > 0) {
+        if (touched.size > 0 || upload) {
           clearTimeout(timer);
           timer = setTimeout(() => {
-            if (session.getEmail()) touched.forEach((id) => void requestSync(id));
+            if (session.getEmail()) {
+              touched.forEach((id) => void requestSync(id));
+              if (upload) void requestUpload();
+            }
             touched.clear();
+            upload = false;
           }, debounceMs);
         }
       }
@@ -335,14 +483,27 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     removeMember: async (id, email) => thenSync(await api.removeMember(id, email)),
 
     async moveSong(songId, workbookId) {
-      const result = await exclusive(workbookId, async (): Promise<ActionResult> => {
+      const move = async (): Promise<ActionResult> => {
         await connection.flush();
-        const added = await api.addSong(workbookId, songId, repo.documentBytes(songId));
-        if (!added.ok) return added;
-        repo.place(songId, workbookId, added.heads);
+        const personal = personalWorkbook();
+        if (personal && store.getState().placement[songId] === personal.id) {
+          const moved = await api.moveSong(personal.id, songId, workbookId);
+          if (!moved.ok) return moved;
+          // Die eigenen Server-Heads bleiben: Die der Antwort können unbekannte Änderungen einschließen
+          repo.place(songId, workbookId, repo.outgoing(songId)!.base);
+        } else {
+          const added = await api.addSong(workbookId, songId, repo.documentBytes(songId));
+          if (!added.ok) return added;
+          repo.place(songId, workbookId, added.heads);
+        }
         whileApplying(() => store.place(songId, workbookId));
         return { ok: true };
-      });
+      };
+      // In beiden Warteschlangen, damit Hochladen und Verschieben sich nicht überholen (design.md D7)
+      const personal = personalWorkbook();
+      const result = await (personal
+        ? exclusive(personal.id, () => exclusive(workbookId, move))
+        : exclusive(workbookId, move));
       if (!result.ok) noteFailure(result.error);
       // Änderungen, die während der Anfrage entstanden sind, gehen gleich hinterher
       else await requestSync(workbookId);
@@ -372,6 +533,13 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     async deleteSong(songId) {
       const workbookId = store.getState().placement[songId];
       if (!workbookId) throw new Error(`Song ${songId} gehört zu keinem Workbook`);
+      if (personalWorkbook()?.id === workbookId) {
+        // Eigene Songs lassen sich auch ohne Verbindung löschen (account-songs, design.md D6)
+        repo.markDeleted(songId);
+        whileApplying(() => store.deleteSong(songId));
+        void requestSync(workbookId);
+        return { ok: true };
+      }
       const result = await exclusive(workbookId, async (): Promise<ActionResult> => {
         const deleted = await api.deleteSong(workbookId, songId);
         // Schon weg (`gone`) ist für den Nutzer dasselbe Ergebnis
@@ -392,6 +560,10 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
 
     async afterLogout() {
       generation++;
+      announcing = true;
+      announced = 0;
+      rejected.clear();
+      followUps.clear();
       const placed = Object.keys(store.getState().placement);
       await repo.forgetWorkbookSongs();
       whileApplying(() => {

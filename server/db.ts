@@ -55,6 +55,10 @@ const SCHEMA = `
     at INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS invitations_at ON invitations (at);
+  CREATE TABLE IF NOT EXISTS personal_workbooks (
+    owner TEXT PRIMARY KEY,
+    workbook_id TEXT NOT NULL UNIQUE REFERENCES workbooks (id)
+  );
 `;
 
 export function openDatabase(path: string): Database {

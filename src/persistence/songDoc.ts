@@ -267,6 +267,17 @@ export function songOf(doc: SongDocument): Song {
   return normalizeSong(fromDocShape(plain(doc) as unknown as SongDocShape));
 }
 
+/** Fester Vergleichswert: normalisierte Dokumentform mit sortierten Schlüsseln. */
+const comparable = (song: Song) =>
+  JSON.stringify(toDocShape(normalizeSong(song)), (_key, value: unknown) =>
+    isObject(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : value,
+  );
+
+/** Gleicher Inhalt, unabhängig von der Feldreihenfolge; die Herkunft des Dokuments zählt nicht. */
+export function sameSong(a: Song, b: Song): boolean {
+  return comparable(a) === comparable(b);
+}
+
 /** Führt zwei Fassungen zusammen, ohne eine davon zu verändern (design.md D7). */
 export function mergeSongDocs(a: SongDocument, b: SongDocument): SongDocument {
   return A.merge(A.clone(a), b);

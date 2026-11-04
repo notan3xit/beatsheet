@@ -372,3 +372,82 @@ describe('Spec workbook-sync › Client-Speicher', () => {
     });
   });
 });
+
+describe('Spec account-songs › Vorgemerktes Löschen', () => {
+  const PERSONAL = 'persoenlich';
+
+  async function placedSong(title = 'Skizze') {
+    const name = uniqueDb();
+    const repo = await openRepository(name);
+    const song = songWith({ title });
+    await repo.write({ put: [song], remove: [] });
+    repo.place(song.id, PERSONAL, A.getHeads(A.load(repo.documentBytes(song.id))));
+    return { name, repo, song };
+  }
+
+  it('übersteht Neuladen, und loadAll überspringt den Datensatz', async () => {
+    const { name, repo, song } = await placedSong();
+    repo.markDeleted(song.id);
+    await repo.settled();
+    repo.close();
+
+    const reopened = await openRepository(name);
+    expect(await reopened.loadAll()).toEqual([]);
+    expect(reopened.pendingDeletes()).toEqual([{ id: song.id, workbookId: PERSONAL }]);
+    expect((await reopened.loadSyncState()).placement).toEqual({});
+  });
+
+  it('ein späteres write mit remove lässt den Datensatz stehen', async () => {
+    const { name, repo, song } = await placedSong();
+    repo.markDeleted(song.id);
+    await repo.write({ put: [], remove: [song.id] });
+    await repo.settled();
+    repo.close();
+
+    const reopened = await openRepository(name);
+    await reopened.loadAll();
+    expect(reopened.pendingDeletes().map((d) => d.id)).toEqual([song.id]);
+  });
+
+  it('clearDeleted entfernt den Datensatz', async () => {
+    const { name, repo, song } = await placedSong();
+    repo.markDeleted(song.id);
+    repo.clearDeleted(song.id);
+    expect(repo.pendingDeletes()).toEqual([]);
+    await repo.settled();
+    repo.close();
+
+    const reopened = await openRepository(name);
+    await reopened.loadAll();
+    expect(reopened.pendingDeletes()).toEqual([]);
+  });
+
+  it('hasUnsent zählt vorgemerktes Löschen', async () => {
+    const { repo, song } = await placedSong();
+    expect(repo.hasUnsent()).toBe(false);
+    repo.markDeleted(song.id);
+    expect(repo.hasUnsent()).toBe(true);
+    repo.clearDeleted(song.id);
+    expect(repo.hasUnsent()).toBe(false);
+  });
+
+  it('forgetWorkbookSongs entfernt vorgemerktes Löschen, lokale Songs ohne Zugehörigkeit bleiben', async () => {
+    const { name, repo, song } = await placedSong();
+    const local = songWith({ title: 'Lokal' });
+    await repo.write({ put: [local], remove: [] });
+    repo.markDeleted(song.id);
+    await repo.settled();
+    await repo.forgetWorkbookSongs();
+    repo.close();
+
+    const reopened = await openRepository(name);
+    expect((await reopened.loadAll()).map((s) => s.title)).toEqual(['Lokal']);
+    expect(reopened.pendingDeletes()).toEqual([]);
+  });
+
+  it('Lokale Songs ohne Zugehörigkeit zählen nicht als nicht übertragen', async () => {
+    const repo = await openRepository(uniqueDb());
+    await repo.write({ put: [songWith({ title: 'Lokal' })], remove: [] });
+    expect(repo.hasUnsent()).toBe(false);
+  });
+});

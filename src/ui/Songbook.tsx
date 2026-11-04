@@ -41,7 +41,7 @@ function SongHeader() {
   const workbook = workbooks.find((w) => w.id === placement[song.id]);
 
   const remove = async () => {
-    const reach = workbook ? ` Der Song wird für alle Mitglieder von „${workbook.title}“ gelöscht.` : '';
+    const reach = workbook && !workbook.personal ? ` Der Song wird für alle Mitglieder von „${workbook.title}“ gelöscht.` : '';
     if (!(await confirm(`„${song.title}“ löschen?${reach} Alle Patterns und die Struktur des Songs werden mitgelöscht.`))) return;
     if (!sync || !placement[song.id]) return store.deleteSong(song.id);
     const result = await sync.deleteSong(song.id);

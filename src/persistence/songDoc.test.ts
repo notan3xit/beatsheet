@@ -8,7 +8,7 @@ import type { Instrument, Pattern, Song } from '../domain/types';
 import { songWith } from '../test/songs';
 import { parseNotebookFile, serializeNotebook } from './fileFormat';
 import { planImport } from './merge';
-import { applySong, createSongDoc, fromDocShape, mergeSongDocs, songOf, toDocShape, type SongDocument } from './songDoc';
+import { applySong, createSongDoc, fromDocShape, mergeSongDocs, sameSong, songOf, toDocShape, type SongDocument } from './songDoc';
 
 const NOW = new Date('2026-11-03T12:00:00.000Z');
 
@@ -227,5 +227,29 @@ describe('Dokumentform und Brücke (design.md D3, D4)', () => {
     expect(songOf(doc)).toEqual(song);
     const reordered = { ...song, patterns: [...song.patterns].reverse(), segments: [] };
     expect(songOf(applySong(doc, reordered))).toEqual(reordered);
+  });
+});
+
+describe('sameSong', () => {
+  const base = (): Song => ({
+    ...songWith({ title: 'Intro', groove: true, bars: 1 }),
+    id: 'intro',
+  });
+
+  it('gleicher Inhalt in anderer Feldreihenfolge gilt als gleich', () => {
+    const song = base();
+    const reordered = JSON.parse(JSON.stringify(song), (_key, value: unknown) =>
+      value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).reverse()) : value,
+    ) as Song;
+    expect(JSON.stringify(reordered)).not.toBe(JSON.stringify(song));
+    expect(sameSong(song, reordered)).toBe(true);
+    expect(sameSong(song, songOf(createSongDoc(song)))).toBe(true);
+  });
+
+  it('anderer Inhalt gilt als verschieden', () => {
+    const song = base();
+    expect(sameSong(song, { ...song, tempo: song.tempo + 1 })).toBe(false);
+    expect(sameSong(song, { ...song, title: 'Anders' })).toBe(false);
+    expect(sameSong(song, { ...song, revision: song.revision + 1 })).toBe(false);
   });
 });

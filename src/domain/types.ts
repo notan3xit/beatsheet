@@ -157,4 +157,6 @@ export interface Workbook {
   title: string;
   owner: string;
   members: string[];
+  /** Der eigene Bestand des Accounts; erscheint als „Meine Songs“, nicht als Workbook. */
+  personal?: boolean;
 }
