@@ -15,7 +15,13 @@ export type SyncError =
   | 'invalid-song'
   | 'too-large'
   | 'personal'
-  | 'not-personal';
+  | 'not-personal'
+  | QuotaReason
+  | 'too-many-workbooks'
+  | 'too-many-members';
+
+/** Warum der Server Speicher verweigert: Grenze des Workbook-Besitzers oder aller Accounts. */
+export type QuotaReason = 'quota-exceeded' | 'server-full';
 
 export type SyncResult<T = object> = ({ ok: true } & T) | { ok: false; error: SyncError };
 
@@ -29,7 +35,8 @@ export type SyncReply =
   | { id: string; status: 'new' | 'unrelated' | 'invalid'; doc: Uint8Array }
   | { id: string; status: 'deleted' }
   | { id: string; status: 'moved'; to: string }
-  | { id: string; status: 'ok'; changes?: Uint8Array; heads: string[] };
+  | { id: string; status: 'ok'; changes?: Uint8Array; heads: string[] }
+  | { id: string; status: 'quota'; reason: QuotaReason; changes?: Uint8Array; heads: string[] };
 
 /** Schnittstelle zum Server (workbook-sync, design.md D3). */
 export interface SyncApi {
@@ -47,7 +54,7 @@ export interface SyncApi {
 
 export type SyncFetch = (path: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<Response>;
 
-const KNOWN_ERRORS = new Set<SyncError>(['invalid-title', 'invalid-email', 'already-member', 'rate-limited', 'not-owner', 'not-empty', 'exists', 'invalid-song', 'too-large', 'personal', 'not-personal']);
+const KNOWN_ERRORS = new Set<SyncError>(['invalid-title', 'invalid-email', 'already-member', 'rate-limited', 'not-owner', 'not-empty', 'exists', 'invalid-song', 'too-large', 'personal', 'not-personal', 'quota-exceeded', 'server-full', 'too-many-workbooks', 'too-many-members']);
 
 function toBase64(bytes: Uint8Array): string {
   const CHUNK = 0x8000;
@@ -58,12 +65,13 @@ function toBase64(bytes: Uint8Array): string {
 
 const fromBase64 = (text: string) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
 
-type RawReply = { id: string; status: SyncReply['status']; doc?: string; changes?: string; heads?: string[]; to?: string };
+type RawReply = { id: string; status: SyncReply['status']; doc?: string; changes?: string; heads?: string[]; to?: string; reason?: QuotaReason };
 
-function decodeReply({ id, status, doc, changes, heads, to }: RawReply): SyncReply {
+function decodeReply({ id, status, doc, changes, heads, to, reason }: RawReply): SyncReply {
   if (status === 'deleted') return { id, status };
   if (status === 'moved') return { id, status, to: to! };
   if (status === 'ok') return { id, status, heads: heads!, ...(changes ? { changes: fromBase64(changes) } : {}) };
+  if (status === 'quota') return { id, status, reason: reason!, heads: heads!, ...(changes ? { changes: fromBase64(changes) } : {}) };
   return { id, status, doc: fromBase64(doc!) };
 }
 

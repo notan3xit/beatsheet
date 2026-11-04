@@ -8,6 +8,7 @@ import { createAccountSession } from '../account/session';
 import type { Song, Workbook } from '../domain/types';
 import { parseNotebookFile, serializeNotebook } from '../persistence/fileFormat';
 import { createNotebookStore, type NotebookStore } from '../state/notebookStore';
+import type { SyncError } from '../sync/api';
 import type { ActionResult, Notice, WorkbookActions } from '../sync/sync';
 import { fakePlayer } from '../test/fakePlayer';
 import { songWith } from '../test/songs';
@@ -748,6 +749,38 @@ describe('Spec app-messages › Meldungen gesammelt oben (UI)', () => {
     expect(rule('.app-notes')).toMatch(/top: 0/);
     expect(rule('.app-notes > .message > span')).toMatch(/flex: 1/);
     expect(rule('.app')).toMatch(/display: flex/);
+  });
+});
+
+describe('Spec server-limits › Meldungen (UI)', () => {
+  const fail = (error: SyncError): ActionResult => ({ ok: false, error });
+
+  it('Zu viele Workbooks', async () => {
+    const { user } = setup({ overrides: { createWorkbook: vi.fn(async () => fail('too-many-workbooks')) } });
+    await user.click(screen.getByRole('button', { name: 'Neues Workbook' }));
+    expect(within(stack()).getByRole('alert')).toHaveTextContent('Du hast die Höchstzahl an Workbooks erreicht.');
+  });
+
+  it('Zu viele Mitglieder: am Formular', async () => {
+    const { user } = setup({ workbooks: [workbook('Band')], overrides: { invite: vi.fn(async () => fail('too-many-members')) } });
+    await user.click(membersOf('Band'));
+    await user.click(within(popover('Band')).getByRole('button', { name: 'Einladen' }));
+    expect(within(popover('Band')).getByRole('alert')).toHaveTextContent('Dieses Workbook hat die Höchstzahl an Mitgliedern erreicht.');
+  });
+
+  it('Verschieben in ein volles Workbook', async () => {
+    const song = songWith({ title: 'Eigen' });
+    const { user } = setup({ songs: [song], workbooks: [workbook('Band')], overrides: { moveSong: vi.fn(async () => fail('quota-exceeded')) } });
+    await user.click(within(within(card('Meine Songs')).getByText('Eigen').closest('tr')!).getByRole('button', { name: 'Zu Workbook …' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Band' }));
+    expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Speicher dieses Workbooks ist voll.');
+    expect(within(card('Meine Songs')).getByText('Eigen')).toBeInTheDocument();
+  });
+
+  it('Der Server ist voll', async () => {
+    const { user } = setup({ workbooks: [workbook('Band')], overrides: { createSongIn: vi.fn(async () => fail('server-full')) } });
+    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Server ist voll.');
   });
 });
 

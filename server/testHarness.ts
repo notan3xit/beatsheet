@@ -1,6 +1,7 @@
 import type { AddressInfo } from 'node:net';
 import { createServer } from 'node:http';
 import { createApp } from './app.ts';
+import type { Limits } from './limits.ts';
 import { openDatabase } from './db.ts';
 import type { Mail } from './mail.ts';
 
@@ -19,7 +20,7 @@ export interface Harness {
 }
 
 /** Server mit In-Memory-Datenbank, fester Uhr und gesammelten Mails auf einem freien Port. */
-export async function startServer({ appUrl }: { appUrl?: string } = {}): Promise<Harness> {
+export async function startServer({ appUrl, limits }: { appUrl?: string; limits?: Partial<Limits> } = {}): Promise<Harness> {
   let time = Date.parse('2026-11-04T12:00:00.000Z');
   const mails: Mail[] = [];
   const db = openDatabase(':memory:');
@@ -33,6 +34,7 @@ export async function startServer({ appUrl }: { appUrl?: string } = {}): Promise
       mail: { send: async (mail) => void mails.push(mail) },
       secureCookie: false,
       appUrl,
+      limits,
     }),
   );
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));

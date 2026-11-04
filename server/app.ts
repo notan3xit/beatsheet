@@ -2,6 +2,7 @@ import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http
 import { endSession, requestCode, SESSION_TTL, sessionEmail, verifyCode, type AuthDeps } from './auth.ts';
 import { createEvents } from './events.ts';
 import { HttpError } from './http.ts';
+import { createQuota, DEFAULT_LIMITS, type Limits } from './limits.ts';
 import { handleWorkbookRequest } from './workbooks.ts';
 
 export interface AppDeps extends AuthDeps {
@@ -9,6 +10,8 @@ export interface AppDeps extends AuthDeps {
   secureCookie: boolean;
   /** Adresse der App für Links in Einladungsmails. */
   appUrl?: string;
+  /** Abweichende Grenzen, für Tests. */
+  limits?: Partial<Limits>;
 }
 
 const COOKIE = 'beatsheet_session';
@@ -55,7 +58,9 @@ function cookie(value: string, maxAge: number, secure: boolean) {
 }
 
 export function createApp(deps: AppDeps): RequestListener {
-  const events = createEvents();
+  const limits = { ...DEFAULT_LIMITS, ...deps.limits };
+  const quota = createQuota(deps.db, limits, deps.now);
+  const events = createEvents(limits);
 
   async function handle(request: IncomingMessage, response: ServerResponse) {
     const path = (request.url ?? '/').split('?')[0];
@@ -85,12 +90,13 @@ export function createApp(deps: AppDeps): RequestListener {
     if (route === 'GET /api/events') {
       const email = sessionEmail(deps, tokenOf(request));
       if (!email) return send(response, 401, { error: 'unauthenticated' });
-      return events.connect(email, response);
+      if (!events.connect(email, response)) send(response, 429, { error: 'too-many-connections' });
+      return;
     }
     if (path === '/api/workbooks' || path?.startsWith('/api/workbooks/')) {
       const email = sessionEmail(deps, tokenOf(request));
       if (!email) return send(response, 401, { error: 'unauthenticated' });
-      const reply = await handleWorkbookRequest({ ...deps, events }, {
+      const reply = await handleWorkbookRequest({ ...deps, events, limits, quota }, {
         email,
         method: request.method ?? 'GET',
         path: path.split('/').slice(3),

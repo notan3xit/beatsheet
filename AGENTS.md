@@ -36,7 +36,7 @@ Aufbau unter `src/`:
 - `sync`: Abgleich der Songs mit dem Server; angemeldet wandern Songs ohne Zugehörigkeit in den eigenen Bestand
 - `ui`: React-Komponenten
 
-`server/`: HTTP-Server mit Anmeldung per Mail und Einmalcode, Workbooks (je Account eines als eigener Bestand, angezeigt als „Meine Songs“), Song-Abgleich und Ereigniskanal (Server-Sent Events); Mails als JSON-Dateien in `$MAIL_OUTBOX`, ohne die Variable auf der Konsole.
+`server/`: HTTP-Server mit Anmeldung per Mail und Einmalcode, Workbooks (je Account eines als eigener Bestand, angezeigt als „Meine Songs“), Song-Abgleich und Ereigniskanal (Server-Sent Events), mit Grenzen für Speicher, Workbooks, Mitglieder und Verbindungen in `server/limits.ts`; Mails als JSON-Dateien in `$MAIL_OUTBOX`, ohne die Variable auf der Konsole.
 
 **Dateiformat erweitern:** Ein neues Feld, das eine ältere Version gefahrlos übergehen kann, kommt optional mit Vorgabewert dazu, ohne neue Schemaversion. Der Import ignoriert unbekannte Felder (keine `.strict()`-Schemata), damit ältere Versionen neuere Dateien lesen können. Die Schemaversion steigt nur, wenn eine ältere Version die Datei sonst falsch verstünde (Bedeutung eines Felds ändert sich, Pflichtfeld entfällt, Struktur wird umgebaut).
 

@@ -29,6 +29,10 @@ const MESSAGES: Partial<Record<SyncError, string>> & { unreachable: string } = {
   'invalid-song': 'Der Song enthält ungültige Daten und wurde nicht übertragen.',
   'too-large': 'Der Song ist zu groß für die Übertragung.',
   gone: 'Das Workbook gibt es nicht mehr.',
+  'quota-exceeded': 'Der Speicher dieses Workbooks ist voll. Löschen von Songs schafft Platz.',
+  'server-full': 'Der Server ist voll. Bitte versuche es später erneut.',
+  'too-many-workbooks': 'Du hast die Höchstzahl an Workbooks erreicht.',
+  'too-many-members': 'Dieses Workbook hat die Höchstzahl an Mitgliedern erreicht.',
 };
 
 export const syncMessage = (error: SyncError) => MESSAGES[error] ?? MESSAGES.unreachable;

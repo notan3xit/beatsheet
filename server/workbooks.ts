@@ -3,11 +3,14 @@ import { HOUR, mailsLastHour, normalizeEmail, TOTAL_PER_HOUR, type AuthDeps } fr
 import type { Database } from './db.ts';
 import type { Events } from './events.ts';
 import { HttpError, type Reply } from './http.ts';
+import type { Limits, Quota } from './limits.ts';
 import { addSong, deleteSong, moveSong, syncSongs } from './songs.ts';
 
 export interface WorkbookDeps extends AuthDeps {
   appUrl?: string;
   events: Events;
+  limits: Limits;
+  quota: Quota;
 }
 
 export interface WorkbookRequest {
@@ -88,6 +91,10 @@ function list(db: Database, email: string): Reply {
 async function create(deps: WorkbookDeps, email: string, body: Record<string, unknown>): Promise<Reply> {
   const blank = body.title === undefined || (typeof body.title === 'string' && !body.title.trim());
   const row: WorkbookRow = { id: randomUUID(), title: blank ? DEFAULT_TITLE : titleOf(body.title), owner: email };
+  const owned = deps.db
+    .prepare('SELECT COUNT(*) AS n FROM workbooks WHERE owner = ? AND id NOT IN (SELECT workbook_id FROM personal_workbooks)')
+    .get(email) as { n: number };
+  if (Number(owned.n) >= deps.limits.ownedWorkbooks) throw new HttpError(409, 'too-many-workbooks');
   const now = deps.now().getTime();
   deps.db.prepare('INSERT INTO workbooks (id, title, owner, created_at) VALUES (?, ?, ?, ?)').run(row.id, row.title, email, now);
   deps.db.prepare('INSERT INTO members (workbook_id, email, added_at) VALUES (?, ?, ?)').run(row.id, email, now);
@@ -111,6 +118,8 @@ async function invite(deps: WorkbookDeps, row: WorkbookRow, rawEmail: unknown): 
   const email = normalizeEmail(rawEmail);
   if (!email) throw new HttpError(400, 'invalid-email');
   if (db.prepare('SELECT 1 FROM members WHERE workbook_id = ? AND email = ?').get(row.id, email)) throw new HttpError(409, 'already-member');
+  const members = db.prepare('SELECT COUNT(*) AS n FROM members WHERE workbook_id = ?').get(row.id) as { n: number };
+  if (Number(members.n) >= deps.limits.workbookMembers) throw new HttpError(409, 'too-many-members');
 
   const now = deps.now().getTime();
   db.prepare('DELETE FROM invitations WHERE at <= ?').run(now - HOUR);
@@ -195,13 +204,15 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
       if (typeof to !== 'string' || to === id) throw notFound();
       const target = findWorkbook(db, to, email);
       if (!isPersonal(db, id)) throw new HttpError(403, 'not-personal');
-      const reply = await moveSong(db, id, to, item, deps.now());
+      // Beim selben Besitzer ändert sich die Belegung nicht
+      const growth = target.owner === row.owner ? 0 : undefined;
+      const reply = await moveSong(db, id, to, item, deps.now(), (bytes) => deps.quota.checkAccount(target.owner, growth ?? bytes));
       songsChanged();
       events.send(membersOf(db, to, target.owner), 'workbook', { id: to });
       return reply;
     }
     if (item === undefined && method === 'POST') {
-      const reply = await addSong(db, id, await body(), deps.now());
+      const reply = await addSong(db, id, await body(), deps.now(), (growth) => deps.quota.check(row.owner, growth));
       songsChanged();
       return reply;
     }
@@ -212,7 +223,7 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
     }
   }
   if (resource === 'sync' && item === undefined && method === 'POST') {
-    const { changed, ...reply } = await syncSongs(db, id, email, await body(), deps.now());
+    const { changed, ...reply } = await syncSongs(db, id, email, await body(), deps.now(), (growth) => deps.quota.check(row.owner, growth));
     if (changed) songsChanged();
     return reply;
   }

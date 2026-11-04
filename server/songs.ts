@@ -3,6 +3,7 @@ import { parseNotebookFile, serializeNotebook } from '../src/persistence/fileFor
 import { initAutomerge, songOf, type SongDocument } from '../src/persistence/songDoc.ts';
 import type { Database } from './db.ts';
 import { HttpError, type Reply } from './http.ts';
+import { SONG_OVERHEAD, type QuotaProblem } from './limits.ts';
 
 interface SongRow {
   id: string;
@@ -18,6 +19,9 @@ interface ClientSong {
 
 const toBase64 = (bytes: Uint8Array) => Buffer.from(bytes).toString('base64');
 const fromBase64 = (text: string) => new Uint8Array(Buffer.from(text, 'base64'));
+
+/** Fragt die Grenzen des Workbook-Besitzers ab; `growth` in Byte. */
+type QuotaCheck = (growth: number) => QuotaProblem | null;
 
 /** Jeder Automerge-Block beginnt damit. `loadIncremental` überspringt Unlesbares sonst stillschweigend. */
 const CHUNK_MAGIC = [0x85, 0x6f, 0x4a, 0x83];
@@ -44,7 +48,7 @@ function knowsHeads(doc: SongDocument, heads: A.Heads): boolean {
 }
 
 /** `POST /songs`: bringt das vollständige Dokument mit; Grabsteine belegen ihre ID weiter. */
-export async function addSong(db: Database, workbookId: string, body: Record<string, unknown>, now: Date): Promise<Reply> {
+export async function addSong(db: Database, workbookId: string, body: Record<string, unknown>, now: Date, quota: QuotaCheck): Promise<Reply> {
   await initAutomerge();
   const { id, doc } = body;
   if (typeof id !== 'string' || !id || typeof doc !== 'string') throw new HttpError(400, 'invalid-body');
@@ -56,7 +60,10 @@ export async function addSong(db: Database, workbookId: string, body: Record<str
     throw new HttpError(422, 'invalid-song');
   }
   if (!isValid(loaded, id, now)) throw new HttpError(422, 'invalid-song');
-  db.prepare('INSERT INTO songs (id, workbook_id, doc, deleted, updated_at) VALUES (?, ?, ?, 0, ?)').run(id, workbookId, A.save(loaded), now.getTime());
+  const saved = A.save(loaded);
+  const problem = quota(saved.length + SONG_OVERHEAD);
+  if (problem) throw new HttpError(409, problem);
+  db.prepare('INSERT INTO songs (id, workbook_id, doc, deleted, updated_at) VALUES (?, ?, ?, 0, ?)').run(id, workbookId, saved, now.getTime());
   return { status: 201, body: { heads: A.getHeads(loaded) } };
 }
 
@@ -69,10 +76,12 @@ export function deleteSong(db: Database, workbookId: string, id: string, now: Da
 }
 
 /** Verschiebt einen Song; Dokument und Heads bleiben (account-songs, design.md D7). */
-export async function moveSong(db: Database, from: string, to: string, id: string, now: Date): Promise<Reply> {
+export async function moveSong(db: Database, from: string, to: string, id: string, now: Date, quota: QuotaCheck): Promise<Reply> {
   await initAutomerge();
   const row = db.prepare('SELECT doc FROM songs WHERE id = ? AND workbook_id = ? AND deleted = 0').get(id, from) as { doc: Uint8Array } | undefined;
   if (!row) throw new HttpError(404, 'not-found');
+  const problem = quota(row.doc.length + SONG_OVERHEAD);
+  if (problem) throw new HttpError(409, problem);
   db.prepare('UPDATE songs SET workbook_id = ?, updated_at = ? WHERE id = ?').run(to, now.getTime(), id);
   return { status: 200, body: { heads: A.getHeads(A.load(row.doc)) } };
 }
@@ -102,7 +111,7 @@ function movedTo(db: Database, id: string, email: string): string | undefined {
 }
 
 /** Abgleich mit Heads (design.md D4); `changed` meldet, ob sich der Stand des Workbooks geändert hat. */
-export async function syncSongs(db: Database, workbookId: string, email: string, body: Record<string, unknown>, now: Date): Promise<Reply & { changed: boolean }> {
+export async function syncSongs(db: Database, workbookId: string, email: string, body: Record<string, unknown>, now: Date, quota: QuotaCheck): Promise<Reply & { changed: boolean }> {
   await initAutomerge();
   const client = parseSongs(body);
   const rows = db.prepare('SELECT id, doc, deleted FROM songs WHERE workbook_id = ?').all(workbookId) as unknown as SongRow[];
@@ -146,7 +155,15 @@ export async function syncSongs(db: Database, workbookId: string, email: string,
         continue;
       }
       if (A.getHeads(merged).join() !== A.getHeads(server).join()) {
-        db.prepare('UPDATE songs SET doc = ?, updated_at = ? WHERE id = ?').run(A.save(merged), now.getTime(), id);
+        const saved = A.save(merged);
+        const problem = quota(saved.length - row.doc.length);
+        if (problem) {
+          // Der Stand bleibt; Änderungen anderer erreichen das Gerät trotzdem (design.md D3)
+          const foreign = A.saveSince(server, base);
+          replies.push({ id, status: 'quota', reason: problem, ...(foreign.length > 0 ? { changes: toBase64(foreign) } : {}), heads: A.getHeads(server) });
+          continue;
+        }
+        db.prepare('UPDATE songs SET doc = ?, updated_at = ? WHERE id = ?').run(saved, now.getTime(), id);
         changed = true;
       }
     }

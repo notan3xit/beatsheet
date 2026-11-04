@@ -4,7 +4,7 @@ import type { Song, Workbook } from '../domain/types';
 import type { Connection, Repository } from '../persistence/repository';
 import { sameSong } from '../persistence/songDoc';
 import type { NotebookStore } from '../state/notebookStore';
-import type { EventsConnection, EventsOpener, SyncApi, SyncError, SyncReply } from './api';
+import type { EventsConnection, EventsOpener, QuotaReason, SyncApi, SyncError, SyncReply } from './api';
 
 export type ActionResult = { ok: true } | { ok: false; error: SyncError };
 
@@ -73,6 +73,8 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
   const rejected = new Map<string, number>();
   /** Läuft `syncAll`, lädt es selbst zuletzt hoch (account-songs, design.md D3). */
   let syncAllRunning = 0;
+  /** Workbook → Vorgänge, die gerade an einer Speichergrenze scheitern; gemeldet wird beim ersten (server-limits, design.md D4). */
+  const atQuota = new Map<string, Set<'sync' | 'upload'>>();
   /** Workbooks, die nach der laufenden Antwort abzugleichen sind. */
   const followUps = new Set<string>();
 
@@ -154,10 +156,29 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     }
   };
 
+  const quotaText = (workbookId: string, reason: QuotaReason) => {
+    if (reason === 'server-full') return 'Der Server ist voll. Deine Änderungen bleiben auf diesem Gerät und werden später übertragen.';
+    const workbook = store.getState().workbooks.find((w) => w.id === workbookId);
+    if (workbook?.personal) return 'Dein Speicher ist voll. Deine Änderungen bleiben auf diesem Gerät und werden übertragen, sobald du durch Löschen von Songs Platz schaffst.';
+    return `Der Speicher von „${workbook?.title ?? 'Workbook'}“ ist voll. Deine Änderungen bleiben auf diesem Gerät und werden übertragen, sobald dort wieder Platz ist.`;
+  };
+
+  const noteQuota = (workbookId: string, source: 'sync' | 'upload', reason: QuotaReason | undefined) => {
+    const sources = atQuota.get(workbookId) ?? new Set();
+    atQuota.set(workbookId, sources);
+    if (!reason) {
+      sources.delete(source);
+      return;
+    }
+    if (sources.size === 0) notify(quotaText(workbookId, reason));
+    sources.add(source);
+  };
+
   const copyOf = (song: Song): Song => ({ ...song, id: newId(), title: `${song.title} (Kopie)` });
 
   /** Wendet eine Antwort in einem Schritt an, ohne dass der Store zwischendurch anderes sieht (design.md D8). */
-  const applyReplies = (workbookId: string, replies: SyncReply[]) => {
+  const applyReplies = (workbookId: string, replies: SyncReply[]): QuotaReason | undefined => {
+    let quota: QuotaReason | undefined;
     const updated: Song[] = [];
     const removed: string[] = [];
     const placed: [string, string][] = [];
@@ -189,7 +210,9 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
         repo.place(reply.id, reply.to, repo.outgoing(reply.id)!.base);
         placed.push([reply.id, reply.to]);
         followUps.add(reply.to);
-      } else if (reply.status === 'ok') {
+      } else if (reply.status === 'ok' || reply.status === 'quota') {
+        // Bei `quota` bleiben die eigenen Änderungen im Dokument und gehen beim nächsten Abgleich wieder hinaus
+        if (reply.status === 'quota') quota = reply.reason;
         if (reply.changes) updated.push(repo.receive(reply.id, song, { changes: reply.changes, heads: reply.heads }));
         else repo.place(reply.id, workbookId, reply.heads);
       } else {
@@ -197,11 +220,13 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
       }
     }
 
-    if (updated.length === 0 && removed.length === 0 && placed.length === 0) return;
-    whileApplying(() => {
-      if (updated.length > 0 || removed.length > 0) store.applyRemote(updated, removed);
-      placed.forEach(([id, target]) => store.place(id, target));
-    });
+    if (updated.length > 0 || removed.length > 0 || placed.length > 0) {
+      whileApplying(() => {
+        if (updated.length > 0 || removed.length > 0) store.applyRemote(updated, removed);
+        placed.forEach(([id, target]) => store.place(id, target));
+      });
+    }
+    return quota;
   };
 
   const syncWorkbook = async (workbookId: string, started: number): Promise<boolean> => {
@@ -225,7 +250,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     if (started !== generation) return false;
     if (result.ok) {
       setOffline(false);
-      applyReplies(workbookId, result.songs);
+      noteQuota(workbookId, 'sync', applyReplies(workbookId, result.songs));
       return true;
     }
     if (result.error === 'gone') await loseWorkbook(workbookId);
@@ -267,6 +292,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
   /** Bringt Songs ohne Zugehörigkeit ins persönliche Workbook (account-songs, design.md D3); `false`, wenn der Server fehlt. */
   const uploadLocal = async (personalId: string, started: number): Promise<{ done: boolean; uploaded: number }> => {
     let uploaded = 0;
+    let quota: QuotaReason | undefined;
     const queue = unplaced();
     for (const { id } of queue) {
       if (started !== generation || !session.getEmail()) return { done: false, uploaded };
@@ -290,6 +316,9 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
         const copy = copyOf(now);
         whileApplying(() => store.applyRemote([copy], [id]));
         queue.push(copy);
+      } else if (added.error === 'quota-exceeded' || added.error === 'server-full') {
+        // Bleibt lokal; der nächste Abgleich versucht es erneut, sobald Platz frei ist
+        quota = added.error;
       } else if (added.error === 'invalid-song' || added.error === 'too-large') {
         if (!rejected.has(id)) notify(`„${song.title}“ konnte nicht in deinen Account übernommen werden und bleibt nur auf diesem Gerät.`);
         rejected.set(id, song.revision);
@@ -298,6 +327,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
         return { done: false, uploaded };
       }
     }
+    noteQuota(personalId, 'upload', quota);
     return { done: true, uploaded };
   };
 
@@ -564,6 +594,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
       announced = 0;
       rejected.clear();
       followUps.clear();
+      atQuota.clear();
       const placed = Object.keys(store.getState().placement);
       await repo.forgetWorkbookSongs();
       whileApplying(() => {
