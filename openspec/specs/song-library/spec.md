@@ -40,7 +40,7 @@ Das System MUST das Löschen eines Songs nach Bestätigung ermöglichen. Die Nac
 - **THEN** bleibt der Song unverändert
 
 ### Requirement: Song-Liste
-Das System MUST die Songs in Karten auflisten: je Workbook eine Karte (siehe `workbooks`) und eine Karte „Meine Songs“ mit den Songs, die zu keinem Workbook gehören. Jede Karte MUST ihre Songs alphabetisch nach Titel in einer Tabelle mit den Spalten Titel, Takte, Grooves und Fills zeigen, mit einer Kopfzeile. Ist „Meine Songs“ leer, MUST die Karte einen Hinweis zeigen, wie man den ersten Song anlegt. Die Auswahl eines Songs MUST seine Doppelseite öffnen.
+Das System MUST die Songs in Karten auflisten: je Workbook eine Karte (siehe `workbooks`) und eine Karte „Meine Songs“ mit den lokalen und den zum Account gehörenden Songs (siehe `account-songs`). Jede Karte MUST ihre Songs alphabetisch nach Titel in einer Tabelle mit den Spalten Titel, Takte, Grooves und Fills zeigen, mit einer Kopfzeile. Ist „Meine Songs“ leer, MUST die Karte einen Hinweis zeigen, wie man den ersten Song anlegt. Die Auswahl eines Songs MUST seine Doppelseite öffnen.
 
 #### Scenario: Sortierte Liste
 - **WHEN** die Songs „Uprising“ (32 Takte, 2 Grooves, 1 Fill) und „Hysteria“ (0 Takte, keine Patterns) in „Meine Songs“ existieren

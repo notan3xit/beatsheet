@@ -90,11 +90,11 @@ Der Server MUST eine übertragene Fassung zurückweisen, wenn der entstehende So
 - **THEN** weist der Server sie zurück und die anderen Mitglieder sehen „Intro“ unverändert
 
 ### Requirement: Abmelden mit Workbook-Songs
-Beim Abmelden MUST die App noch nicht übertragene Änderungen an Workbook-Songs übertragen und die Workbook-Songs danach vom Gerät entfernen. Können Änderungen nicht übertragen werden, MUST die App vor dem Abmelden nachfragen und darauf hinweisen, dass sie verloren gehen. „Meine Songs“ MUST unverändert bleiben.
+Beim Abmelden MUST die App noch nicht übertragene Änderungen an Workbook-Songs übertragen und die Workbook-Songs danach vom Gerät entfernen. Können Änderungen nicht übertragen werden, MUST die App vor dem Abmelden nachfragen und darauf hinweisen, dass sie verloren gehen. Für eigene Songs gilt `account-songs`.
 
 #### Scenario: Abmelden
 - **WHEN** der Nutzer sich abmeldet
-- **THEN** zeigt die Startseite nur noch „Meine Songs“ mit unveränderten Songs
+- **THEN** zeigt die Startseite keine Workbook-Karten mehr
 
 #### Scenario: Abmelden mit nicht übertragenen Änderungen
 - **GIVEN** der Nutzer hat „Intro“ aus „Band“ offline geändert

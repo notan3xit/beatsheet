@@ -76,12 +76,12 @@ Nach der Anmeldung MUST der Nutzer angemeldet bleiben, auch nach Neuladen oder S
 - **THEN** ist der Nutzer abgemeldet
 
 ### Requirement: Abmelden
-Der angemeldete Nutzer MUST sich abmelden können. Die Sitzung MUST danach auch auf dem Server ungültig sein. Lokale Songs MUST beim Abmelden unverändert bleiben.
+Der angemeldete Nutzer MUST sich abmelden können. Die Sitzung MUST danach auch auf dem Server ungültig sein. Songs, die zum Account gehören, MUST im Account erhalten bleiben und das Gerät nach `account-songs` verlassen. Nur lokale Songs MUST unverändert auf dem Gerät bleiben.
 
 #### Scenario: Abmelden
 - **WHEN** der angemeldete Nutzer „Abmelden“ wählt
 - **THEN** zeigt die App wieder „Anmelden“
-- **AND** seine Songs sind unverändert vorhanden
+- **AND** seine Songs stehen unverändert im Account und erscheinen bei der nächsten Anmeldung wieder
 
 #### Scenario: Alte Sitzung nach dem Abmelden
 - **WHEN** nach dem Abmelden mit dem Sitzungsschlüssel der beendeten Sitzung angefragt wird

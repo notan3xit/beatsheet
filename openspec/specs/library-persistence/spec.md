@@ -22,11 +22,17 @@ Jede Änderung an Songs, ihren Patterns und ihrer Struktur MUST ohne eigene Spei
 - **THEN** startet sie mit einer leeren Song-Liste
 
 ### Requirement: Dauerhaften Speicher anfordern
-Die App MUST beim Browser dauerhaften Speicher anfordern, damit lokale Daten nicht automatisch gelöscht werden. Gewährt der Browser ihn nicht, MUST die App den Nutzer darauf hinweisen und den Export als Sicherung empfehlen.
+Die App MUST beim Browser dauerhaften Speicher anfordern, damit lokale Daten nicht automatisch gelöscht werden. Gewährt der Browser ihn nicht, MUST die App den Nutzer darauf hinweisen. Ohne Anmeldung MUST sie den Export als Sicherung empfehlen. Angemeldet MUST sie nennen, dass die Songs im Account liegen und nur noch nicht übertragene Änderungen verloren gehen könnten.
 
 #### Scenario: Speicher nicht dauerhaft
+- **GIVEN** der Nutzer ist nicht angemeldet
 - **WHEN** der Browser dauerhaften Speicher verweigert
 - **THEN** zeigt die App einen Hinweis, dass Daten gelöscht werden könnten, mit einem Verweis auf den Export
+
+#### Scenario: Speicher nicht dauerhaft, angemeldet
+- **GIVEN** der Nutzer ist angemeldet
+- **WHEN** der Browser dauerhaften Speicher verweigert
+- **THEN** zeigt die App einen Hinweis, dass die Songs im Account liegen und nur noch nicht übertragene Änderungen verloren gehen könnten
 
 ### Requirement: Änderungsmetadaten
 Jeder Song und jedes Pattern MUST einen Erstellungszeitpunkt, einen Zeitpunkt der letzten Änderung und eine Revisionsnummer führen. Die Revisionsnummer eines Patterns MUST bei jeder Änderung des Patterns um 1 steigen, die eines Songs bei jeder Änderung am Song, seinen Patterns oder seiner Struktur.
