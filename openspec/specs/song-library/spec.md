@@ -40,20 +40,24 @@ Das System MUST das Löschen eines Songs nach Bestätigung ermöglichen. Die Nac
 - **THEN** bleibt der Song unverändert
 
 ### Requirement: Song-Liste
-Das System MUST alle Songs alphabetisch nach Titel in einer Tabelle mit den Spalten Titel, Takte, Grooves und Fills auflisten, mit einer Kopfzeile. Ohne Songs MUST die Liste einen Hinweis zeigen, wie man den ersten Song anlegt. Die Auswahl eines Songs MUST seine Doppelseite öffnen.
+Das System MUST die Songs in Karten auflisten: je Workbook eine Karte (siehe `workbooks`) und eine Karte „Meine Songs“ mit den Songs, die zu keinem Workbook gehören. Jede Karte MUST ihre Songs alphabetisch nach Titel in einer Tabelle mit den Spalten Titel, Takte, Grooves und Fills zeigen, mit einer Kopfzeile. Ist „Meine Songs“ leer, MUST die Karte einen Hinweis zeigen, wie man den ersten Song anlegt. Die Auswahl eines Songs MUST seine Doppelseite öffnen.
 
 #### Scenario: Sortierte Liste
-- **WHEN** die Songs „Uprising“ (32 Takte, 2 Grooves, 1 Fill) und „Hysteria“ (0 Takte, keine Patterns) existieren
-- **THEN** zeigt die Tabelle zuerst „Hysteria“ mit 0, 0, 0, dann „Uprising“ mit 32, 2, 1
+- **WHEN** die Songs „Uprising“ (32 Takte, 2 Grooves, 1 Fill) und „Hysteria“ (0 Takte, keine Patterns) in „Meine Songs“ existieren
+- **THEN** zeigt die Tabelle von „Meine Songs“ zuerst „Hysteria“ mit 0, 0, 0, dann „Uprising“ mit 32, 2, 1
 - **AND** die Kopfzeile lautet Titel, Takte, Grooves, Fills
 
 #### Scenario: Leere Liste
 - **WHEN** keine Songs existieren
-- **THEN** zeigt die Liste einen Hinweis zum Anlegen des ersten Songs
+- **THEN** zeigt „Meine Songs“ einen Hinweis zum Anlegen des ersten Songs
 
 #### Scenario: Song öffnen
-- **WHEN** der Nutzer in der Liste „Hysteria“ auswählt
+- **WHEN** der Nutzer in einer Karte „Hysteria“ auswählt
 - **THEN** zeigt die App die Doppelseite von „Hysteria“
+
+#### Scenario: Neuer Song landet in „Meine Songs“
+- **WHEN** der Nutzer über das Eingabefeld der Song-Liste den Song „Skizze“ anlegt
+- **THEN** steht „Skizze“ in „Meine Songs“
 
 ### Requirement: Song-Tempo
 Jeder Song MUST ein Tempo in BPM haben, eine ganze Zahl von 30 bis 300. Ein neuer Song und ein Song, für den kein Tempo gespeichert ist, MUST das Tempo 120 haben. Ein Tempo außerhalb des Bereichs oder keine ganze Zahl MUST abgelehnt werden; das bisherige Tempo bleibt dann erhalten. Eine Änderung des Tempos MUST die Revision des Songs um 1 erhöhen.
