@@ -142,3 +142,21 @@ describe('Spec navigation › Gleiche Höhe der Kopfzeile', () => {
     expect(css).not.toMatch(/(?<!,\s*)\n\.(songbook|workspace)\s*\{[^}]*padding:/);
   });
 });
+
+describe('Spec playback-controls › Farbe der Wiedergabe', () => {
+  const rule = (selector: string) => css.match(new RegExp(`(?:^|\\n)${selector}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+
+  it('Abspiel-Knöpfe tragen die Farbe der Wiedergabeposition', () => {
+    expect(rule('\\.play-button')).toMatch(/color:\s*var\(--playhead\)/);
+    expect(rule('\\.playhead-line')).toContain('var(--playhead)');
+    expect(rule('\\.play-button')).not.toContain('--accent');
+    expect(rule('\\.play-button')).not.toContain('--danger');
+  });
+});
+
+describe('Spec song-lock › Gleiche Anordnung beim Entsperren', () => {
+  it('Höhe der Kopfzeile: Knöpfe teilen sich eine feste Höhe', () => {
+    const shared = css.match(/\.play-button,\s*\.lock-toggle,\s*\.page-title \.danger,\s*\.editor-actions button\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(shared).toMatch(/height:\s*2rem/);
+  });
+});

@@ -7,6 +7,7 @@ import { EditableHeading } from './EditableHeading';
 import { LockToggle, useLockGuard } from './lock';
 import { useReport } from './messages';
 import { PatternPage } from './PatternPage';
+import { PlayButton } from './PlayButton';
 import { StructurePage } from './StructurePage';
 import { NoAudioNote, usePlayer, useSongPlayback } from './playback';
 import { TempoMark } from './TempoMark';
@@ -20,15 +21,12 @@ function SongTransport() {
   const first = allBars(song)[0];
   return (
     <>
-      <button
-        type="button"
-        className="primary play"
-        data-read-safe=""
+      <PlayButton
+        symbol={playback.playing ? 'stop' : 'play'}
+        label={playback.playing ? 'Stopp' : 'Song abspielen'}
         disabled={!playback.available || (!playback.playing && !first)}
         onClick={() => (playback.playing ? playback.stop() : first && playback.start({ from: first.id, to: 'end' }, false))}
-      >
-        {playback.playing ? 'Stopp' : 'Song abspielen'}
-      </button>
+      />
       {!playback.available && <NoAudioNote />}
     </>
   );

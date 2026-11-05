@@ -114,6 +114,8 @@ interface Selection {
   current: StructureSelection;
   selectBar: (barId: string, extend: boolean) => void;
   selectSegment: (segmentId: string) => void;
+  /** Hebt die Auswahl auf und schließt damit das Popover. */
+  clear: () => void;
   /** Popover der Takt-Auswahl, wenn es in dieser Zeile verankert ist. */
   barPopover: (row: Row) => ReactNode;
   hover: Hover;
@@ -286,7 +288,7 @@ function SegmentView({ segment, selection }: { segment: SegmentLayout; selection
         </h3>
         {selected && (
           <Popover label={`Segment ${segment.name}`} x={0}>
-            <SegmentPopover segmentId={segment.segmentId} onSelectSegment={selection.selectSegment} />
+            <SegmentPopover segmentId={segment.segmentId} onSelectSegment={selection.selectSegment} onPlay={selection.clear} />
           </Popover>
         )}
       </div>
@@ -378,7 +380,7 @@ export function StructurePage() {
     anchor?.row === row &&
     selection.kind === 'bars' && (
       <Popover label="Takt-Auswahl" x={anchor.x}>
-        <BarPopover barIds={selection.barIds} />
+        <BarPopover barIds={selection.barIds} onPlay={clear} />
       </Popover>
     );
 
@@ -406,7 +408,7 @@ export function StructurePage() {
         <SegmentView
           key={segment.segmentId}
           segment={segment}
-          selection={{ current: selection, selectBar, selectSegment, barPopover, hover, setHover, dropTargets, playingBarId, locked }}
+          selection={{ current: selection, selectBar, selectSegment, clear, barPopover, hover, setHover, dropTargets, playingBarId, locked }}
         />
       ))}
     </section>

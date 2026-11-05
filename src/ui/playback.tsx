@@ -3,6 +3,7 @@ import type { Player } from '../audio/player';
 import { patternTimeline, setTempo, songTimeline, type SongRange, type Step } from '../domain/playback';
 import { DEFAULT_TEMPO, type Pattern } from '../domain/types';
 import { openSongOf } from '../state/notebookStore';
+import { PlayButton } from './PlayButton';
 import { useOpenSong, useStore } from './useLibrary';
 
 export const PlayerContext = createContext<Player | null>(null);
@@ -124,9 +125,12 @@ export const parseTempo = (draft: string) => (draft.trim() === '' ? Number.NaN :
 export function Transport({ playback }: { playback: ReturnType<typeof usePlayback> }) {
   return (
     <div className="transport">
-      <button type="button" className="primary play" data-read-safe="" disabled={!playback.available} onClick={playback.toggle}>
-        {playback.playing ? 'Stopp' : 'Abspielen'}
-      </button>
+      <PlayButton
+        symbol={playback.playing ? 'stop' : 'loop'}
+        label={playback.playing ? 'Stopp' : 'In Schleife abspielen'}
+        disabled={!playback.available}
+        onClick={playback.toggle}
+      />
       {!playback.available && <NoAudioNote />}
     </div>
   );

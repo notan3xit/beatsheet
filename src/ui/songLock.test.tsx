@@ -305,7 +305,7 @@ describe('Spec song-lock › Auswahl im gesperrten Song', () => {
   const popoverButtons = (dialog: HTMLElement) =>
     within(dialog)
       .getAllByRole('button')
-      .map((b) => b.textContent);
+      .map((b) => b.getAttribute('aria-label'));
 
   async function selectBars(user: ReturnType<typeof userEvent.setup>, from: number, to: number) {
     await user.click(bar(from));
@@ -413,7 +413,7 @@ describe('Spec song-lock › Gesperrter Pattern-Editor', () => {
 
   it('Laufposition beim Abspielen', async () => {
     const { user, reach } = openEditor();
-    await user.click(screen.getByRole('button', { name: 'Abspielen' }));
+    await user.click(screen.getByRole('button', { name: 'In Schleife abspielen' }));
     reach({ beat: 0, position: 1 });
     expect(cell('Bassdrum, Beat 1, Position 2')).toHaveClass('playing');
   });

@@ -21,6 +21,7 @@ import { CommitField } from './CommitField';
 import { useConfirm } from './ConfirmDialog';
 import { PatternChips } from './PatternChips';
 import { useSongPlayback } from './playback';
+import { PlayButton } from './PlayButton';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
 
 /** Breite des Popovers in Beats, für die Begrenzung am rechten Zeilenrand (design.md D4). */
@@ -56,23 +57,45 @@ function useApply() {
   return { apply, alert };
 }
 
-/** Abspiel-Aktionen eines Popovers: ab dem ersten Takt bis Songende, oder vom ersten bis letzten Takt in Schleife. */
-function PlayActions({ first, last }: { first?: string; last?: string }) {
+/** Abspiel-Aktionen eines Popovers: ab dem ersten Takt bis Songende, oder vom ersten bis letzten Takt in Schleife. `onPlay` schließt das Popover. */
+function PlayActions({ first, last, onPlay }: { first?: string; last?: string; onPlay: () => void }) {
   const playback = useSongPlayback();
   const disabled = !playback.available || !first || !last;
   return (
     <div className="popover-actions">
-      <button type="button" data-read-safe="" disabled={disabled} onClick={() => first && playback.start({ from: first, to: 'end' }, false)}>
-        Ab hier abspielen
-      </button>
-      <button type="button" data-read-safe="" disabled={disabled} onClick={() => first && last && playback.start({ from: first, to: last }, true)}>
-        In Schleife abspielen
-      </button>
+      <PlayButton
+        symbol="play"
+        label="Ab hier abspielen"
+        disabled={disabled}
+        onClick={() => {
+          if (!first) return;
+          playback.start({ from: first, to: 'end' }, false);
+          onPlay();
+        }}
+      />
+      <PlayButton
+        symbol="loop"
+        label="In Schleife abspielen"
+        disabled={disabled}
+        onClick={() => {
+          if (!first || !last) return;
+          playback.start({ from: first, to: last }, true);
+          onPlay();
+        }}
+      />
     </div>
   );
 }
 
-export function SegmentPopover({ segmentId, onSelectSegment }: { segmentId: string; onSelectSegment: (id: string) => void }) {
+export function SegmentPopover({
+  segmentId,
+  onSelectSegment,
+  onPlay,
+}: {
+  segmentId: string;
+  onSelectSegment: (id: string) => void;
+  onPlay: () => void;
+}) {
   const store = useStore();
   const song = useOpenSong();
   const { locked } = useNotebook();
@@ -88,57 +111,64 @@ export function SegmentPopover({ segmentId, onSelectSegment }: { segmentId: stri
     if (created) onSelectSegment(created.id);
   };
 
-  if (locked) return <PlayActions first={segmentBars[0]?.id} last={segmentBars.at(-1)?.id} />;
+  const head = (
+    <div className="popover-section">
+      <PlayActions first={segmentBars[0]?.id} last={segmentBars.at(-1)?.id} onPlay={onPlay} />
+    </div>
+  );
+  if (locked) return head;
 
   return (
     <>
-      <CommitField
-        key={segmentId}
-        label="Segmentname"
-        value={segment.name}
-        onCommit={(draft) => {
-          update((s) => renameSegment(s, segmentId, draft));
-          return openSongOf(store.getState())?.segments.find((s) => s.id === segmentId)?.name ?? segment.name;
-        }}
-      />
-      <div className="popover-actions">
-        <button type="button" aria-label="Nach oben" title="Nach oben" disabled={index === 0} onClick={() => update((s) => moveSegment(s, segmentId, -1))}>
-          ↑
-        </button>
-        <button
-          type="button"
-          aria-label="Nach unten"
-          title="Nach unten"
-          disabled={index === song.segments.length - 1}
-          onClick={() => update((s) => moveSegment(s, segmentId, 1))}
-        >
-          ↓
-        </button>
-        <button type="button" onClick={() => update((s) => duplicateSegment(s, segmentId))}>
-          Duplizieren
-        </button>
-        <button type="button" onClick={insertAfter}>
-          Segment danach
-        </button>
-        <button type="button" onClick={() => update((s) => appendBlockLike(s, segmentId))}>
-          Block anfügen
-        </button>
-        <button
-          type="button"
-          className="danger"
-          onClick={async () => {
-            if (await confirm(`Segment „${segment.name}“ mit allen Takten löschen?`)) update((s) => deleteSegment(s, segmentId));
+      {head}
+      <div className="popover-section">
+        <CommitField
+          key={segmentId}
+          label="Segmentname"
+          value={segment.name}
+          onCommit={(draft) => {
+            update((s) => renameSegment(s, segmentId, draft));
+            return openSongOf(store.getState())?.segments.find((s) => s.id === segmentId)?.name ?? segment.name;
           }}
-        >
-          Löschen
-        </button>
+        />
+        <div className="popover-actions">
+          <button type="button" aria-label="Nach oben" title="Nach oben" disabled={index === 0} onClick={() => update((s) => moveSegment(s, segmentId, -1))}>
+            ↑
+          </button>
+          <button
+            type="button"
+            aria-label="Nach unten"
+            title="Nach unten"
+            disabled={index === song.segments.length - 1}
+            onClick={() => update((s) => moveSegment(s, segmentId, 1))}
+          >
+            ↓
+          </button>
+          <button type="button" onClick={() => update((s) => duplicateSegment(s, segmentId))}>
+            Duplizieren
+          </button>
+          <button type="button" onClick={insertAfter}>
+            Segment danach
+          </button>
+          <button type="button" onClick={() => update((s) => appendBlockLike(s, segmentId))}>
+            Block anfügen
+          </button>
+          <button
+            type="button"
+            className="danger"
+            onClick={async () => {
+              if (await confirm(`Segment „${segment.name}“ mit allen Takten löschen?`)) update((s) => deleteSegment(s, segmentId));
+            }}
+          >
+            Löschen
+          </button>
+        </div>
       </div>
-      <PlayActions first={segmentBars[0]?.id} last={segmentBars.at(-1)?.id} />
     </>
   );
 }
 
-export function BarPopover({ barIds }: { barIds: string[] }) {
+export function BarPopover({ barIds, onPlay }: { barIds: string[]; onPlay: () => void }) {
   const song = useOpenSong();
   const { locked } = useNotebook();
   const { apply, alert } = useApply();
@@ -150,57 +180,67 @@ export function BarPopover({ barIds }: { barIds: string[] }) {
   const last = bars.at(-1)!;
   const beats = bars.every((b) => b.beats === first.beats) ? `${first.beats}/4` : 'gemischt';
 
-  if (locked) {
-    return (
-      <>
-        <h4 className="popover-title">{title}</h4>
-        <PlayActions first={first.id} last={last.id} />
-      </>
-    );
-  }
+  const head = (
+    <div className="popover-section popover-head">
+      <h4 className="popover-title">{title}</h4>
+      <PlayActions first={first.id} last={last.id} onPlay={onPlay} />
+    </div>
+  );
+  if (locked) return head;
 
   return (
     <>
-      <h4 className="popover-title">{title}</h4>
-      <PatternChips kind="groove" barIds={barIds} apply={apply} />
-      <PatternChips kind="fill" barIds={barIds} apply={apply} />
-      <div className="popover-actions">
-        <span className="chips-label" aria-hidden="true">
-          Länge
-        </span>
-        <button
-          type="button"
-          aria-label="Taktlänge verringern"
-          disabled={!canChangeBarLength(song, barIds, -1)}
-          onClick={() => apply((s) => changeBarLength(s, barIds, -1))}
-        >
-          −
-        </button>
-        <output className="bar-length" aria-label="Taktlänge">
-          {beats}
-        </output>
-        <button
-          type="button"
-          aria-label="Taktlänge erhöhen"
-          disabled={!canChangeBarLength(song, barIds, 1)}
-          onClick={() => apply((s) => changeBarLength(s, barIds, 1))}
-        >
-          +
-        </button>
+      {head}
+      <div className="popover-section">
+        <PatternChips kind="groove" barIds={barIds} apply={apply} />
+        <PatternChips kind="fill" barIds={barIds} apply={apply} />
+        <div role="group" aria-label="Länge" className="popover-actions">
+          <span className="chips-label" aria-hidden="true">
+            Länge
+          </span>
+          <button
+            type="button"
+            className="step-button"
+            aria-label="Taktlänge verringern"
+            title="Taktlänge verringern"
+            disabled={!canChangeBarLength(song, barIds, -1)}
+            onClick={() => apply((s) => changeBarLength(s, barIds, -1))}
+          >
+            −
+          </button>
+          <button
+            type="button"
+            className="step-button"
+            aria-label="Taktlänge erhöhen"
+            title="Taktlänge erhöhen"
+            disabled={!canChangeBarLength(song, barIds, 1)}
+            onClick={() => apply((s) => changeBarLength(s, barIds, 1))}
+          >
+            +
+          </button>
+          <output className="bar-length" aria-label="Taktlänge">
+            {beats}
+          </output>
+        </div>
       </div>
-      <div className="popover-actions">
-        <button type="button" onClick={() => apply((s) => insertBarBefore(s, first.id))}>
-          Takt davor
-        </button>
-        <button type="button" onClick={() => apply((s) => insertBarAfter(s, last.id))}>
-          Takt danach
-        </button>
-        <button type="button" className="danger" onClick={() => apply((s) => barIds.reduce(deleteBar, s))}>
-          Löschen
-        </button>
+      {bars.length === 1 && (
+        <div className="popover-section">
+          <AccentEditor key={first.id} barId={first.id} beats={first.beats} accents={first.accents} />
+        </div>
+      )}
+      <div className="popover-section">
+        <div className="popover-actions">
+          <button type="button" onClick={() => apply((s) => insertBarBefore(s, first.id))}>
+            Takt davor
+          </button>
+          <button type="button" onClick={() => apply((s) => insertBarAfter(s, last.id))}>
+            Takt danach
+          </button>
+          <button type="button" className="danger" onClick={() => apply((s) => barIds.reduce(deleteBar, s))}>
+            Löschen
+          </button>
+        </div>
       </div>
-      <PlayActions first={first.id} last={last.id} />
-      {bars.length === 1 && <AccentEditor key={first.id} barId={first.id} beats={first.beats} accents={first.accents} />}
       {alert}
     </>
   );

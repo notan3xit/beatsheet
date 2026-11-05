@@ -182,7 +182,7 @@ describe('Spec song-playback › Song-Wiedergabe endet beim Verlassen', () => {
     await user.click(songButton());
     act(() => store.openPattern(groove.id));
     expect(player.stop).toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'Abspielen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'In Schleife abspielen' })).toBeInTheDocument();
   });
 
   it('Zur Song-Liste', async () => {

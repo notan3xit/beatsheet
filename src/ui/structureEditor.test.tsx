@@ -101,7 +101,7 @@ describe('Spec songbook-view › Pattern-Chips', () => {
     const { user } = setup(patterns, (s) => appendSegment(s, { name: 'V', bars: 2, grooveId: patterns[0]!.id }));
     await selectBars(user, 1, 2);
     const chips = within(within(barPopover()).getByRole('group', { name: 'Groove' }));
-    expect(chips.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['A', 'B', 'Neuer Groove', 'Kein Groove']);
+    expect(chips.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['Kein Groove', 'Neuer Groove', 'A', 'B']);
     expect(chips.getByRole('button', { name: 'A' })).toHaveAttribute('aria-pressed', 'true');
     expect(chips.getByRole('button', { name: 'B' })).toHaveAttribute('aria-pressed', 'false');
     expect(chips.getByRole('button', { name: 'Neuer Groove' }).style.getPropertyValue('--pc')).toBe(`var(--ctp-${nextColor(patterns)})`);

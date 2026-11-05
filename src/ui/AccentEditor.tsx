@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { addAccent, removeAccent } from '../domain/structure';
 import { INSTRUMENT_LABELS, INSTRUMENTS, type Accent, type Instrument } from '../domain/types';
+import { ACCENT_LABELS } from '../songbook/layout';
 import { useStore } from './useLibrary';
 
 /** Akzente eines Takts: Liste mit Entfernen und Auswahl für einen neuen Akzent. */
@@ -11,27 +12,11 @@ export function AccentEditor({ barId, beats, accents }: { barId: string; beats: 
   const [position, setPosition] = useState<Accent['position']>(0);
 
   return (
-    <fieldset className="accent-editor">
-      <legend>Akzente</legend>
-      <ul className="accent-list">
-        {accents.map((a) => {
-          const label = `${INSTRUMENT_LABELS[a.instrument]} auf ${a.beat + 1}.${a.position + 1}`;
-          return (
-            <li key={label}>
-              {label}
-              <button
-                type="button"
-                className="link"
-                aria-label={`${label} entfernen`}
-                onClick={() => store.updateSong((s) => removeAccent(s, barId, a))}
-              >
-                ×
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+    <div role="group" aria-label="Akzente" className="accent-editor">
       <div className="accent-add">
+        <span className="chips-label" aria-hidden="true">
+          Akzente
+        </span>
         <select aria-label="Akzent-Instrument" value={instrument} onChange={(e) => setInstrument(e.target.value as Instrument)}>
           {INSTRUMENTS.map((i) => (
             <option key={i} value={i}>
@@ -39,7 +24,7 @@ export function AccentEditor({ barId, beats, accents }: { barId: string; beats: 
             </option>
           ))}
         </select>
-        <select aria-label="Akzent-Beat" value={Math.min(beat, beats - 1)} onChange={(e) => setBeat(Number(e.target.value))}>
+        <select aria-label="Akzent-Beat" title="Beat" value={Math.min(beat, beats - 1)} onChange={(e) => setBeat(Number(e.target.value))}>
           {Array.from({ length: beats }, (_, i) => (
             <option key={i} value={i}>
               {i + 1}
@@ -48,6 +33,7 @@ export function AccentEditor({ barId, beats, accents }: { barId: string; beats: 
         </select>
         <select
           aria-label="Akzent-Position"
+          title="Position"
           value={position}
           onChange={(e) => setPosition(Number(e.target.value) as Accent['position'])}
         >
@@ -59,13 +45,37 @@ export function AccentEditor({ barId, beats, accents }: { barId: string; beats: 
         </select>
         <button
           type="button"
+          className="step-button"
+          aria-label="Akzent hinzufügen"
+          title="Akzent hinzufügen"
           onClick={() =>
             store.updateSong((s) => addAccent(s, barId, { instrument, beat: Math.min(beat, beats - 1), position }))
           }
         >
-          Akzent hinzufügen
+          +
         </button>
       </div>
-    </fieldset>
+      {accents.length > 0 && (
+        <ul className="accent-list">
+          {accents.map((a) => {
+            const place = `${a.beat + 1}.${a.position + 1}`;
+            const label = `${INSTRUMENT_LABELS[a.instrument]} auf ${place}`;
+            return (
+              <li key={label} title={label}>
+                {place} {ACCENT_LABELS[a.instrument]}
+                <button
+                  type="button"
+                  className="link"
+                  aria-label={`${label} entfernen`}
+                  onClick={() => store.updateSong((s) => removeAccent(s, barId, a))}
+                >
+                  ×
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }

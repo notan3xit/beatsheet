@@ -438,8 +438,11 @@ input {
   display: inline-flex;
   flex: none;
   align-self: center;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
   margin-left: auto;
-  padding: 0.3rem;
+  padding: 0;
   background: none;
   color: var(--muted);
 }
@@ -965,6 +968,36 @@ body.dragging-pattern * {
   margin-left: var(--row-gutter);
 }
 
+/* Abschnitte eines Popovers, ab dem zweiten mit Trennlinie */
+.popover-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.popover-section + .popover-section {
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--border);
+}
+
+.popover-head {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.popover-actions .danger {
+  margin-left: auto;
+}
+
+/* - und + stehen in den Zeilen Groove, Fill und Länge genau untereinander */
+.structure-popover .step-button {
+  width: 1.6rem;
+  padding-right: 0;
+  padding-left: 0;
+  text-align: center;
+}
+
 .popover-title {
   margin: 0;
   font-size: 0.8rem;
@@ -1033,45 +1066,51 @@ body.dragging-pattern * {
   font-size: 0.85rem;
 }
 
-.structure-popover .accent-editor {
-  margin: 0;
-  padding: 0.3rem 0.5rem;
-  font-size: 0.75rem;
+/* Akzente in den Maßen der Chips; Beschriftung in derselben Spalte wie Groove und Fill */
+.accent-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 
 .accent-add {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
-  gap: 0.6rem;
+  align-items: center;
+  gap: 0.3rem;
 }
 
-.accent-editor {
-  margin: 0.75rem 0;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+.accent-add select {
+  padding: 0.15rem 0.25rem;
+  font-size: 0.75rem;
 }
 
-.accent-editor legend {
-  font-size: 0.8rem;
-  color: var(--muted);
+/* Lange Namen wie „Hi-Hat (geschlossen)“ dürfen die Reihe nicht sprengen */
+.accent-add select:first-of-type {
+  max-width: 9rem;
+}
+
+.accent-add button {
+  padding-top: 0.15rem;
+  padding-bottom: 0.15rem;
+  font-size: 0.75rem;
 }
 
 .accent-list {
-  list-style: none;
-  margin: 0 0 0.4rem;
-  padding: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  font-size: 0.8rem;
+  gap: 0.3rem;
+  margin: 0 0 0 3.5rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.7rem;
 }
 
 .accent-list li {
   display: flex;
   align-items: center;
   gap: 0.2rem;
-  padding: 0.1rem 0.4rem;
+  padding: 0.05rem 0.35rem;
   border-radius: 999px;
   background: var(--beat-alt);
 }
@@ -1255,12 +1294,61 @@ span.value-control {
   gap: 0.75rem;
 }
 
-/* Feste Breite, damit „Abspielen“/„Stopp“ die Zeile nicht verschiebt */
-.transport .play {
-  min-width: 6.5rem;
+/* Knöpfe in den Kopfzeilen: gleiche Höhe, damit beim Entsperren und beim Symbolwechsel nichts springt */
+.play-button,
+.lock-toggle,
+.page-title .danger,
+.editor-actions button {
+  height: 2rem;
 }
 
-/* Im Kopf stehen Felder sonst in einer Zeile; hier Beschriftung, Feld und Hinweis untereinander */
+.page-title .danger,
+.editor-actions button {
+  padding: 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+/* Abspiel-Knopf in der Farbe der Wiedergabeposition */
+.play-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  padding: 0;
+  background: color-mix(in srgb, var(--playhead) 18%, transparent);
+  color: var(--playhead);
+}
+
+.play-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--playhead) 28%, transparent);
+}
+
+.play-button svg {
+  width: 1rem;
+  height: 1rem;
+  fill: currentColor;
+}
+
+.play-button[data-symbol='loop'] svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.structure-popover .play-button {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+}
+
+.structure-popover .play-button svg {
+  width: 0.85rem;
+  height: 0.85rem;
+}
+
 /* Tempoangabe im Pattern-Editor mit Hinweis, dass sie für den ganzen Song gilt */
 .tempo-field {
   font-size: 0.85rem;

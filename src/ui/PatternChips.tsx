@@ -40,6 +40,27 @@ export function PatternChips({
       <span className="chips-label" aria-hidden="true">
         {labels.group}
       </span>
+      <button
+        type="button"
+        className="chip none step-button"
+        aria-label={labels.none}
+        aria-pressed={common === null}
+        title={labels.none}
+        onClick={() => set(null)}
+      >
+        −
+      </button>
+      <button
+        type="button"
+        className="chip new step-button"
+        aria-label={labels.create}
+        title={labels.create}
+        data-pattern-new={kind}
+        style={patternStyle(nextColor(song.patterns))}
+        onClick={() => apply((s) => assignPlaceholder(s, barIds, kind))}
+      >
+        +
+      </button>
       {song.patterns
         .filter((p) => p.kind === kind)
         .map((p) => (
@@ -62,27 +83,6 @@ export function PatternChips({
             {short(p.name)}
           </button>
         ))}
-      <button
-        type="button"
-        className="chip new"
-        aria-label={labels.create}
-        title={labels.create}
-        data-pattern-new={kind}
-        style={patternStyle(nextColor(song.patterns))}
-        onClick={() => apply((s) => assignPlaceholder(s, barIds, kind))}
-      >
-        +
-      </button>
-      <button
-        type="button"
-        className="chip none"
-        aria-label={labels.none}
-        aria-pressed={common === null}
-        title={labels.none}
-        onClick={() => set(null)}
-      >
-        –
-      </button>
     </div>
   );
 }

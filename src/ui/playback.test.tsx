@@ -60,7 +60,7 @@ function setup({ available = true } = {}) {
   return { ...notebook, ...fake, user };
 }
 
-const playButton = () => screen.getByRole('button', { name: /^(Abspielen|Stopp)$/ });
+const playButton = () => screen.getByRole('button', { name: /^(In Schleife abspielen|Stopp)$/ });
 const tempoMark = (bpm: number) => screen.getByRole('button', { name: `Song-Tempo: ${bpm} BPM` });
 const tempoNote = () => document.querySelector('.tempo-field') as HTMLElement;
 /** Klickt die Tempoangabe an und tippt einen Wert ins Zahlenfeld. */
@@ -77,13 +77,13 @@ const highlighted = () => Array.from(document.querySelectorAll('.step.playing'))
 describe('Spec pattern-playback › Wiedergabe starten und stoppen (UI)', () => {
   it('Wiedergabe starten und stoppen', async () => {
     const { user, player } = setup();
-    expect(playButton()).toHaveAccessibleName('Abspielen');
+    expect(playButton()).toHaveAccessibleName('In Schleife abspielen');
     await user.click(playButton());
     expect(player.start).toHaveBeenCalledTimes(1);
     expect(playButton()).toHaveAccessibleName('Stopp');
     await user.click(playButton());
     expect(player.stop).toHaveBeenCalled();
-    expect(playButton()).toHaveAccessibleName('Abspielen');
+    expect(playButton()).toHaveAccessibleName('In Schleife abspielen');
   });
 
   it('Quelle liefert das geöffnete Pattern und das Tempo des Songs', async () => {
@@ -139,7 +139,7 @@ describe('Spec pattern-playback › Wiedergabe endet beim Verlassen (UI)', () =>
     act(() => store.openPattern(patternsNow()[1]!.id));
     expect(player.stop).toHaveBeenCalled();
     expect(player.start).toHaveBeenCalledTimes(1);
-    expect(playButton()).toHaveAccessibleName('Abspielen');
+    expect(playButton()).toHaveAccessibleName('In Schleife abspielen');
   });
 });
 
