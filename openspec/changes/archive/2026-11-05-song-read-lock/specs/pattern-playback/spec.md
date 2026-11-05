@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Tempo im Pattern-Editor
-Der Pattern-Editor MUST das Tempo des Songs neben der Abspiel-Taste als „♩ = <BPM> (Song-Tempo)“ zeigen und ändern lassen. Die Angabe MUST sich wie die Tempoangabe auf der Doppelseite bedienen lassen: Ein Klick verwandelt sie in ein Zahlenfeld, Enter oder Verlassen übernimmt das Tempo, Escape verwirft die Eingabe. Eine Änderung MUST für alle Patterns des Songs gelten und eine laufende Wiedergabe ab dem nächsten Schlag im neuen Tempo fortsetzen. Ein ungültiger Wert MUST abgelehnt werden; die Angabe zeigt dann wieder das bisherige Tempo.
+Der Pattern-Editor MUST das Tempo des Songs neben der Abspiel-Taste als „♩ = <BPM> (Song-Tempo)“ zeigen und ändern lassen. Die Angabe MUST sich wie die Tempoangabe auf der Doppelseite bedienen lassen. Eine Änderung MUST für alle Patterns des Songs gelten und eine laufende Wiedergabe ab dem nächsten Schlag im neuen Tempo fortsetzen. Ein ungültiger Wert MUST abgelehnt werden; die Angabe zeigt dann wieder das bisherige Tempo.
 
 #### Scenario: Tempo ändern
 - **WHEN** der Nutzer im Pattern-Editor das Tempo von 120 auf 90 BPM ändert

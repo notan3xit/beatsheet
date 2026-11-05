@@ -97,3 +97,11 @@ Die Doppelseite MUST im Kopf neben dem Songtitel das Tempo des Songs als Tempoan
 #### Scenario: Ungültiges Tempo auf der Doppelseite
 - **WHEN** der Nutzer auf „♩ = 120“ klickt, 0 eingibt und das Feld verlässt
 - **THEN** steht weiterhin „♩ = 120“ und der Song ist unverändert
+
+### Requirement: Platz beim Bearbeiten der Tempoangabe
+Beim Bearbeiten der Tempoangabe MUST „♩ =“ stehen bleiben, und das Feld MUST genau den Platz der Zahl einnehmen, sodass sich nichts daneben verschiebt.
+
+#### Scenario: Platz beim Bearbeiten
+- **WHEN** der Nutzer auf „♩ = 120“ klickt
+- **THEN** steht weiterhin „♩ =“ da, nur die Zahl ist ein Eingabefeld ohne Pfeil-Knöpfe
+- **AND** alles neben der Angabe bleibt an seiner Stelle

@@ -97,17 +97,20 @@ Während der Wiedergabe MUST der Sequencer die Position hervorheben, die gerade 
 - **THEN** ist keine Spalte des Sequencers hervorgehoben
 
 ### Requirement: Tempo im Pattern-Editor
-Der Pattern-Editor MUST das Tempo des Songs in BPM neben der Abspiel-Taste zeigen und ändern lassen. Das Feld MUST als „Song-Tempo (BPM)“ beschriftet sein, und ein Hinweis am Feld MUST nennen, dass es für alle Patterns des Songs gilt, mit dem Songtitel. Eine Änderung MUST für alle Patterns des Songs gelten und eine laufende Wiedergabe ab dem nächsten Schlag im neuen Tempo fortsetzen. Ein ungültiger Wert MUST abgelehnt werden; das Feld zeigt dann wieder das bisherige Tempo.
+Der Pattern-Editor MUST das Tempo des Songs neben der Abspiel-Taste als „♩ = <BPM> (Song-Tempo)“ zeigen und ändern lassen. Die Angabe MUST sich wie die Tempoangabe auf der Doppelseite bedienen lassen. Eine Änderung MUST für alle Patterns des Songs gelten und eine laufende Wiedergabe ab dem nächsten Schlag im neuen Tempo fortsetzen. Ein ungültiger Wert MUST abgelehnt werden; die Angabe zeigt dann wieder das bisherige Tempo.
 
 #### Scenario: Tempo ändern
 - **WHEN** der Nutzer im Pattern-Editor das Tempo von 120 auf 90 BPM ändert
-- **THEN** zeigt das Tempo-Feld 90
-- **AND** im Pattern-Editor eines anderen Patterns desselben Songs steht ebenfalls 90
+- **THEN** steht dort „♩ = 90 (Song-Tempo)“
+- **AND** im Pattern-Editor eines anderen Patterns desselben Songs steht ebenfalls „♩ = 90 (Song-Tempo)“
 
 #### Scenario: Kennzeichnung als Song-Tempo
 - **WHEN** der Nutzer im Song „Hysteria“ den Pattern-Editor des Grooves „Verse“ öffnet
-- **THEN** heißt das Feld „Song-Tempo (BPM)“
-- **AND** der Hinweis am Feld lautet „gilt für alle Patterns von „Hysteria““
+- **THEN** steht neben der Abspiel-Taste „♩ = 120 (Song-Tempo)“
+
+#### Scenario: Eingabe verwerfen
+- **WHEN** der Nutzer im Pattern-Editor auf „♩ = 120“ klickt, 96 eingibt und Escape drückt
+- **THEN** steht weiterhin „♩ = 120 (Song-Tempo)“ und der Song ist unverändert
 
 #### Scenario: Tempo während der Wiedergabe
 - **WHEN** die Wiedergabe läuft und der Nutzer das Tempo ändert
@@ -115,7 +118,7 @@ Der Pattern-Editor MUST das Tempo des Songs in BPM neben der Abspiel-Taste zeige
 
 #### Scenario: Ungültiges Tempo
 - **WHEN** der Nutzer als Tempo 0 eingibt
-- **THEN** zeigt das Feld wieder das bisherige Tempo und der Song bleibt unverändert
+- **THEN** zeigt die Angabe wieder das bisherige Tempo und der Song bleibt unverändert
 
 ### Requirement: Wiedergabe endet beim Verlassen
 Verlässt der Nutzer den Pattern-Editor oder öffnet er ein anderes Pattern, MUST die Wiedergabe enden. Ein neu geöffnetes Pattern MUST nicht von selbst abgespielt werden.

@@ -27,7 +27,7 @@ Die Doppelseite MUST über ihrer Überschrift den Pfad „Songs“ zeigen, der P
 - **AND** es gibt keinen Knopf „Alle Songs“
 
 ### Requirement: Editierbare Überschrift
-Songtitel auf der Doppelseite und Patternname im Pattern-Editor MUST als Überschrift erscheinen. Ein Klick auf die Überschrift MUST sie in ein Eingabefeld mit dem aktuellen Namen verwandeln. Enter oder Verlassen des Felds MUST den Namen übernehmen, Escape MUST die Eingabe verwerfen. Danach MUST wieder die Überschrift erscheinen. Ein abgelehnter Name MUST den bisherigen Namen stehen lassen.
+Songtitel auf der Doppelseite und Patternname im Pattern-Editor MUST als Überschrift erscheinen. Bei entsperrtem Song MUST ein Klick auf die Überschrift sie in ein Eingabefeld mit dem aktuellen Namen verwandeln. Enter oder Verlassen des Felds MUST den Namen übernehmen, Escape MUST die Eingabe verwerfen. Danach MUST wieder die Überschrift erscheinen. Ein abgelehnter Name MUST den bisherigen Namen stehen lassen.
 
 #### Scenario: Songtitel ändern
 - **WHEN** der Nutzer auf die Überschrift „Neuer Song“ klickt, „Uprising“ eingibt und Enter drückt
@@ -44,6 +44,10 @@ Songtitel auf der Doppelseite und Patternname im Pattern-Editor MUST als Übersc
 #### Scenario: Leerer Name
 - **WHEN** der Nutzer die Überschrift „Hysteria“ leert und Enter drückt
 - **THEN** lautet die Überschrift weiterhin „Hysteria“
+
+#### Scenario: Gesperrter Song
+- **WHEN** der Song gesperrt ist und der Nutzer auf die Überschrift „Hysteria“ klickt
+- **THEN** erscheint kein Eingabefeld und die Überschrift lautet weiterhin „Hysteria“
 
 ### Requirement: Position in der Adresse
 Die Adresse der App MUST die aktuelle Ansicht nennen: die Song-Liste, die Doppelseite eines Songs oder den Pattern-Editor eines Patterns, jeweils über die IDs von Song und Pattern. Die Adresse MUST jeder Navigation in der App folgen. Beim Start MUST die App die Ansicht öffnen, die die Adresse nennt.
@@ -89,3 +93,10 @@ Nennt die Adresse einen Song, den es nicht gibt, MUST die App die Song-Liste zei
 #### Scenario: Pattern löschen im Editor
 - **WHEN** der Nutzer im Pattern-Editor das Pattern löscht
 - **THEN** nennt die Adresse die Doppelseite des Songs
+
+### Requirement: Gleiche Höhe der Kopfzeile
+Pfad und Überschrift MUST auf der Doppelseite und im Pattern-Editor denselben Abstand zum oberen Rand des Inhalts und zueinander haben.
+
+#### Scenario: Wechsel in den Pattern-Editor
+- **WHEN** der Nutzer von der Doppelseite in den Pattern-Editor wechselt
+- **THEN** stehen Pfad und Überschrift in beiden Ansichten auf derselben Höhe
