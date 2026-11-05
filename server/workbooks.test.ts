@@ -168,6 +168,45 @@ describe('Mitglied einladen', () => {
   });
 });
 
+describe('Spec workbooks › Mitglieder mit Profil (Server)', () => {
+  const initialsOf = (name: string) => {
+    const words = name.split(' ');
+    return (words.length > 1 ? words[0]![0]! + words[1]![0]! : name.slice(0, 2)).toUpperCase();
+  };
+  const saveProfile = (cookie: string, name: string, color: string) =>
+    h.api('PUT', '/api/auth/profile', { cookie, body: { name, initials: initialsOf(name), color } });
+  const profilesOf = async (cookie: string) => ((await list(cookie))[0] as Workbook & { profiles?: Record<string, unknown> }).profiles;
+
+  it('Profile nur für Mitglieder mit Profil; ohne Profile kein Feld', async () => {
+    const { id } = await create(owner, 'Band');
+    expect(await profilesOf(owner)).toBeUndefined();
+    await saveProfile(owner, 'Artjom', 'green');
+    await invite(id, ANNA);
+    expect(await profilesOf(owner)).toEqual({ [OWNER]: { name: 'Artjom', initials: 'AR', color: 'green' } });
+    const anna = await h.login(ANNA);
+    await saveProfile(anna, 'Anna Berg', 'blue');
+    expect(await profilesOf(owner)).toEqual({ [OWNER]: { name: 'Artjom', initials: 'AR', color: 'green' }, [ANNA]: { name: 'Anna Berg', initials: 'AB', color: 'blue' } });
+  });
+
+  it('Profile anderer Accounts erscheinen nicht', async () => {
+    await create(owner, 'Band');
+    const stranger = await h.login('fremd@example.com');
+    await saveProfile(stranger, 'Fremd', 'blue');
+    expect(await profilesOf(owner)).toBeUndefined();
+  });
+});
+
+describe('Spec workbooks › Mitglied einladen: Name des Besitzers in der Mail (Server)', () => {
+  it('Name des Besitzers in der Mail', async () => {
+    await h.api('PUT', '/api/auth/profile', { cookie: owner, body: { name: 'Artjom', initials: 'AR', color: 'green' } });
+    const { id } = await create(owner, 'Band');
+    await invite(id, ANNA);
+    const [mail] = h.mails;
+    expect(mail!.subject).toBe(`Artjom (${OWNER}) hat dich zu „Band“ eingeladen`);
+    expect(mail!.text).toMatch(/^Artjom \(ich@example\.com\) hat dich zum Workbook „Band“/);
+  });
+});
+
 describe('Begrenzung der Einladungen', () => {
   it('lehnt die einundzwanzigste Einladung einer Stunde ohne Mitgliedschaft und Mail ab', async () => {
     const { id } = await create(owner, 'Band');

@@ -1,5 +1,6 @@
 import { useState, useSyncExternalStore } from 'react';
 import { createHttpAccountApi, type AccountApi } from '../account/api';
+import { createHttpProfileApi, type ProfileApi } from '../account/profile';
 import { createAccountSession, type AccountSession } from '../account/session';
 import { createWebAudioPlayer, type Player } from '../audio/player';
 import type { NotebookStore } from '../state/notebookStore';
@@ -71,6 +72,7 @@ export function App({
   hitTest,
   player: playerProp,
   account: accountProp,
+  profile: profileProp,
   session: sessionProp,
   sync,
 }: {
@@ -82,6 +84,8 @@ export function App({
   player?: Player;
   /** Anmeldeserver; Vorgabe HTTP über `/api`, in Tests ein Nachbau. */
   account?: AccountApi;
+  /** Profil am Server; Vorgabe HTTP über `/api/auth/profile`, in Tests ein Nachbau. */
+  profile?: ProfileApi;
   /** Anmeldestatus, wenn ihn auch andere Teile der App brauchen; sonst aus `account` erzeugt. */
   session?: AccountSession;
   /** Workbooks und Abgleich; ohne sie gibt es nur „Meine Songs“. */
@@ -89,6 +93,7 @@ export function App({
 }) {
   const [player] = useState(() => playerProp ?? createWebAudioPlayer());
   const [session] = useState(() => sessionProp ?? createAccountSession(accountProp ?? createHttpAccountApi()));
+  const [profileApi] = useState(() => profileProp ?? createHttpProfileApi());
   const app = (
     <StoreContext.Provider value={store}>
       <PlayerContext.Provider value={player}>
@@ -97,7 +102,7 @@ export function App({
         <ConfirmProvider>
         <MessagesProvider>
           <div className="app">
-            <AppHeader session={session} />
+            <AppHeader session={session} profileApi={profileApi} />
             <div className="app-notes">
               {!storagePersisted && <StorageNote synced={sync !== undefined} />}
               {sync && <OfflineNote sync={sync} />}

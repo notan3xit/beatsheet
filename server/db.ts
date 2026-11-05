@@ -10,7 +10,10 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT NOT NULL UNIQUE,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    name TEXT,
+    initials TEXT,
+    color TEXT
   );
   CREATE TABLE IF NOT EXISTS login_codes (
     email TEXT PRIMARY KEY,
@@ -64,6 +67,9 @@ const SCHEMA = `
 export function openDatabase(path: string): Database {
   const db = new DatabaseSync(path);
   db.exec(SCHEMA);
+  // Ältere Datenbanken: Spalten für Profile ergänzen (member-profiles, design.md D1)
+  const columns = new Set((db.prepare('PRAGMA table_info(users)').all() as { name: string }[]).map((c) => c.name));
+  for (const column of ['name', 'initials', 'color']) if (!columns.has(column)) db.exec(`ALTER TABLE users ADD COLUMN ${column} TEXT`);
   return db;
 }
 

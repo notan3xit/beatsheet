@@ -151,12 +151,22 @@ export const DEFAULT_TEMPO = 120;
 export const MIN_TEMPO = 30;
 export const MAX_TEMPO = 300;
 
+/** Name und Farbe eines Accounts, unter denen ihn andere Mitglieder sehen (member-profiles). */
+export interface MemberProfile {
+  name: string;
+  /** 1–2 Zeichen für die Kreise, aus dem Namen vorbelegt. */
+  initials: string;
+  color: PatternColor;
+}
+
 /** Workbook, wie es der Server liefert; Mitglieder als Mail-Adressen, der Besitzer zuerst. */
 export interface Workbook {
   id: string;
   title: string;
   owner: string;
   members: string[];
+  /** Name und Farbe je Adresse, nur für Mitglieder mit Profil. */
+  profiles?: Record<string, MemberProfile>;
   /** Der eigene Bestand des Accounts; erscheint als „Meine Songs“, nicht als Workbook. */
   personal?: boolean;
 }

@@ -352,6 +352,51 @@ describe('Spec workbooks › Mitglieder-Popover (UI)', () => {
   });
 });
 
+describe('Spec workbooks › Mitglieder mit Profil (UI)', () => {
+  const BEN = 'ben@example.com';
+  const band = () =>
+    workbook('Band', { members: [ME, ANNA, BEN], profiles: { [ME]: { name: 'Artjom', initials: 'AR', color: 'blue' }, [ANNA]: { name: 'Anna Berg', initials: 'AB', color: 'green' } } });
+  const avatars = () => [...membersOf('Band').querySelectorAll<HTMLElement>('.avatar')];
+
+  it('Kürzel in Farbe', () => {
+    setup({ workbooks: [band()] });
+    expect(avatars().map((a) => a.textContent)).toEqual(['AR', 'AB', 'BE']);
+    expect(avatars()[1]).toHaveClass('colored');
+    expect(avatars()[1]!.style.getPropertyValue('--pc')).toBe('var(--ctp-green)');
+    expect(avatars()[2]).not.toHaveClass('colored');
+    expect(membersOf('Band')).toHaveAttribute('title', `Artjom, Anna Berg, ${BEN}`);
+  });
+
+  it('Gespeichertes Kürzel statt Anfangsbuchstaben', () => {
+    setup({ workbooks: [{ ...band(), profiles: { ...band().profiles, [ANNA]: { name: 'Anna Berg', initials: 'A', color: 'green' } } }] });
+    expect(avatars()[1]).toHaveTextContent('A');
+  });
+
+  it('Mitgliederliste', async () => {
+    const { user } = setup({ workbooks: [band()] });
+    await user.click(membersOf('Band'));
+    const list = within(popover('Band')).getByRole('region', { name: 'Mitglieder' });
+    expect(within(list).getByText('Anna Berg')).toBeInTheDocument();
+    expect(list).not.toHaveTextContent(ANNA);
+    expect(within(list).getByRole('button', { name: `${ANNA} entfernen` })).toBeInTheDocument();
+  });
+
+  it('Noch nicht angemeldet', async () => {
+    const { user } = setup({ workbooks: [band()] });
+    await user.click(membersOf('Band'));
+    const ben = within(popover('Band')).getByText(BEN).closest('li')!;
+    expect(ben).toHaveTextContent('noch nicht angemeldet');
+  });
+
+  it('Neuer Name erscheint ohne Neuladen (Spec workbooks › Geänderte Profile erscheinen bei allen)', async () => {
+    const { user, store } = setup({ workbooks: [band()] });
+    await user.click(membersOf('Band'));
+    act(() => store.setWorkbooks([{ ...band(), profiles: { ...band().profiles, [ANNA]: { name: 'Anna B.', initials: 'AB', color: 'green' } } }]));
+    expect(within(popover('Band')).getByText('Anna B.')).toBeInTheDocument();
+    expect(within(popover('Band')).queryByText('Anna Berg')).not.toBeInTheDocument();
+  });
+});
+
 describe('Spec workbooks › Mitglied entfernen und austreten (UI)', () => {
   it('Entfernen nach Bestätigung', async () => {
     const { user, sync } = setup({ workbooks: [workbook('Band')] });

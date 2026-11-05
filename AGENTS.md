@@ -32,11 +32,11 @@ Aufbau unter `src/`:
 - `audio`: Wiedergabe über Web Audio; `player` ist die einzige Stelle mit `AudioContext`
 - `persistence`: Dateiformat, Import nach Revision, IndexedDB mit einem Automerge-Dokument pro Song (`songDoc`: Dokumentform, Brücke vom `Song` ins Dokument, Zusammenführen)
 - `state`: Store mit Songs und Navigation
-- `account`: Client für die Anmeldung am Server, geteilter Anmeldestatus
+- `account`: Client für die Anmeldung und das Profil (Name, Farbe) am Server, geteilter Anmeldestatus
 - `sync`: Abgleich der Songs mit dem Server; angemeldet wandern Songs ohne Zugehörigkeit in den eigenen Bestand
 - `ui`: React-Komponenten
 
-`server/`: HTTP-Server mit Anmeldung per Mail und Einmalcode, Workbooks (je Account eines als eigener Bestand, angezeigt als „Meine Songs“), Song-Abgleich und Ereigniskanal (Server-Sent Events), mit Grenzen für Speicher, Workbooks, Mitglieder und Verbindungen in `server/limits.ts`; Mails als JSON-Dateien in `$MAIL_OUTBOX`, ohne die Variable auf der Konsole.
+`server/`: HTTP-Server mit Anmeldung per Mail und Einmalcode, Profilen der Accounts, Workbooks (je Account eines als eigener Bestand, angezeigt als „Meine Songs“), Song-Abgleich und Ereigniskanal (Server-Sent Events), mit Grenzen für Speicher, Workbooks, Mitglieder und Verbindungen in `server/limits.ts`; Mails als JSON-Dateien in `$MAIL_OUTBOX`, ohne die Variable auf der Konsole.
 
 **Betrieb:** Der Server bedient Oberfläche und API auf einem Port, `GET /api/health` meldet seinen Zustand ohne Anmeldung, und auf `SIGTERM` endet er sofort. Er läuft aus einem nur lesbaren Paket und schreibt nur ins Datenverzeichnis. Das Paket entsteht nach `npm ci`, `npm run build` und `npm prune --omit=dev` aus `package.json`, `dist`, `server`, `src/domain`, `src/persistence` und `node_modules`.
 

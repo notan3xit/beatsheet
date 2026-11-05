@@ -3,6 +3,7 @@ import { endSession, requestCode, SESSION_TTL, sessionEmail, verifyCode, type Au
 import { createEvents } from './events.ts';
 import { HttpError } from './http.ts';
 import { createQuota, DEFAULT_LIMITS, type Limits } from './limits.ts';
+import { parseProfile, profileOf, saveProfile } from './profile.ts';
 import { serveStatic } from './static.ts';
 import { handleWorkbookRequest } from './workbooks.ts';
 
@@ -94,6 +95,13 @@ export function createApp(deps: AppDeps): RequestListener {
     if (route === 'GET /api/auth/session') {
       const email = sessionEmail(deps, tokenOf(request));
       return email ? send(response, 200, { email }) : send(response, 401, { error: 'unauthenticated' });
+    }
+    if (route === 'GET /api/auth/profile' || route === 'PUT /api/auth/profile') {
+      const email = sessionEmail(deps, tokenOf(request));
+      if (!email) return send(response, 401, { error: 'unauthenticated' });
+      if (request.method === 'GET') return send(response, 200, { profile: profileOf(deps.db, email) });
+      const profile = parseProfile(await readJson(request));
+      return send(response, 200, { profile: saveProfile({ db: deps.db, events }, email, profile) });
     }
     if (route === 'POST /api/auth/logout') {
       await readJson(request);

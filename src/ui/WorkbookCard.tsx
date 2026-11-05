@@ -7,6 +7,7 @@ import { useReport } from './messages';
 import { useDropTarget } from './dragSong';
 import { SongTiles } from './SongTile';
 import { useDismiss } from './useDismiss';
+import { MemberAvatar } from './MemberAvatar';
 import { useStore } from './useLibrary';
 import { useEmail, syncMessage } from './useWorkbooks';
 
@@ -71,8 +72,17 @@ function MembersPopover({ workbook, sync }: { workbook: Workbook; sync: Workbook
         <ul className="member-list">
           {workbook.members.map((member) => (
             <li key={member}>
-              <span>
-                {member}
+              <span className="member-name">
+                <MemberAvatar email={member} profile={workbook.profiles?.[member]} />
+                {workbook.profiles?.[member] ? (
+                  labelOf(workbook, member)
+                ) : (
+                  <span className="member-pending">
+                    {member}
+                    {/* Der Besitzer hat ein Konto, auch wenn sein Profil noch fehlt */}
+                    {member !== workbook.owner && <small>noch nicht angemeldet</small>}
+                  </span>
+                )}
                 {member === workbook.owner && ' (Besitzer)'}
               </span>
               {isOwner && member !== workbook.owner && (
@@ -115,11 +125,7 @@ function MembersPopover({ workbook, sync }: { workbook: Workbook; sync: Workbook
   );
 }
 
-/** Kürzel einer Mail-Adresse: Anfangsbuchstaben der Teile vor dem @. */
-export function initials(email: string): string {
-  const parts = email.split('@')[0]!.split(/[._-]+/).filter(Boolean);
-  return (parts.length > 1 ? parts[0]![0]! + parts[1]![0]! : (parts[0] ?? email).slice(0, 2)).toUpperCase();
-}
+const labelOf = (workbook: Workbook, member: string) => workbook.profiles?.[member]?.name ?? member;
 
 /** Das gewählte Workbook neben der Seitenleiste (song-overview-tiles, design.md D4). */
 export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; songs: readonly Song[]; sync: WorkbookActions }) {
@@ -164,14 +170,12 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
             type="button"
             className="avatars"
             aria-label="Mitglieder"
-            title={workbook.members.join(', ')}
+            title={workbook.members.map((member) => labelOf(workbook, member)).join(', ')}
             aria-expanded={membersOpen}
             onClick={() => setMembersOpen((open) => !open)}
           >
             {workbook.members.slice(0, 4).map((member) => (
-              <span key={member} className="avatar" aria-hidden="true">
-                {initials(member)}
-              </span>
+              <MemberAvatar key={member} email={member} profile={workbook.profiles?.[member]} />
             ))}
             {workbook.members.length > 4 && (
               <span className="avatar" aria-hidden="true">

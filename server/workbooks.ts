@@ -3,6 +3,7 @@ import { HOUR, mailsLastHour, normalizeEmail, TOTAL_PER_HOUR, type AuthDeps } fr
 import type { Database } from './db.ts';
 import type { Events } from './events.ts';
 import { HttpError, type Reply } from './http.ts';
+import { profileOf } from './profile.ts';
 import type { Limits, Quota } from './limits.ts';
 import { addSong, deleteSong, moveSong, syncSongs } from './songs.ts';
 
@@ -50,13 +51,26 @@ export const membersOf = (db: Database, id: string, owner: string) => {
 
 const isPersonal = (db: Database, id: string) => db.prepare('SELECT 1 FROM personal_workbooks WHERE workbook_id = ?').get(id) !== undefined;
 
-const present = (db: Database, row: WorkbookRow) => ({
-  id: row.id,
-  title: row.title,
-  owner: row.owner,
-  members: membersOf(db, row.id, row.owner),
-  ...(isPersonal(db, row.id) ? { personal: true } : {}),
-});
+/** Profile der Mitglieder, die eines haben; nur Mitglieder sehen das Workbook (member-profiles, design.md D3). */
+function profilesOf(db: Database, members: readonly string[]) {
+  const entries = members.flatMap((email) => {
+    const profile = profileOf(db, email);
+    return profile ? [[email, profile] as const] : [];
+  });
+  return entries.length > 0 ? { profiles: Object.fromEntries(entries) } : {};
+}
+
+const present = (db: Database, row: WorkbookRow) => {
+  const members = membersOf(db, row.id, row.owner);
+  return {
+    id: row.id,
+    title: row.title,
+    owner: row.owner,
+    members,
+    ...profilesOf(db, members),
+    ...(isPersonal(db, row.id) ? { personal: true } : {}),
+  };
+};
 
 /** Der eigene Bestand eines Accounts, beim ersten Abruf angelegt (account-songs, design.md D1). */
 function ensurePersonal(deps: WorkbookDeps, email: string) {
@@ -128,12 +142,15 @@ async function invite(deps: WorkbookDeps, row: WorkbookRow, rawEmail: unknown): 
 
   db.prepare('INSERT INTO invitations (owner, at) VALUES (?, ?)').run(row.owner, now);
   db.prepare('INSERT INTO members (workbook_id, email, added_at) VALUES (?, ?, ?)').run(row.id, email, now);
+  // Mit Profil nennt die Mail Name und Adresse des Besitzers (design.md D7)
+  const ownerProfile = profileOf(db, row.owner);
+  const sender = ownerProfile ? `${ownerProfile.name} (${row.owner})` : row.owner;
   try {
     await deps.mail.send({
       to: email,
-      subject: `${row.owner} hat dich zu „${row.title}“ eingeladen`,
+      subject: `${sender} hat dich zu „${row.title}“ eingeladen`,
       text:
-        `${row.owner} hat dich zum Workbook „${row.title}“ in beatsheet eingeladen.\n\n` +
+        `${sender} hat dich zum Workbook „${row.title}“ in beatsheet eingeladen.\n\n` +
         `Melde dich mit dieser Adresse an, dann erscheint es auf deiner Startseite${deps.appUrl ? `: ${deps.appUrl}` : '.'}\n`,
     });
   } catch (error) {

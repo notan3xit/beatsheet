@@ -2,7 +2,9 @@ import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore }
 import type { AccountError } from '../account/api';
 import type { AccountSession } from '../account/session';
 import { useConfirm } from './ConfirmDialog';
+import type { MemberProfile } from '../domain/types';
 import { PersonIcon } from './icons';
+import { MemberAvatar } from './MemberAvatar';
 import { useReport } from './messages';
 import { useDismiss, useEscape } from './useDismiss';
 import { useSync } from './useWorkbooks';
@@ -53,12 +55,18 @@ export function AccountMenu({
   onOpenChange,
   logout,
   loggingOut,
+  onEditProfile,
+  profile,
 }: {
   session: AccountSession;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   logout: () => Promise<void>;
   loggingOut: boolean;
+  /** Öffnet den Dialog „Profil“; fehlt, solange das Profil unbekannt ist. */
+  onEditProfile?: () => void;
+  /** Eigenes Profil; ohne bekanntes Profil zeigt das Symbol die Silhouette (design.md D8). */
+  profile?: MemberProfile | null;
 }) {
   const { api } = session;
   const email = useSyncExternalStore(session.subscribe, session.getEmail);
@@ -126,12 +134,26 @@ export function AccountMenu({
         title={email ?? 'Anmelden'}
         onClick={() => onOpenChange(!open)}
       >
-        <PersonIcon filled={email !== null} />
+        {email && profile ? <MemberAvatar email={email} profile={profile} /> : <PersonIcon filled={email !== null} />}
       </button>
       {open && email && (
         <div className="account-form">
-          <span className="account-email">{email}</span>
+          <div className="account-identity">
+            {profile && <strong className="account-name">{profile.name}</strong>}
+            <span className="account-email">{email}</span>
+          </div>
           <div className="dialog-actions">
+            {onEditProfile && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenChange(false);
+                  onEditProfile();
+                }}
+              >
+                Profil bearbeiten
+              </button>
+            )}
             <button
               type="button"
               disabled={loggingOut}
@@ -146,7 +168,7 @@ export function AccountMenu({
         </div>
       )}
       {open && !email && (
-        <div className="backdrop">
+        <div className="backdrop anchored">
           <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="dialog login-dialog">
             <h2 id={titleId}>Anmelden</h2>
             <form
