@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import type { AccountError } from '../account/api';
 import type { AccountSession } from '../account/session';
 import { useConfirm } from './ConfirmDialog';
 import { PersonIcon } from './icons';
 import { useReport } from './messages';
-import { useDismiss } from './useDismiss';
+import { useDismiss, useEscape } from './useDismiss';
 import { useSync } from './useWorkbooks';
 
 const MESSAGES: Record<AccountError, string> = {
@@ -71,7 +71,10 @@ export function AccountMenu({
   const codeId = useId();
   const titleId = useId();
   const area = useRef<HTMLDivElement>(null);
-  useDismiss(open && email !== null, area, useCallback(() => onOpenChange(false), [onOpenChange]));
+  const field = useRef<HTMLInputElement>(null);
+  const close = useCallback(() => onOpenChange(false), [onOpenChange]);
+  useDismiss(open && email !== null, area, close);
+  useEscape(open && email === null, close);
 
   useEffect(() => {
     void session.refresh();
@@ -84,6 +87,8 @@ export function AccountMenu({
       await action();
     } finally {
       setBusy(false);
+      // Ein geklickter Knopf ist währenddessen deaktiviert und verliert den Fokus
+      field.current?.focus();
     }
   };
 
@@ -101,10 +106,6 @@ export function AccountMenu({
       setCode('');
       setStep({ kind: 'code', email: address, resent: step.kind === 'code' });
     });
-
-  const onDialogKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') onOpenChange(false);
-  };
 
   const verify = (address: string) =>
     run(async () => {
@@ -146,7 +147,7 @@ export function AccountMenu({
       )}
       {open && !email && (
         <div className="backdrop">
-          <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="dialog login-dialog" tabIndex={-1} onKeyDown={onDialogKeyDown}>
+          <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="dialog login-dialog">
             <h2 id={titleId}>Anmelden</h2>
             <form
               aria-label="Anmelden"
@@ -160,12 +161,13 @@ export function AccountMenu({
               {step.kind === 'email' ? (
                 <label key="email" className="field" htmlFor={emailId}>
                   Mail-Adresse
-                  <input id={emailId} type="email" autoComplete="email" value={input} onChange={(e) => setInput(e.target.value)} autoFocus />
+                  <input ref={field} id={emailId} type="email" autoComplete="email" value={input} onChange={(e) => setInput(e.target.value)} autoFocus />
                 </label>
               ) : (
                 <label key="code" className="field" htmlFor={codeId}>
                   Code
                   <input
+                    ref={field}
                     id={codeId}
                     inputMode="numeric"
                     autoComplete="one-time-code"

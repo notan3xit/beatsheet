@@ -1,6 +1,7 @@
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useId, useState } from 'react';
 import type { Song } from '../domain/types';
 import type { ExistingEntry, ImportEntry } from '../persistence/merge';
+import { useEscape } from './useDismiss';
 
 interface Props {
   plan: ImportEntry[];
@@ -43,13 +44,11 @@ export function ImportDialog({ plan: initial, fromNewerVersion, workbookTitleOf,
   const chooseAll = (choice: ExistingEntry['choice']) =>
     setPlan((current) => current.map((e) => (e.kind === 'existing' ? { ...e, choice } : e)));
 
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') onCancel();
-  };
+  useEscape(true, onCancel);
 
   return (
     <div className="backdrop">
-      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="dialog import-dialog" onKeyDown={onKeyDown}>
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="dialog import-dialog">
         <h2 id={titleId}>Songs importieren</h2>
         {fromNewerVersion && (
           <p className="import-warning">

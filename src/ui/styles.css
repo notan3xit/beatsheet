@@ -304,7 +304,6 @@ input {
 /* Anmeldedialog: Blöcke statt flex mit gap, damit eingefügte Elemente (Passwortmanager) keinen Abstand bekommen */
 .login-dialog {
   width: min(23rem, calc(100vw - 2rem));
-  outline: none;
 }
 
 .login-dialog h2 {

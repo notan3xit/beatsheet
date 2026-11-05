@@ -256,6 +256,16 @@ describe('Spec account-auth › Anmeldeformular schließen', () => {
     expect(form()).toHaveTextContent('ich@example.com');
   });
 
+  it('Escape ohne Fokus im Dialog', async () => {
+    const { user } = setup();
+    await user.click(anmelden());
+    await user.click(backdrop());
+    (document.activeElement as HTMLElement).blur();
+    expect(document.body).toHaveFocus();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('form', { name: 'Anmelden' })).not.toBeInTheDocument();
+  });
+
   it('Escape im Schritt der Mail-Adresse', async () => {
     const { user } = setup();
     await user.click(anmelden());
@@ -285,6 +295,26 @@ describe('Spec account-auth › Stabile Anordnung im Anmeldedialog', () => {
     await user.click(within(form()).getByRole('button', { name: 'Code senden' }));
     expect(order()).toEqual(before);
     expect(within(message() as HTMLElement).getByRole('status')).toHaveTextContent('ich@example.com');
+  });
+
+  it('Fokus nach einer Antwort des Servers: abgelehnter Code', async () => {
+    const { user } = setup(fakeAccount({ verify: vi.fn(async () => fail('wrong-code')) }));
+    await requestCodeFor(user, 'ich@example.com');
+    await enterCode(user, '999999');
+    expect(within(form()).getByLabelText('Code')).toHaveFocus();
+  });
+
+  it('Fokus nach einer Antwort des Servers: abgelehnte Adresse', async () => {
+    const { user } = setup(fakeAccount({ requestCode: vi.fn(async () => fail('invalid-email')) }));
+    await requestCodeFor(user, 'keine-adresse');
+    expect(within(form()).getByLabelText('Mail-Adresse')).toHaveFocus();
+  });
+
+  it('Fokus nach einer Antwort des Servers: Neu senden', async () => {
+    const { user } = setup();
+    await requestCodeFor(user, 'ich@example.com');
+    await user.click(within(form()).getByRole('button', { name: 'Neu senden' }));
+    expect(within(form()).getByLabelText('Code')).toHaveFocus();
   });
 
   it('Fehler ersetzt den Hinweis', async () => {

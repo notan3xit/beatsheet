@@ -251,6 +251,10 @@ Im Import-Dialog MUST der Nutzer für jeden neuen Song „Hinzufügen“ oder �
 - **WHEN** die Datei drei vorhandene Songs enthält und der Nutzer „Alle als Kopie“ wählt
 - **THEN** ist für alle drei Songs „Als Kopie“ gewählt
 
+#### Scenario: Escape im Import-Dialog
+- **WHEN** der Nutzer im Import-Dialog Escape drückt, gleich wo der Fokus liegt
+- **THEN** schließt sich der Dialog und nichts wird übernommen
+
 #### Scenario: Import abbrechen
 - **WHEN** der Nutzer im Import-Dialog „Abbrechen“ wählt
 - **THEN** bleiben die Songs unverändert und es wird kein Song hinzugefügt

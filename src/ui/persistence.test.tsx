@@ -140,6 +140,15 @@ describe('Spec library-persistence › Import aus einer neueren Version (UI)', (
 });
 
 describe('Spec library-persistence › Auswahl im Import-Dialog (UI)', () => {
+  it('Escape bricht ab, auch ohne Fokus im Dialog', async () => {
+    const { store, user } = setup([songWith({ title: 'Lokal' })]);
+    await openImport(user, serializeNotebook([songWith({ title: 'Neu' })], new Date()));
+    (document.activeElement as HTMLElement).blur();
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Songs importieren' })).not.toBeInTheDocument();
+    expect(store.getState().songs.map((s) => s.title)).toEqual(['Lokal']);
+  });
+
   it('Neuen Song überspringen', async () => {
     const { store, user } = setup();
     const dialog = await openImport(user, exportOf([songWith({ title: 'A' }), songWith({ title: 'B' })]));

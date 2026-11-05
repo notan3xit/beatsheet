@@ -126,6 +126,11 @@ Escape MUST das Anmeldeformular schließen und seinen Schritt behalten. „Abbre
 - **WHEN** der Nutzer Escape drückt und danach das Konto-Symbol wählt
 - **THEN** fragt die App weiterhin nach dem Code für ich@example.com
 
+#### Scenario: Escape ohne Fokus im Dialog
+- **GIVEN** das Anmeldeformular ist offen und der Fokus liegt nicht im Dialog, etwa nach einem Klick auf den Hintergrund
+- **WHEN** der Nutzer Escape drückt
+- **THEN** schließt sich das Formular
+
 #### Scenario: Escape im Schritt der Mail-Adresse
 - **GIVEN** das Anmeldeformular fragt nach der Mail-Adresse
 - **WHEN** der Nutzer Escape drückt
@@ -150,6 +155,10 @@ Der Anmeldedialog MUST in allen Schritten und mit allen Meldungen dieselbe Grö�
 - **WHEN** der Nutzer einen falschen Code eingibt
 - **THEN** steht die Fehlermeldung anstelle des Hinweises unter dem Eingabefeld
 - **AND** Feld und Knöpfe behalten ihre Stelle
+
+#### Scenario: Fokus nach einer Antwort des Servers
+- **WHEN** eine Code-Anforderung oder Anmeldung abgelehnt wird oder „Neu senden“ gelingt
+- **THEN** liegt der Fokus im Eingabefeld
 
 #### Scenario: Eingefügtes Element
 - **GIVEN** das Anmeldeformular ist offen
