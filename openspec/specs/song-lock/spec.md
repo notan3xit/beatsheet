@@ -181,7 +181,7 @@ Der Pattern-Editor eines gesperrten Songs MUST Name, Typ, Länge, Tempo, Sequenc
 - **THEN** hebt der Sequencer die gerade erklingende Position hervor
 
 ### Requirement: Gleiche Anordnung beim Entsperren
-Ein Wert MUST gesperrt und entsperrt denselben Text und denselben Platz haben, entsperrt nur als Bedienelement. Das MUST für Songtitel, Song-Tempo, Patternname, Länge und die Unterteilung der Beats gelten. Das Schloss MUST beim Wechsel des Zustands an seiner Stelle bleiben, solange die Kopfzeile nicht umbricht.
+Ein Wert MUST gesperrt und entsperrt denselben Text und denselben Platz haben, entsperrt nur als Bedienelement. Das MUST für Songtitel, Song-Tempo, Patternname, Länge und die Unterteilung der Beats gelten. Das Schloss MUST beim Wechsel des Zustands an seiner Stelle bleiben, solange die Kopfzeile nicht umbricht. Die Kopfzeile MUST dabei gleich hoch bleiben.
 
 #### Scenario: Länge
 - **WHEN** der Nutzer einen Groove mit 4 Beats gesperrt ansieht und den Song entsperrt
@@ -198,6 +198,10 @@ Ein Wert MUST gesperrt und entsperrt denselben Text und denselben Platz haben, e
 #### Scenario: Unterteilung
 - **WHEN** Beat 1 in Sechzehnteln steht und der Nutzer den Pattern-Editor gesperrt ansieht und den Song entsperrt
 - **THEN** zeigt Beat 1 zuerst „16tel“ als Text und danach eine Auswahlliste mit dem Wert „16tel“
+
+#### Scenario: Höhe der Kopfzeile
+- **WHEN** der Nutzer den Song auf der Doppelseite oder im Pattern-Editor entsperrt oder sperrt
+- **THEN** bleibt die Kopfzeile gleich hoch, weil die dabei erscheinenden Knöpfe nicht höher sind als die Abspiel-Taste
 
 ### Requirement: Fremde Änderungen im gesperrten Song
 Änderungen, die während der Sperre über den Abgleich eintreffen, MUST im gesperrten Song erscheinen. Der Sperrzustand MUST dabei erhalten bleiben.

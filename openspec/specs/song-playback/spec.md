@@ -114,7 +114,7 @@ Verlässt der Nutzer die Doppelseite, etwa zur Song-Liste oder in den Pattern-Ed
 
 #### Scenario: Pattern öffnen während der Wiedergabe
 - **WHEN** der Song läuft und der Nutzer auf der Patternseite den Groove „Verse“ öffnet
-- **THEN** erklingt kein weiterer Schlag und der Pattern-Editor zeigt „Abspielen“
+- **THEN** erklingt kein weiterer Schlag und der Pattern-Editor zeigt „In Schleife abspielen“
 
 ### Requirement: Song-Wiedergabe ohne Audio
 Kann der Browser kein Audio erzeugen, MUST „Song abspielen“ deaktiviert sein und ein Hinweis erklären, dass die Wiedergabe in diesem Browser nicht möglich ist. Die Popover-Aktionen zum Abspielen MUST dann ebenfalls deaktiviert sein.
