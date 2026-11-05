@@ -39,7 +39,7 @@ Alternative: eine zweite Kopie von `soundSetting`. Verworfen: gleiche Fehlerbeha
 
 ### D4: Menüabschnitt
 
-`SoundChoice` und der neue Abschnitt teilen sich `MenuChoice` in `AppMenu.tsx`: Gruppe mit `role="group"` und Überschrift, Einträge `role="menuitemradio"` mit `aria-checked` und Haken, Wählen schließt das Menü. Hinweis und Namensnennung von „Klang“ bleiben dort als Zusatz unter der Gruppe. Neuer Abschnitt zwischen Konto-Eintrag und „Klang“, je durch ein `<hr>` getrennt: Überschrift „Farbschema“, Einträge „Wie System“, „Hell“, „Dunkel“. Die vorhandenen Klassen `app-menu-heading` und `app-menu-check` werden genutzt, `app-menu-sound` wird zu `app-menu-choice`.
+`SoundChoice` und der neue Abschnitt teilen sich `MenuChoice` in `AppMenu.tsx`: Gruppe mit `role="group"` und Überschrift, Einträge `role="menuitemradio"` mit `aria-checked` und Haken, Wählen schließt das Menü. Der Hinweis „auf diesem Gerät nicht verfügbar“ ist ein optionaler Zusatz einer Option, die Namensnennung von „Klang“ steht als zusätzlicher Inhalt in der Gruppe. Neuer Abschnitt zwischen Konto-Eintrag und „Klang“, je durch ein `<hr>` getrennt: Überschrift „Farbschema“, Einträge „Wie System“, „Hell“, „Dunkel“. Die vorhandenen Klassen `app-menu-heading` und `app-menu-check` werden genutzt, `app-menu-sound` wird zu `app-menu-choice`.
 
 ### D5: Tests
 

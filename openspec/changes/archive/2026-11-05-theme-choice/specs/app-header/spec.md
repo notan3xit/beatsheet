@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Menü
-Links in der Kopfzeile MUST ein Knopf mit Hamburger-Symbol und ohne Text ein Menü öffnen. Das Menü MUST die Einträge „Exportieren“ und „Importieren“ enthalten, dazu abgemeldet „Anmelden“ und angemeldet „Abmelden“, jeweils mit Symbol und Text. Ein Trennstrich MUST „Exportieren“ und „Importieren“ vom Eintrag zum Konto trennen. Unter dem Eintrag zum Konto MUST nach einem weiteren Trennstrich der Abschnitt „Farbschema“ folgen (siehe `color-theme`), darunter nach einem weiteren Trennstrich der Abschnitt „Klang“ (siehe `playback-sound`).
+Links in der Kopfzeile MUST ein Knopf mit Hamburger-Symbol und ohne Text ein Menü öffnen. Das Menü MUST die Einträge „Exportieren“ und „Importieren“ enthalten, dazu abgemeldet „Anmelden“ und angemeldet „Abmelden“, jeweils mit Symbol und Text. Ein Trennstrich MUST „Exportieren“ und „Importieren“ vom Eintrag zum Konto trennen. Unter dem Eintrag zum Konto MUST nach je einem weiteren Trennstrich der Abschnitt „Farbschema“ (siehe `color-theme`) und dann „Klang“ (siehe `playback-sound`) folgen.
 
 #### Scenario: Menü abgemeldet
 - **GIVEN** der Nutzer ist nicht angemeldet
