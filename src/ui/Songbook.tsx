@@ -4,6 +4,7 @@ import { Breadcrumbs } from './Breadcrumbs';
 import { useConfirm } from './ConfirmDialog';
 import { DragProvider } from './dragPattern';
 import { EditableHeading } from './EditableHeading';
+import { LockToggle, useLockGuard } from './lock';
 import { useReport } from './messages';
 import { PatternPage } from './PatternPage';
 import { StructurePage } from './StructurePage';
@@ -22,6 +23,7 @@ function SongTransport() {
       <button
         type="button"
         className="primary play"
+        data-read-safe=""
         disabled={!playback.available || (!playback.playing && !first)}
         onClick={() => (playback.playing ? playback.stop() : first && playback.start({ from: first.id, to: 'end' }, false))}
       >
@@ -37,7 +39,7 @@ function SongHeader() {
   const song = useOpenSong();
   const confirm = useConfirm();
   const sync = useSync();
-  const { placement, workbooks } = useNotebook();
+  const { placement, workbooks, locked } = useNotebook();
   const report = useReport();
   const workbook = workbooks.find((w) => w.id === placement[song.id]);
 
@@ -53,12 +55,15 @@ function SongHeader() {
     <header className="page-header songbook-header">
       <Breadcrumbs />
       <div className="page-title">
-        <EditableHeading key={song.id} label="Songtitel" value={song.title} onCommit={(draft) => store.renameSong(song.id, draft)} />
+        <EditableHeading key={song.id} label="Songtitel" value={song.title} readOnly={locked} onCommit={(draft) => store.renameSong(song.id, draft)} />
         <TempoMark />
         <SongTransport />
-        <button type="button" className="danger" onClick={() => void remove()}>
-          Song löschen
-        </button>
+        {!locked && (
+          <button type="button" className="danger" onClick={() => void remove()}>
+            Song löschen
+          </button>
+        )}
+        <LockToggle />
       </div>
     </header>
   );
@@ -69,8 +74,9 @@ export function Songbook() {
   const player = usePlayer();
   // Wer die Doppelseite verlässt, beendet die Song-Wiedergabe (song-playback, design.md D3)
   useEffect(() => () => player.stop(), [player]);
+  const guard = useLockGuard();
   return (
-    <main className="songbook" aria-label="Song">
+    <main className="songbook" aria-label="Song" {...guard}>
       <SongHeader />
       <DragProvider>
         <div className="pages">

@@ -11,6 +11,7 @@ function setup(songs: Song[], open?: { song: number; pattern?: number }) {
   const store = createNotebookStore(songs);
   if (open) {
     store.openSong(songs[open.song]!.id);
+    store.setLocked(false);
     if (open.pattern !== undefined) store.openPattern(songs[open.song]!.patterns[open.pattern]!.id);
   }
   const user = userEvent.setup();

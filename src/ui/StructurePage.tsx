@@ -8,7 +8,7 @@ import { patternStyle } from './patternStyle';
 import { PlayheadLine, useSongPlayback } from './playback';
 import { BarPopover, Popover, POPOVER_BEATS, SegmentPopover } from './StructurePopovers';
 import { openSongOf } from '../state/notebookStore';
-import { useOpenSong, useStore } from './useLibrary';
+import { useNotebook, useOpenSong, useStore } from './useLibrary';
 import { useStructureSelection, type StructureSelection } from './useStructureSelection';
 
 /** Position und Breite in Beats als CSS (Einheit --beat). */
@@ -122,6 +122,7 @@ interface Selection {
   dropTargets: ReadonlySet<string>;
   /** Takt, den die Song-Wiedergabe gerade spielt. */
   playingBarId: string | null;
+  locked: boolean;
 }
 
 /** Was die Maus gerade überfährt (design.md D1); Touch und Stift erzeugen keinen Hover. */
@@ -228,6 +229,7 @@ function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
             selection.playingBarId === bar.barId ? ' playing' : ''
           }`}
           data-bar-id={bar.barId}
+          data-read-safe=""
           style={place(bar.x, bar.width)}
           aria-label={`Takt ${bar.index + 1}`}
           aria-pressed={barSelected(selection.current, bar.barId)}
@@ -244,7 +246,7 @@ function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
         .map((bar) => (
           <PlayheadLine key={bar.barId} barId={bar.barId} x={bar.x} width={bar.width} />
         ))}
-      {hover.rowKey === key && <BarInsertButtons row={row} />}
+      {!selection.locked && hover.rowKey === key && <BarInsertButtons row={row} />}
       {selection.barPopover(row)}
     </div>
   );
@@ -275,6 +277,7 @@ function SegmentView({ segment, selection }: { segment: SegmentLayout; selection
           <button
             type="button"
             className="segment-select"
+            data-read-safe=""
             aria-pressed={selected}
             onClick={() => selection.selectSegment(segment.segmentId)}
           >
@@ -292,7 +295,7 @@ function SegmentView({ segment, selection }: { segment: SegmentLayout; selection
       ))}
       {/* Nur beim Überfahren im DOM, damit die Leseansicht ohne Hover frei von Knöpfen bleibt */}
       <div className="insert-strips">
-        {hovered && (
+        {hovered && !selection.locked && (
           <>
             <button
               type="button"
@@ -354,6 +357,7 @@ function useDismiss(active: boolean, inside: React.RefObject<HTMLElement | null>
 export function StructurePage() {
   const store = useStore();
   const song = useOpenSong();
+  const { locked } = useNotebook();
   const layout = layoutStructure(song);
   const { selection, selectBar, selectSegment, clear } = useStructureSelection(song);
   const [hover, setHover] = useState<Hover>({ segmentId: null, rowKey: null });
@@ -385,7 +389,7 @@ export function StructurePage() {
 
   return (
     <section ref={page} className="page structure-page" aria-label="Struktur" onPointerDown={onPagePointerDown}>
-      {layout.length === 0 && (
+      {!locked && layout.length === 0 && (
         <button
           type="button"
           className="primary"
@@ -402,7 +406,7 @@ export function StructurePage() {
         <SegmentView
           key={segment.segmentId}
           segment={segment}
-          selection={{ current: selection, selectBar, selectSegment, barPopover, hover, setHover, dropTargets, playingBarId }}
+          selection={{ current: selection, selectBar, selectSegment, barPopover, hover, setHover, dropTargets, playingBarId, locked }}
         />
       ))}
     </section>

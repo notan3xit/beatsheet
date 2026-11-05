@@ -10,15 +10,25 @@ export function EditableHeading({
   value,
   onCommit,
   level = 2,
+  readOnly = false,
 }: {
   label: string;
   value: string;
   onCommit: (draft: string) => void;
   level?: 2 | 3;
+  readOnly?: boolean;
 }) {
   const Heading = level === 3 ? 'h3' : 'h2';
   const [draft, setDraft] = useState<string | null>(null);
   const discard = useRef(false);
+
+  if (readOnly) {
+    return (
+      <Heading className="editable-heading">
+        <span className="heading-text">{value}</span>
+      </Heading>
+    );
+  }
 
   if (draft === null) {
     return (

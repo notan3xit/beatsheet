@@ -8,6 +8,7 @@ import { AccountMenu } from './AccountMenu';
 import { ConfirmProvider } from './ConfirmDialog';
 import { HitTestContext, type HitTest } from './dragPattern';
 import { LibraryFileActions } from './LibraryFileActions';
+import { useLockGuard } from './lock';
 import { MessageRow, MessagesProvider, ReportedMessages } from './messages';
 import { PatternEditor } from './PatternEditor';
 import { PlayerContext } from './playback';
@@ -18,8 +19,9 @@ import { SessionContext, SyncContext, useEmail } from './useWorkbooks';
 
 function OpenPattern({ patternId }: { patternId: string }) {
   const pattern = useOpenSong().patterns.find((p) => p.id === patternId);
+  const guard = useLockGuard();
   return pattern ? (
-    <main className="workspace" aria-label="Pattern">
+    <main className="workspace" aria-label="Pattern" {...guard}>
       <PatternEditor pattern={pattern} />
     </main>
   ) : null;

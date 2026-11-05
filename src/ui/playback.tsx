@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
 import type { Player } from '../audio/player';
 import { patternTimeline, setTempo, songTimeline, type SongRange, type Step } from '../domain/playback';
-import { DEFAULT_TEMPO, MAX_TEMPO, MIN_TEMPO, type Pattern } from '../domain/types';
+import { DEFAULT_TEMPO, type Pattern } from '../domain/types';
 import { openSongOf } from '../state/notebookStore';
 import { useOpenSong, useStore } from './useLibrary';
 
@@ -110,7 +110,6 @@ export function useSongTempo() {
   const song = useOpenSong();
   return {
     tempo: song.tempo,
-    title: song.title,
     commit(bpm: number): number {
       store.updateSong((s) => setTempo(s, bpm));
       return openSongOf(store.getState())!.tempo;
@@ -121,45 +120,13 @@ export function useSongTempo() {
 /** Eingabe als Tempo lesen; leer zählt als ungültig. */
 export const parseTempo = (draft: string) => (draft.trim() === '' ? Number.NaN : Number(draft));
 
-/** Zahlenfeld, das erst beim Verlassen (oder Enter) übernimmt und danach den gespeicherten Wert zeigt. */
-function TempoField({ tempo, title, onCommit }: { tempo: number; title: string; onCommit: (bpm: number) => number }) {
-  const [draft, setDraft] = useState(String(tempo));
-  const hintId = useId();
-  useEffect(() => setDraft(String(tempo)), [tempo]);
-  return (
-    <div className="tempo-field">
-      <label className="field">
-        Song-Tempo (BPM)
-        <input
-          aria-describedby={hintId}
-          type="number"
-          inputMode="numeric"
-          min={MIN_TEMPO}
-          max={MAX_TEMPO}
-          step={1}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={() => setDraft(String(onCommit(parseTempo(draft))))}
-          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-        />
-      </label>
-      {/* Das Tempo gehört zum Song, nicht zum Pattern (design.md D3) */}
-      <span id={hintId} className="hint tempo-hint">
-        gilt für alle Patterns von „{title}“
-      </span>
-    </div>
-  );
-}
-
-/** Abspiel-Taste und Tempo im Kopf des Pattern-Editors. */
+/** Abspiel-Taste im Kopf des Pattern-Editors. */
 export function Transport({ playback }: { playback: ReturnType<typeof usePlayback> }) {
-  const { tempo, title, commit } = useSongTempo();
   return (
     <div className="transport">
-      <button type="button" className="primary play" disabled={!playback.available} onClick={playback.toggle}>
+      <button type="button" className="primary play" data-read-safe="" disabled={!playback.available} onClick={playback.toggle}>
         {playback.playing ? 'Stopp' : 'Abspielen'}
       </button>
-      <TempoField tempo={tempo} title={title} onCommit={commit} />
       {!playback.available && <NoAudioNote />}
     </div>
   );

@@ -9,13 +9,13 @@ export function Breadcrumbs() {
     <nav aria-label="Pfad" className="breadcrumbs">
       <ol>
         <li>
-          <button type="button" onClick={() => store.backToList()}>
+          <button type="button" data-read-safe="" onClick={() => store.backToList()}>
             Songs
           </button>
         </li>
         {view.kind === 'pattern' && (
           <li>
-            <button type="button" onClick={() => store.backToBook()}>
+            <button type="button" data-read-safe="" onClick={() => store.backToBook()}>
               {song.title}
             </button>
           </li>

@@ -61,7 +61,15 @@ function setup({ available = true } = {}) {
 }
 
 const playButton = () => screen.getByRole('button', { name: /^(Abspielen|Stopp)$/ });
-const tempoField = () => screen.getByLabelText('Song-Tempo (BPM)') as HTMLInputElement;
+const tempoMark = (bpm: number) => screen.getByRole('button', { name: `Song-Tempo: ${bpm} BPM` });
+const tempoNote = () => document.querySelector('.tempo-field') as HTMLElement;
+/** Klickt die Tempoangabe an und tippt einen Wert ins Zahlenfeld. */
+async function typeTempo(user: ReturnType<typeof userEvent.setup>, from: number, keys: string) {
+  await user.click(tempoMark(from));
+  const field = screen.getByLabelText('Song-Tempo (BPM)');
+  await user.clear(field);
+  await user.type(field, keys);
+}
 const cell = (instrument: string, beat: number, position: number) =>
   screen.getByRole('button', { name: new RegExp(`^${instrument}, Beat ${beat}, Position ${position}`) });
 const highlighted = () => Array.from(document.querySelectorAll('.step.playing')).map((el) => el.getAttribute('aria-label'));
@@ -138,25 +146,32 @@ describe('Spec pattern-playback › Wiedergabe endet beim Verlassen (UI)', () =>
 describe('Spec pattern-playback › Tempo im Pattern-Editor', () => {
   it('Tempo ändern gilt für alle Patterns des Songs', async () => {
     const { user, store, patternsNow, currentSong } = setup();
-    expect(tempoField().value).toBe('120');
-    await user.clear(tempoField());
-    await user.type(tempoField(), '90{Enter}');
+    expect(tempoNote()).toHaveTextContent('♩ = 120 (Song-Tempo)');
+    await typeTempo(user, 120, '90{Enter}');
     expect(currentSong().tempo).toBe(90);
-    expect(tempoField().value).toBe('90');
+    expect(tempoNote()).toHaveTextContent('♩ = 90 (Song-Tempo)');
     act(() => store.openPattern(patternsNow()[1]!.id));
-    expect(tempoField().value).toBe('90');
+    expect(tempoNote()).toHaveTextContent('♩ = 90 (Song-Tempo)');
   });
 
   it('Kennzeichnung als Song-Tempo', () => {
     setup();
-    expect(tempoField()).toHaveAccessibleDescription('gilt für alle Patterns von „Test“');
+    expect(tempoNote()).toHaveTextContent('♩ = 120 (Song-Tempo)');
+    expect(screen.queryByText(/gilt für alle/)).not.toBeInTheDocument();
+  });
+
+  it('Eingabe verwerfen', async () => {
+    const { user, currentSong } = setup();
+    const before = currentSong();
+    await typeTempo(user, 120, '96{Escape}');
+    expect(tempoNote()).toHaveTextContent('♩ = 120 (Song-Tempo)');
+    expect(currentSong()).toBe(before);
   });
 
   it('Tempo während der Wiedergabe', async () => {
     const { user, player, source } = setup();
     await user.click(playButton());
-    await user.clear(tempoField());
-    await user.type(tempoField(), '90');
+    await typeTempo(user, 120, '90');
     await user.tab();
     expect(source().tempo()).toBe(90);
     expect(player.start).toHaveBeenCalledTimes(1);
@@ -165,10 +180,9 @@ describe('Spec pattern-playback › Tempo im Pattern-Editor', () => {
   it('Ungültiges Tempo', async () => {
     const { user, currentSong } = setup();
     const before = currentSong();
-    await user.clear(tempoField());
-    await user.type(tempoField(), '0');
+    await typeTempo(user, 120, '0');
     await user.tab();
-    expect(tempoField().value).toBe('120');
+    expect(tempoNote()).toHaveTextContent('♩ = 120 (Song-Tempo)');
     expect(currentSong()).toBe(before);
   });
 });
@@ -193,9 +207,10 @@ describe('Spec library-persistence › Lokal gespeicherte Songs ohne Tempo (UI)'
 
     const store = createNotebookStore(await (await openRepository(dbName)).loadAll());
     store.openSong(legacy.id);
+    store.setLocked(false);
     store.openPattern(legacy.patterns[0]!.id);
     render(<App store={store} player={fakePlayer().player} />);
-    expect(tempoField().value).toBe('120');
+    expect(tempoNote()).toHaveTextContent('♩ = 120 (Song-Tempo)');
     expect(store.getState().songs[0]!.revision).toBe(6);
   });
 });

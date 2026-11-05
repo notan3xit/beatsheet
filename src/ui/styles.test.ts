@@ -135,3 +135,10 @@ describe('Spec app-messages › Ebenen der Oberfläche (Stylesheet)', () => {
     expect(zIndexOf(selector)).toBe(`var(--z-${name})`);
   });
 });
+
+describe('Spec navigation › Gleiche Höhe der Kopfzeile', () => {
+  it('Doppelseite und Pattern-Editor teilen ihren Innenabstand', () => {
+    expect(css).toMatch(/\.songbook,\s*\.workspace\s*\{[^}]*padding:/);
+    expect(css).not.toMatch(/(?<!,\s*)\n\.(songbook|workspace)\s*\{[^}]*padding:/);
+  });
+});

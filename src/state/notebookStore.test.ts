@@ -228,3 +228,64 @@ describe('Spec workbook-sync › Store', () => {
     expect(store.getState().workbooks).toEqual([]);
   });
 });
+
+describe('Spec song-lock › Sperrzustand im Store', () => {
+  const withContent = () => notebookWith([patternOf(emptyBeats(4))], 'list');
+
+  it('Song mit Inhalt öffnet gesperrt, auch nach vorherigem Entsperren', () => {
+    const { store, song } = withContent();
+    store.openSong(song.id);
+    expect(store.getState().locked).toBe(true);
+    store.setLocked(false);
+    expect(store.getState().locked).toBe(false);
+    store.backToList();
+    store.openSong(song.id);
+    expect(store.getState().locked).toBe(true);
+  });
+
+  it('Song ohne Segmente und Patterns öffnet entsperrt', () => {
+    const store = createNotebookStore();
+    store.openSong(store.createSong('Neu').id);
+    expect(store.getState().locked).toBe(false);
+  });
+
+  it('Song nur mit Patterns öffnet gesperrt', () => {
+    const { store, song } = withContent();
+    expect(song.segments).toEqual([]);
+    store.openSong(song.id);
+    expect(store.getState().locked).toBe(true);
+  });
+
+  it('Song nur mit Segmenten öffnet gesperrt', () => {
+    const store = createNotebookStore();
+    const song = store.createSong('Neu');
+    store.openSong(song.id);
+    store.updateSong((s) => appendSegment(s, { name: 'Verse', bars: 1 }));
+    store.backToList();
+    store.openSong(song.id);
+    expect(store.getState().locked).toBe(true);
+  });
+
+  it.each([true, false])('Navigation im Song, Abgleich und Import lassen den Zustand %s unverändert', (locked) => {
+    const { store, song, currentSong, patternsNow } = withContent();
+    store.openSong(song.id);
+    store.setLocked(locked);
+    store.openPattern(patternsNow()[0]!.id);
+    expect(store.getState().locked).toBe(locked);
+    store.backToBook();
+    expect(store.getState().locked).toBe(locked);
+    store.applyRemote([{ ...currentSong(), title: 'Fremd' }], []);
+    expect(store.getState().locked).toBe(locked);
+    store.importSongs([{ ...currentSong(), title: 'Importiert' }]);
+    expect(store.getState().locked).toBe(locked);
+  });
+
+  it('Sperren und Entsperren ändern weder Revision noch Änderungszeit', () => {
+    const { store, song, currentSong } = withContent();
+    store.openSong(song.id);
+    const before = currentSong();
+    store.setLocked(false);
+    store.setLocked(true);
+    expect(currentSong()).toBe(before);
+  });
+});

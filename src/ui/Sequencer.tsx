@@ -16,7 +16,15 @@ import { useConfirm } from './ConfirmDialog';
 import { useStore } from './useLibrary';
 
 /** `playhead`: gerade erklingende Rasterposition, wird in allen Zeilen hervorgehoben. */
-export function Sequencer({ pattern, playhead = null }: { pattern: Pattern; playhead?: Step | null }) {
+export function Sequencer({
+  pattern,
+  playhead = null,
+  readOnly = false,
+}: {
+  pattern: Pattern;
+  playhead?: Step | null;
+  readOnly?: boolean;
+}) {
   const store = useStore();
   const confirm = useConfirm();
 
@@ -46,17 +54,22 @@ export function Sequencer({ pattern, playhead = null }: { pattern: Pattern; play
         {pattern.beats.map((beat, b) => (
           <div role="columnheader" key={b} className="beat-head">
             <span className="beat-number">Beat {b + 1}</span>
-            <select
-              aria-label={`Unterteilung Beat ${b + 1}`}
-              value={beat.subdivision}
-              onChange={(e) => void setSubdivision(b, Number(e.target.value) as Subdivision)}
-            >
-              {SUBDIVISIONS.map((s) => (
-                <option key={s} value={s}>
-                  {SUBDIVISION_LABELS[s]}
-                </option>
-              ))}
-            </select>
+            {readOnly ? (
+              <span className="value-control">{SUBDIVISION_LABELS[beat.subdivision]}</span>
+            ) : (
+              <select
+                className="value-control"
+                aria-label={`Unterteilung Beat ${b + 1}`}
+                value={beat.subdivision}
+                onChange={(e) => void setSubdivision(b, Number(e.target.value) as Subdivision)}
+              >
+                {SUBDIVISIONS.map((s) => (
+                  <option key={s} value={s}>
+                    {SUBDIVISION_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         ))}
       </div>
@@ -75,6 +88,7 @@ export function Sequencer({ pattern, playhead = null }: { pattern: Pattern; play
                   <button
                     type="button"
                     key={position}
+                    disabled={readOnly}
                     className={`step${position === 0 ? ' downbeat' : ''}${
                       playhead?.beat === b && playhead.position === position ? ' playing' : ''
                     }`}

@@ -21,7 +21,7 @@ import { CommitField } from './CommitField';
 import { useConfirm } from './ConfirmDialog';
 import { PatternChips } from './PatternChips';
 import { useSongPlayback } from './playback';
-import { useOpenSong, useStore } from './useLibrary';
+import { useNotebook, useOpenSong, useStore } from './useLibrary';
 
 /** Breite des Popovers in Beats, für die Begrenzung am rechten Zeilenrand (design.md D4). */
 export const POPOVER_BEATS = 11;
@@ -62,10 +62,10 @@ function PlayActions({ first, last }: { first?: string; last?: string }) {
   const disabled = !playback.available || !first || !last;
   return (
     <div className="popover-actions">
-      <button type="button" disabled={disabled} onClick={() => first && playback.start({ from: first, to: 'end' }, false)}>
+      <button type="button" data-read-safe="" disabled={disabled} onClick={() => first && playback.start({ from: first, to: 'end' }, false)}>
         Ab hier abspielen
       </button>
-      <button type="button" disabled={disabled} onClick={() => first && last && playback.start({ from: first, to: last }, true)}>
+      <button type="button" data-read-safe="" disabled={disabled} onClick={() => first && last && playback.start({ from: first, to: last }, true)}>
         In Schleife abspielen
       </button>
     </div>
@@ -75,6 +75,7 @@ function PlayActions({ first, last }: { first?: string; last?: string }) {
 export function SegmentPopover({ segmentId, onSelectSegment }: { segmentId: string; onSelectSegment: (id: string) => void }) {
   const store = useStore();
   const song = useOpenSong();
+  const { locked } = useNotebook();
   const confirm = useConfirm();
   const index = song.segments.findIndex((s) => s.id === segmentId);
   const segment = song.segments[index]!;
@@ -86,6 +87,8 @@ export function SegmentPopover({ segmentId, onSelectSegment }: { segmentId: stri
     const created = openSongOf(store.getState())?.segments[index + 1];
     if (created) onSelectSegment(created.id);
   };
+
+  if (locked) return <PlayActions first={segmentBars[0]?.id} last={segmentBars.at(-1)?.id} />;
 
   return (
     <>
@@ -137,6 +140,7 @@ export function SegmentPopover({ segmentId, onSelectSegment }: { segmentId: stri
 
 export function BarPopover({ barIds }: { barIds: string[] }) {
   const song = useOpenSong();
+  const { locked } = useNotebook();
   const { apply, alert } = useApply();
   const ordered = allBars(song);
   const bars = ordered.filter((b) => barIds.includes(b.id));
@@ -145,6 +149,15 @@ export function BarPopover({ barIds }: { barIds: string[] }) {
   const first = bars[0]!;
   const last = bars.at(-1)!;
   const beats = bars.every((b) => b.beats === first.beats) ? `${first.beats}/4` : 'gemischt';
+
+  if (locked) {
+    return (
+      <>
+        <h4 className="popover-title">{title}</h4>
+        <PlayActions first={first.id} last={last.id} />
+      </>
+    );
+  }
 
   return (
     <>

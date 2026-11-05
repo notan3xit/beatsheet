@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createPattern } from '../domain/pattern';
@@ -41,8 +41,18 @@ describe('Spec song-library › Tempo auf der Doppelseite', () => {
     expect(currentSong().tempo).toBe(96);
     for (const pattern of patternsNow()) {
       act(() => store.openPattern(pattern.id));
-      expect((screen.getByLabelText('Song-Tempo (BPM)') as HTMLInputElement).value).toBe('96');
+      expect(document.querySelector('.tempo-field')).toHaveTextContent('♩ = 96 (Song-Tempo)');
     }
+  });
+
+  it('Platz beim Bearbeiten', async () => {
+    const { user } = setup();
+    const number = tempoMark(120).querySelector('.tempo-value');
+    expect(number).toHaveTextContent('120');
+    await user.click(tempoMark(120));
+    expect(tempoInput()).toHaveClass('tempo-value');
+    expect(tempoInput().parentElement).toHaveClass('tempo-mark');
+    expect(tempoInput().parentElement).toHaveTextContent('♩ =');
   });
 
   it('Eingabe verwerfen', async () => {
