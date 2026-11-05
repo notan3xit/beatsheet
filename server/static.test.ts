@@ -18,6 +18,8 @@ beforeAll(async () => {
   writeFileSync(join(dist, 'index.html'), '<!doctype html>start');
   writeFileSync(join(dist, 'assets', 'app-abc.js'), 'console.log(1)');
   writeFileSync(join(dist, 'assets', 'app-abc.css'), 'a{}');
+  writeFileSync(join(dist, 'assets', 'snare-normal-abc.webm'), 'opus');
+  writeFileSync(join(dist, 'assets', 'snare-normal-abc.m4a'), 'aac');
   writeFileSync(join(dist, 'daten.unbekannt'), 'x');
   writeFileSync(join(dist, '.env'), 'GEHEIM');
   writeFileSync(join(dist, 'api', 'x'), 'DATEI');
@@ -65,6 +67,11 @@ describe('Auslieferung der Oberfläche', () => {
     expect(script.headers['content-type']).toMatch(/^text\/javascript/);
     expect((await raw('/assets/app-abc.css')).headers['content-type']).toMatch(/^text\/css/);
     expect((await raw('/daten.unbekannt')).headers['content-type']).toBe('application/octet-stream');
+  });
+
+  it('liefert die Aufnahmen des Klangs mit Audio-Typ (drum-samples)', async () => {
+    expect((await raw('/assets/snare-normal-abc.webm')).headers['content-type']).toBe('audio/webm');
+    expect((await raw('/assets/snare-normal-abc.m4a')).headers['content-type']).toBe('audio/mp4');
   });
 
   it('ignoriert die Abfrage im Pfad', async () => {

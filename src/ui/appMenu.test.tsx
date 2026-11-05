@@ -1,8 +1,11 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { AccountApi } from '../account/api';
 import { createAccountSession } from '../account/session';
+import type { PlaybackSound } from '../audio/deviceSound';
+import type { LoaderState } from '../audio/sampleLoader';
+import { createSoundSetting, SOUND_STORAGE_KEY } from '../audio/soundSetting';
 import { serializeNotebook } from '../persistence/fileFormat';
 import { createNotebookStore } from '../state/notebookStore';
 import { fakePlayer } from '../test/fakePlayer';
@@ -12,7 +15,14 @@ import * as download from './download';
 
 const ME = 'ich@example.com';
 
-function setup(email: string | null = null) {
+function fakeSound({ stored, state = 'ready' }: { stored?: Record<string, string>; state?: LoaderState } = {}) {
+  const data = new Map(Object.entries(stored ?? {}));
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => void data.set(key, value) };
+  const loader = { state: () => state, buffers: () => null, load: vi.fn(async () => {}), subscribe: () => () => {} };
+  return { setting: createSoundSetting(storage), loader, data } satisfies PlaybackSound & { data: Map<string, string> };
+}
+
+function setup(email: string | null = null, sound: PlaybackSound = fakeSound()) {
   const account: AccountApi = {
     session: vi.fn(async () => email),
     requestCode: vi.fn(async () => ({ ok: true as const })),
@@ -22,8 +32,8 @@ function setup(email: string | null = null) {
   const session = createAccountSession(account);
   session.setEmail(email);
   const user = userEvent.setup();
-  render(<App store={createNotebookStore([songWith({ title: 'Hysteria' })])} session={session} player={fakePlayer().player} />);
-  return { user, account, session };
+  render(<App store={createNotebookStore([songWith({ title: 'Hysteria' })])} session={session} player={fakePlayer().player} sound={sound} />);
+  return { user, account, session, sound };
 }
 
 const menuButton = () => screen.getByRole('button', { name: 'Menü' });
@@ -58,7 +68,7 @@ describe('Spec app-header › Menü', () => {
   it('Trennstrich', async () => {
     const { user } = setup();
     await user.click(menuButton());
-    const separator = within(menu()).getByRole('separator');
+    const separator = within(menu()).getAllByRole('separator')[0]!;
     expect(item('Importieren').compareDocumentPosition(separator) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(separator.compareDocumentPosition(item('Anmelden')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -140,5 +150,110 @@ describe('Spec app-header › Anmelden und Abmelden über das Menü', () => {
     await waitFor(() => expect(session.getEmail()).toBeNull());
     expect(account.logout).toHaveBeenCalled();
     expectClosed();
+  });
+});
+
+const soundOption = (name: string) => within(menu()).getByRole('menuitemradio', { name: new RegExp(`^${name}`) });
+const UNAVAILABLE = 'auf diesem Gerät nicht verfügbar';
+
+describe('Spec app-header › Menü › Abschnitt Klang', () => {
+  it('nach dem Eintrag zum Konto ein Trennstrich und darunter „Klang“ mit „DRSKit“ und „Synth“', async () => {
+    const { user } = setup();
+    await user.click(menuButton());
+    const separators = within(menu()).getAllByRole('separator');
+    const group = within(menu()).getByRole('group', { name: 'Klang' });
+    const account = item('Anmelden');
+    expect(account.compareDocumentPosition(separators[1]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(separators[1]!.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(group).getAllByRole('menuitemradio').map((r) => r.textContent)).toEqual(['DRSKit', 'Synth']);
+  });
+});
+
+describe('Spec playback-sound › Klang wählen', () => {
+  it('Synth wählen: als gewählt markiert, Menü schließt, Wahl gespeichert', async () => {
+    const { user, sound } = setup();
+    await user.click(menuButton());
+    await user.click(soundOption('Synth'));
+    expectClosed();
+    expect(sound.setting.get()).toBe('synth');
+    await user.click(menuButton());
+    expect(soundOption('Synth')).toHaveAttribute('aria-checked', 'true');
+    expect(soundOption('DRSKit')).toHaveAttribute('aria-checked', 'false');
+  });
+});
+
+describe('Spec playback-sound › Wahl pro Gerät', () => {
+  it('Vorgabe: DRSKit gewählt', async () => {
+    const { user } = setup();
+    await user.click(menuButton());
+    expect(soundOption('DRSKit')).toHaveAttribute('aria-checked', 'true');
+    expect(soundOption('Synth')).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('Wahl bleibt erhalten: nach Neuladen ist „Synth“ gewählt', async () => {
+    const first = fakeSound();
+    const { user } = setup(null, first);
+    await user.click(menuButton());
+    await user.click(soundOption('Synth'));
+    cleanup();
+    const reloaded = fakeSound({ stored: Object.fromEntries(first.data) });
+    expect(reloaded.data.get(SOUND_STORAGE_KEY)).toBe('synth');
+    const again = setup(null, reloaded);
+    await again.user.click(menuButton());
+    expect(soundOption('Synth')).toHaveAttribute('aria-checked', 'true');
+  });
+});
+
+describe('Spec playback-sound › Laden im Hintergrund', () => {
+  it('mit DRSKit lädt die App die Aufnahmen ohne Zutun', () => {
+    const { sound } = setup();
+    expect(sound.loader.load).toHaveBeenCalled();
+  });
+
+  it('mit Synth lädt sie nicht, erst nach dem Wechsel auf DRSKit', async () => {
+    const sound = fakeSound({ stored: { [SOUND_STORAGE_KEY]: 'synth' } });
+    const { user } = setup(null, sound);
+    expect(sound.loader.load).not.toHaveBeenCalled();
+    await user.click(menuButton());
+    await user.click(soundOption('DRSKit'));
+    expect(sound.loader.load).toHaveBeenCalled();
+  });
+});
+
+describe('Spec playback-sound › Ersatz durch den Synth', () => {
+  it('Aufnahmen nicht dekodierbar: Hinweis bei DRSKit, Wahl unverändert', async () => {
+    const { user, sound } = setup(null, fakeSound({ state: 'unavailable' }));
+    await user.click(menuButton());
+    expect(soundOption('DRSKit')).toHaveTextContent(UNAVAILABLE);
+    expect(soundOption('DRSKit')).toHaveAttribute('aria-checked', 'true');
+    expect(sound.setting.get()).toBe('drs');
+  });
+
+  it('Erneuter Versuch nach Neustart: bereit, kein Hinweis', async () => {
+    const { user } = setup(null, fakeSound({ state: 'ready' }));
+    await user.click(menuButton());
+    expect(soundOption('DRSKit')).not.toHaveTextContent(UNAVAILABLE);
+  });
+
+  it('während des Ladens kein Hinweis', async () => {
+    const { user } = setup(null, fakeSound({ state: 'loading' }));
+    await user.click(menuButton());
+    expect(soundOption('DRSKit')).not.toHaveTextContent(UNAVAILABLE);
+  });
+});
+
+describe('Spec playback-sound › Herkunft der Aufnahmen', () => {
+  it('Namensnennung im Menü mit beiden Verweisen', async () => {
+    const { user } = setup();
+    await user.click(menuButton());
+    const group = within(menu()).getByRole('group', { name: 'Klang' });
+    const kit = within(group).getByRole('link', { name: 'DRSKit von DrumGizmo.org' });
+    const license = within(group).getByRole('link', { name: 'CC BY 4.0' });
+    expect(kit).toHaveAttribute('href', 'https://drumgizmo.org/wiki/doku.php?id=kits:drskit');
+    expect(license).toHaveAttribute('href', 'https://creativecommons.org/licenses/by/4.0/');
+    for (const link of [kit, license]) {
+      expect(link).toHaveAttribute('target', '_blank');
+      expect(link).toHaveAttribute('rel', 'noopener');
+    }
   });
 });

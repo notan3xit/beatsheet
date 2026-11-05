@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
+import type { PlaybackSound } from '../audio/deviceSound';
 import type { Player } from '../audio/player';
 import { patternTimeline, setTempo, songTimeline, type SongRange, type Step } from '../domain/playback';
 import { DEFAULT_TEMPO, type Pattern } from '../domain/types';
@@ -7,6 +8,15 @@ import { PlayButton } from './PlayButton';
 import { useOpenSong, useStore } from './useLibrary';
 
 export const PlayerContext = createContext<Player | null>(null);
+
+/** Klangwahl und Aufnahmen für das Menü (drum-samples, design.md D7). */
+export const SoundContext = createContext<PlaybackSound | null>(null);
+
+export function useSound(): PlaybackSound {
+  const sound = useContext(SoundContext);
+  if (!sound) throw new Error('SoundContext fehlt');
+  return sound;
+}
 
 export function usePlayer(): Player {
   const player = useContext(PlayerContext);

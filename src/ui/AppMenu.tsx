@@ -1,10 +1,12 @@
-import { useCallback, useRef, useState, type ChangeEvent } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
+import type { Sound } from '../audio/soundSetting';
 import { newId } from '../domain/id';
 import { exportFileName, parseNotebookFile, serializeNotebook } from '../persistence/fileFormat';
 import { applyImport, planImport, type ImportEntry } from '../persistence/merge';
 import { downloadFile } from './download';
-import { ExportIcon, ImportIcon, MenuIcon, PersonIcon } from './icons';
+import { CheckIcon, ExportIcon, ImportIcon, MenuIcon, PersonIcon } from './icons';
 import { ImportDialog } from './ImportDialog';
+import { useSound } from './playback';
 import { useReport } from './messages';
 import { useDismiss } from './useDismiss';
 import { useStore } from './useLibrary';
@@ -12,7 +14,7 @@ import { useEmail } from './useWorkbooks';
 
 type Pending = { plan: ImportEntry[]; fromNewerVersion: boolean };
 
-/** Menü der Kopfzeile: Export und Import aller Songs, Anmelden bzw. Abmelden. */
+/** Menü der Kopfzeile: Export und Import aller Songs, Anmelden bzw. Abmelden, Wahl des Klangs. */
 export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void; onLogout: () => void; loggingOut: boolean }) {
   const store = useStore();
   const report = useReport();
@@ -95,6 +97,8 @@ export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void
               Anmelden
             </button>
           )}
+          <hr />
+          <SoundChoice onChoose={() => setOpen(false)} />
         </div>
       )}
       {/* Außerhalb des aufklappbaren Teils: Die Dateiauswahl überdauert das Schließen des Menüs. */}
@@ -108,6 +112,54 @@ export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void
           onConfirm={confirmImport}
         />
       )}
+    </div>
+  );
+}
+
+const SOUNDS: { value: Sound; label: string }[] = [
+  { value: 'drs', label: 'DRSKit' },
+  { value: 'synth', label: 'Synth' },
+];
+
+/** Abschnitt „Klang“: Wahl zwischen Aufnahmen und Synth, Hinweis und Namensnennung (drum-samples, design.md D7). */
+function SoundChoice({ onChoose }: { onChoose: () => void }) {
+  const { setting, loader } = useSound();
+  const chosen = useSyncExternalStore(setting.subscribe, setting.get);
+  const loaderState = useSyncExternalStore(loader.subscribe, loader.state);
+  return (
+    <div role="group" aria-labelledby="app-menu-sound" className="app-menu-sound">
+      <span id="app-menu-sound" className="app-menu-heading">
+        Klang
+      </span>
+      {SOUNDS.map(({ value, label }) => (
+        <button
+          key={value}
+          type="button"
+          role="menuitemradio"
+          aria-checked={chosen === value}
+          onClick={() => {
+            onChoose();
+            setting.set(value);
+          }}
+        >
+          <span className="app-menu-check" aria-hidden="true">
+            {chosen === value ? <CheckIcon /> : null}
+          </span>
+          <span>
+            {label}
+            {value === 'drs' && loaderState === 'unavailable' && <span className="app-menu-hint">auf diesem Gerät nicht verfügbar</span>}
+          </span>
+        </button>
+      ))}
+      <p className="app-menu-credit">
+        <a href="https://drumgizmo.org/wiki/doku.php?id=kits:drskit" target="_blank" rel="noopener">
+          DRSKit von DrumGizmo.org
+        </a>
+        {', '}
+        <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">
+          CC BY 4.0
+        </a>
+      </p>
     </div>
   );
 }

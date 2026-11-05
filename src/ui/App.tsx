@@ -1,7 +1,8 @@
-import { useState, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { createHttpAccountApi, type AccountApi } from '../account/api';
 import { createHttpProfileApi, type ProfileApi } from '../account/profile';
 import { createAccountSession, type AccountSession } from '../account/session';
+import { createDeviceSound, type PlaybackSound } from '../audio/deviceSound';
 import { createWebAudioPlayer, type Player } from '../audio/player';
 import type { NotebookStore } from '../state/notebookStore';
 import type { WorkbookActions } from '../sync/sync';
@@ -11,7 +12,7 @@ import { HitTestContext, type HitTest } from './dragPattern';
 import { useLockGuard } from './lock';
 import { MessageRow, MessagesProvider, ReportedMessages } from './messages';
 import { PatternEditor } from './PatternEditor';
-import { PlayerContext } from './playback';
+import { PlayerContext, SoundContext } from './playback';
 import { SongList } from './SongList';
 import { Songbook } from './Songbook';
 import { StoreContext, useNotebook, useOpenSong } from './useLibrary';
@@ -71,6 +72,7 @@ export function App({
   storagePersisted = true,
   hitTest,
   player: playerProp,
+  sound: soundProp,
   account: accountProp,
   profile: profileProp,
   session: sessionProp,
@@ -82,6 +84,8 @@ export function App({
   hitTest?: HitTest;
   /** Audio-Wiedergabe; Vorgabe Web Audio, in Tests ein Nachbau. */
   player?: Player;
+  /** Klangwahl und Aufnahmen; Vorgabe Gerätespeicher und DRSKit vom Server, in Tests ein Nachbau. */
+  sound?: PlaybackSound;
   /** Anmeldeserver; Vorgabe HTTP über `/api`, in Tests ein Nachbau. */
   account?: AccountApi;
   /** Profil am Server; Vorgabe HTTP über `/api/auth/profile`, in Tests ein Nachbau. */
@@ -91,12 +95,19 @@ export function App({
   /** Workbooks und Abgleich; ohne sie gibt es nur „Meine Songs“. */
   sync?: WorkbookActions;
 }) {
-  const [player] = useState(() => playerProp ?? createWebAudioPlayer());
+  const [sound] = useState(() => soundProp ?? createDeviceSound());
+  const [player] = useState(() => playerProp ?? createWebAudioPlayer(undefined, sound));
+  // Aufnahmen im Hintergrund laden, sobald DRSKit gewählt ist; ohne Web Audio gibt es nichts abzuspielen
+  const chosen = useSyncExternalStore(sound.setting.subscribe, sound.setting.get);
+  useEffect(() => {
+    if (chosen === 'drs' && player.available) void sound.loader.load();
+  }, [chosen, player, sound]);
   const [session] = useState(() => sessionProp ?? createAccountSession(accountProp ?? createHttpAccountApi()));
   const [profileApi] = useState(() => profileProp ?? createHttpProfileApi());
   const app = (
     <StoreContext.Provider value={store}>
       <PlayerContext.Provider value={player}>
+        <SoundContext.Provider value={sound}>
         <SessionContext.Provider value={session}>
         <SyncContext.Provider value={sync ?? null}>
         <ConfirmProvider>
@@ -115,6 +126,7 @@ export function App({
         </ConfirmProvider>
         </SyncContext.Provider>
         </SessionContext.Provider>
+        </SoundContext.Provider>
       </PlayerContext.Provider>
     </StoreContext.Provider>
   );

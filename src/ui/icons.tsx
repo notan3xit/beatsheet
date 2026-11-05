@@ -43,6 +43,14 @@ export function ExportIcon() {
   );
 }
 
+export function CheckIcon() {
+  return (
+    <Icon>
+      <path d="M3 8.5 6.5 12 13 4.5" />
+    </Icon>
+  );
+}
+
 export function ImportIcon() {
   return (
     <Icon>

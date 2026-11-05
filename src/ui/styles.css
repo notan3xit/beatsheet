@@ -192,6 +192,41 @@ input {
   border-top: 1px solid var(--border);
 }
 
+/* Abschnitt „Klang“ (drum-samples, design.md D7) */
+.app-menu-sound {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-menu-heading {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Platz des Hakens auch ohne Haken, damit die Namen untereinander stehen */
+.app-menu-check {
+  display: inline-flex;
+  width: 1em;
+}
+
+.app-menu-hint {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.app-menu-credit {
+  max-width: 14rem;
+  margin: 0.2rem 0.6rem 0.3rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.app-menu-credit a {
+  color: inherit;
+}
+
 /* Rund wie das Symbol darin, auch hervorgehoben bei offenem Popover */
 .account > .icon-button {
   border-radius: 50%;

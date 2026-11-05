@@ -16,6 +16,9 @@ const TYPES: Record<string, string> = {
   '.ico': 'image/x-icon',
   '.wasm': 'application/wasm',
   '.woff2': 'font/woff2',
+  // Aufnahmen des Klangs (drum-samples, design.md D4)
+  '.webm': 'audio/webm',
+  '.m4a': 'audio/mp4',
 };
 
 /** Segmente des Pfads; `null`, wenn er ungültig ist, das Verzeichnis verlassen könnte oder zur API gehört (design.md D2). */

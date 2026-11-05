@@ -1,4 +1,7 @@
-import { createScheduler, type PlaybackSource, type PlaybackState, type Scheduler } from './scheduler';
+import type { PlaybackSound } from './deviceSound';
+import { createSampleVoices } from './sampleVoices';
+import { createScheduler, type PlaybackSource, type PlaybackState, type Scheduler, type Voices } from './scheduler';
+import { createSwitchingVoices, samplesPlayable } from './switchingVoices';
 import { createVoices } from './voices';
 
 export type { PlaybackSource, PlaybackState } from './scheduler';
@@ -20,9 +23,10 @@ type AudioWindow = { AudioContext?: typeof AudioContext; webkitAudioContext?: ty
 
 /**
  * Player über Web Audio. Der AudioContext entsteht erst beim ersten Start, also nach einer
- * Nutzeraktion (Autoplay-Regeln der Browser).
+ * Nutzeraktion (Autoplay-Regeln der Browser). Mit `sound` spielen die Aufnahmen, sobald gewählt und
+ * geladen, sonst der Synth (drum-samples, design.md D1).
  */
-export function createWebAudioPlayer(win: AudioWindow = globalThis as AudioWindow): Player {
+export function createWebAudioPlayer(win: AudioWindow = globalThis as AudioWindow, sound?: PlaybackSound): Player {
   const Context = win.AudioContext ?? win.webkitAudioContext;
   const listeners = new Set<() => void>();
   let audio: { ctx: AudioContext; scheduler: Scheduler } | null = null;
@@ -30,7 +34,11 @@ export function createWebAudioPlayer(win: AudioWindow = globalThis as AudioWindo
   const ensureAudio = () => {
     if (audio) return audio;
     const ctx = new Context!();
-    const scheduler = createScheduler(createVoices(ctx), {
+    const synth = createVoices(ctx);
+    const voices: Voices = sound
+      ? createSwitchingVoices(synth, createSampleVoices(ctx, sound.loader.buffers), samplesPlayable(sound.setting, sound.loader))
+      : synth;
+    const scheduler = createScheduler(voices, {
       clock: () => ctx.currentTime,
       setInterval: (fn, ms) => globalThis.setInterval(fn, ms),
       clearInterval: (handle) => globalThis.clearInterval(handle as ReturnType<typeof setInterval>),
