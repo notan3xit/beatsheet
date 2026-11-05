@@ -25,4 +25,6 @@ Element.prototype.scrollIntoView ??= function scrollIntoView() {};
 
 afterEach(() => {
   cleanup();
+  // Die Wahl des Workbooks liegt in sessionStorage (song-overview-tiles, design.md D5)
+  sessionStorage.clear();
 });

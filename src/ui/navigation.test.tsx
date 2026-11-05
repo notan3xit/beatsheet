@@ -70,6 +70,14 @@ describe('Spec navigation › Editierbare Überschrift', () => {
 });
 
 describe('Spec navigation › Breadcrumbs', () => {
+  it('Song-Liste ohne Überschrift', () => {
+    setup([songWith({ title: 'Hysteria' })]);
+    const list = screen.getByRole('main', { name: 'Songs' });
+    expect(within(list).getAllByRole('heading')[0]).toHaveTextContent('Meine Songs');
+    expect(within(list).getAllByRole('heading')[0]!.tagName).toBe('H2');
+    expect(within(list).queryByRole('heading', { name: /^Songs$/ })).not.toBeInTheDocument();
+  });
+
   const path = () => screen.getByRole('navigation', { name: 'Pfad' });
 
   it('Pfad im Pattern-Editor', () => {
@@ -89,7 +97,7 @@ describe('Spec navigation › Breadcrumbs', () => {
     const { user } = setup([songWithGroove('Hysteria', 'Verse')], { song: 0, pattern: 0 });
     await user.click(within(path()).getByRole('button', { name: 'Songs' }));
     expect(screen.getByRole('main', { name: 'Songs' })).toBeInTheDocument();
-    expect(heading('Songs')).toBeInTheDocument();
+    expect(heading('Meine Songs')).toBeInTheDocument();
   });
 
   it('Pfad auf der Doppelseite', () => {

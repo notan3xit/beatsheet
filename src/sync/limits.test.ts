@@ -259,7 +259,7 @@ describe('Spec server-limits › Grenzen für Workbooks und Mitglieder (Client)'
   it('Die Fehlercodes kommen an', async () => {
     await start({ ownedWorkbooks: 1, workbookMembers: 1 });
     const me = await device(ME);
-    expect(await me.sync.createWorkbook('Band')).toEqual({ ok: true });
+    expect(await me.sync.createWorkbook('Band')).toMatchObject({ ok: true });
     expect(await me.sync.createWorkbook('Zweites')).toEqual({ ok: false, error: 'too-many-workbooks' });
     const band = me.store.getState().workbooks.find((w) => w.title === 'Band')!.id;
     expect(await me.sync.invite(band, ANNA)).toEqual({ ok: false, error: 'too-many-members' });

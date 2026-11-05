@@ -18,6 +18,15 @@ export function PersonIcon({ filled }: { filled?: boolean }) {
   );
 }
 
+/** Pfeil nach rechts in eine Box: Song in ein Workbook verschieben. */
+export function MoveIcon() {
+  return (
+    <Icon>
+      <path d="M9 2.5h3.5a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9M1.5 8h8M7 5.25 9.75 8 7 10.75" />
+    </Icon>
+  );
+}
+
 export function MenuIcon() {
   return (
     <Icon>

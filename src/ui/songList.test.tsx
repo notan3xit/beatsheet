@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
@@ -17,46 +19,55 @@ function setup(songs: Song[] = []) {
 
 const songList = () => screen.getByRole('main', { name: 'Songs' });
 
+const mine = () => screen.getByRole('region', { name: 'Meine Songs' });
+/** Titel der Kacheln in der Reihenfolge der Anzeige. */
+const tileTitles = (area: HTMLElement) => within(area).queryAllByRole('article').map((t) => within(t).getByRole('heading').textContent);
+const backToList = (user: ReturnType<typeof userEvent.setup>) =>
+  user.click(within(screen.getByRole('navigation', { name: 'Pfad' })).getByRole('button', { name: 'Songs' }));
+
 describe('Spec song-library › Song anlegen (UI)', () => {
   it('Song mit Titel anlegen', async () => {
     const { store, user } = setup();
-    await user.type(screen.getByLabelText('Titel des neuen Songs'), 'Hysteria');
-    await user.click(screen.getByRole('button', { name: 'Song anlegen' }));
+    await user.click(within(mine()).getByRole('button', { name: '+ Song' }));
+    await user.click(screen.getByRole('heading', { level: 2, name: 'Neuer Song' }));
+    const input = screen.getByLabelText('Songtitel');
+    await user.clear(input);
+    await user.type(input, 'Hysteria{Enter}');
     expect(store.getState().songs.map((s) => s.title)).toEqual(['Hysteria']);
+    expect(store.getState().songs[0]!.segments).toEqual([]);
   });
 
   it('Song ohne Titel anlegen', async () => {
     const { store, user } = setup();
-    await user.click(screen.getByRole('button', { name: 'Song anlegen' }));
+    await user.click(within(mine()).getByRole('button', { name: '+ Song' }));
     expect(store.getState().songs.map((s) => s.title)).toEqual(['Neuer Song']);
   });
 });
 
 describe('Spec song-library › Song-Liste (UI)', () => {
   it('Sortierte Liste', () => {
-    const patterns = [createPattern([], { kind: 'groove', name: 'A' }), createPattern([], { kind: 'groove', name: 'B' }), createPattern([], { kind: 'fill', name: 'f' })];
-    const uprising = appendSegment(songWith({ title: 'Uprising', patterns }), { name: 'V', bars: 32 });
+    const uprising = appendSegment(songWith({ title: 'Uprising', tempo: 128 }), { name: 'V', bars: 32 });
     setup([uprising, songWith({ title: 'Hysteria' })]);
-    const rows = within(within(screen.getByRole('region', { name: 'Meine Songs' })).getByRole('table')).getAllByRole('row');
-    const cells = (row: HTMLElement) =>
-      [...within(row).queryAllByRole('columnheader'), ...within(row).queryAllByRole('cell')].map((c) => c.textContent);
-    expect(rows.map(cells)).toEqual([
-      ['Titel', 'Takte', 'Grooves', 'Fills'],
-      ['Hysteria', '0', '0', '0'],
-      ['Uprising', '32', '2', '1'],
-    ]);
+    expect(tileTitles(mine())).toEqual(['Hysteria', 'Uprising']);
+    const [hysteria, up] = within(mine()).getAllByRole('article');
+    expect(hysteria).toHaveTextContent('0 Takte');
+    expect(hysteria).toHaveTextContent('♩ = 120');
+    expect(up).toHaveTextContent('32 Takte');
+    expect(up).toHaveTextContent('♩ = 128');
+    expect(within(mine()).queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('Leere Liste', () => {
     setup();
-    expect(within(screen.getByRole('region', { name: 'Meine Songs' })).getByText(/Noch keine Songs/)).toBeInTheDocument();
+    expect(within(mine()).getByText(/Noch keine Songs/)).toBeInTheDocument();
+    expect(within(mine()).getByRole('button', { name: '+ Song' })).toBeInTheDocument();
   });
 
   it('Neuer Song landet in „Meine Songs“', async () => {
     const { user } = setup();
-    await user.type(screen.getByLabelText('Titel des neuen Songs'), 'Skizze');
-    await user.click(screen.getByRole('button', { name: 'Song anlegen' }));
-    expect(within(screen.getByRole('region', { name: 'Meine Songs' })).getByText('Skizze')).toBeInTheDocument();
+    await user.click(within(mine()).getByRole('button', { name: '+ Song' }));
+    await backToList(user);
+    expect(tileTitles(mine())).toEqual(['Neuer Song']);
   });
 
   it('Song öffnen', async () => {
@@ -65,6 +76,63 @@ describe('Spec song-library › Song-Liste (UI)', () => {
     expect(screen.getByRole('region', { name: 'Struktur' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Patterns' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'Hysteria' })).toBeInTheDocument();
+  });
+
+  it('Song öffnen über die Fläche der Kachel', async () => {
+    const { user } = setup([songWith({ title: 'Hysteria' })]);
+    await user.click(within(mine()).getByRole('article').querySelector('.motif')!);
+    expect(screen.getByRole('heading', { level: 2, name: 'Hysteria' })).toBeInTheDocument();
+  });
+
+  it('Song per Tastatur öffnen', async () => {
+    const { user } = setup([songWith({ title: 'Hysteria' })]);
+    within(mine()).getByRole('button', { name: 'Hysteria' }).focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('heading', { level: 2, name: 'Hysteria' })).toBeInTheDocument();
+  });
+});
+
+describe('Spec song-library › Song über die Kachel „+ Song“ anlegen (UI)', () => {
+  it('Doppelseite des neuen Songs', async () => {
+    const { user } = setup([songWith({ title: 'Alt' })]);
+    const tiles = within(mine()).getAllByRole('button', { name: /^(Alt|\+ Song)$/ });
+    expect(tiles.at(-1)).toHaveAccessibleName('+ Song');
+    await user.click(tiles.at(-1)!);
+    expect(screen.getByRole('heading', { level: 2, name: 'Neuer Song' })).toBeInTheDocument();
+  });
+});
+
+describe('Spec song-motif › Darstellung des Motivs (UI)', () => {
+  const verse = createPattern([], { kind: 'groove', name: 'Verse' });
+  const roll = createPattern([verse], { kind: 'fill', name: 'Roll', length: 2 });
+
+  it('Striche in Pattern-Farben, ohne Taktstriche und Beschriftung', () => {
+    const song = appendSegment(songWith({ title: 'Uprising', patterns: [verse, roll] }), { name: 'V', bars: 4 });
+    const bars = song.segments[0]!.blocks[0]!.bars.map((b, i) => ({ ...b, grooveId: verse.id, fillId: i === 3 ? roll.id : null }));
+    setup([{ ...song, segments: [{ ...song.segments[0]!, blocks: [{ ...song.segments[0]!.blocks[0]!, bars }] }] }]);
+    const motif = within(mine()).getByRole('article').querySelector<HTMLElement>('.motif')!;
+    expect(motif).toHaveAttribute('aria-hidden', 'true');
+    const strokes = [...motif.querySelectorAll<HTMLElement>('.motif-stroke')];
+    expect(strokes.map((s) => s.style.getPropertyValue('--pc'))).toEqual([`var(--ctp-${verse.color})`, `var(--ctp-${roll.color})`]);
+    expect(strokes.map((s) => s.classList.contains('fill'))).toEqual([false, true]);
+    expect(motif.textContent).toBe('');
+    expect(motif.querySelectorAll('.motif-dot')).toHaveLength(0);
+  });
+
+  it('Langer Song: die ersten 12 Reihen in fester Größe', () => {
+    setup([appendSegment(appendSegment(songWith({ title: 'Lang' }), { name: 'A', bars: 64 }), { name: 'B', bars: 56 })]);
+    const motif = within(mine()).getByRole('article').querySelector<HTMLElement>('.motif')!;
+    expect(motif.querySelectorAll('.motif-row')).toHaveLength(12);
+    expect(motif.style.getPropertyValue('--motif-rows')).toBe('');
+    const css = readFileSync(resolve(process.cwd(), 'src/ui/styles.css'), 'utf8');
+    expect(css).toMatch(/\.motif \{[^}]*--motif-row:\s*5px;/);
+  });
+
+  it('Neuer Song', () => {
+    setup([songWith({ title: 'Leer' })]);
+    const motif = within(mine()).getByRole('article').querySelector<HTMLElement>('.motif')!;
+    expect(motif.querySelectorAll('.motif-stroke')).toHaveLength(0);
+    expect(motif.querySelectorAll('.motif-dot').length).toBeGreaterThan(0);
   });
 });
 

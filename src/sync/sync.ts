@@ -7,6 +7,8 @@ import type { NotebookStore } from '../state/notebookStore';
 import type { EventsConnection, EventsOpener, QuotaReason, SyncApi, SyncError, SyncReply } from './api';
 
 export type ActionResult = { ok: true } | { ok: false; error: SyncError };
+/** Ergebnis einer Aktion, die etwas anlegt: bei Erfolg mit dessen ID. */
+export type CreatedResult = { ok: true; id: string } | { ok: false; error: SyncError };
 
 export interface Notice {
   id: number;
@@ -15,14 +17,14 @@ export interface Notice {
 
 /** Was die Oberfläche vom Abgleich braucht. */
 export interface WorkbookActions {
-  createWorkbook(title: string): Promise<ActionResult>;
+  createWorkbook(title: string): Promise<CreatedResult>;
   renameWorkbook(id: string, title: string): Promise<ActionResult>;
   deleteWorkbook(id: string): Promise<ActionResult>;
   invite(id: string, email: string): Promise<ActionResult>;
   /** Entfernt ein Mitglied; mit der eigenen Adresse: Workbook verlassen. */
   removeMember(id: string, email: string): Promise<ActionResult>;
   moveSong(songId: string, workbookId: string): Promise<ActionResult>;
-  createSongIn(workbookId: string): Promise<ActionResult>;
+  createSongIn(workbookId: string): Promise<CreatedResult>;
   deleteSong(songId: string): Promise<ActionResult>;
   /** Überträgt alles Offene; `false`, wenn danach noch Änderungen nur auf diesem Gerät liegen. */
   prepareLogout(): Promise<boolean>;
@@ -506,7 +508,11 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     },
     syncAll,
 
-    createWorkbook: async (title) => thenSync(await api.createWorkbook(title)),
+    async createWorkbook(title) {
+      const created = await api.createWorkbook(title);
+      const result = await thenSync(created);
+      return result.ok && created.ok ? { ok: true, id: created.id } : (result as CreatedResult);
+    },
     renameWorkbook: async (id, title) => thenSync(await api.renameWorkbook(id, title)),
     deleteWorkbook: async (id) => thenSync(await api.deleteWorkbook(id)),
     invite: async (id, email) => thenSync(await api.invite(id, email)),
@@ -541,7 +547,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     },
 
     async createSongIn(workbookId) {
-      const result = await exclusive(workbookId, async (): Promise<ActionResult> => {
+      const result = await exclusive(workbookId, async (): Promise<CreatedResult> => {
         let song: Song | undefined;
         whileApplying(() => {
           song = store.createSong('', workbookId);
@@ -554,7 +560,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
           return added;
         }
         repo.place(id, workbookId, added.heads);
-        return { ok: true };
+        return { ok: true, id };
       });
       if (!result.ok) noteFailure(result.error);
       return result;

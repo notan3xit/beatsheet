@@ -28,7 +28,7 @@ Anweisungen an Agenten, Specs, Kommentare und Dokumente sind kurz, prägnant und
 Aufbau unter `src/`:
 - `domain`: reine Fachlogik (Datenmodell `Song` → `Segment` → `Block` → `Bar`, Patterns gehören zum Song), Normalisierung nach Strukturregeln
 - `notation`: Notationsmodell und VexFlow-Renderer
-- `songbook`: Layout der linken Buchseite
+- `songbook`: Layout der linken Buchseite und daraus das Motiv der Song-Kacheln
 - `audio`: Wiedergabe über Web Audio; `player` ist die einzige Stelle mit `AudioContext`
 - `persistence`: Dateiformat, Import nach Revision, IndexedDB mit einem Automerge-Dokument pro Song (`songDoc`: Dokumentform, Brücke vom `Song` ins Dokument, Zusammenführen)
 - `state`: Store mit Songs und Navigation

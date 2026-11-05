@@ -124,8 +124,7 @@ describe('Spec song-lock › Gesperrt beim Öffnen', () => {
 describe('Spec song-lock › Leerer Song öffnet entsperrt', () => {
   async function createAndOpen() {
     const app = renderApp(createNotebookStore());
-    await app.user.click(screen.getByRole('button', { name: 'Song anlegen' }));
-    await app.user.click(within(songList()).getByText('Neuer Song'));
+    await app.user.click(within(songList()).getByRole('button', { name: '+ Song' }));
     return app;
   }
 

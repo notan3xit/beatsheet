@@ -9,7 +9,7 @@ import type { Song, Workbook } from '../domain/types';
 import { parseNotebookFile, serializeNotebook } from '../persistence/fileFormat';
 import { createNotebookStore, type NotebookStore } from '../state/notebookStore';
 import type { SyncError } from '../sync/api';
-import type { ActionResult, Notice, WorkbookActions } from '../sync/sync';
+import type { ActionResult, CreatedResult, Notice, WorkbookActions } from '../sync/sync';
 import { fakePlayer } from '../test/fakePlayer';
 import { songWith } from '../test/songs';
 import { App } from './App';
@@ -18,7 +18,7 @@ import * as download from './download';
 const ME = 'ich@example.com';
 const ANNA = 'anna@example.com';
 const ok: ActionResult = { ok: true };
-const unreachable: ActionResult = { ok: false, error: 'unreachable' };
+const unreachable = { ok: false as const, error: 'unreachable' as const };
 
 const workbook = (title: string, overrides: Partial<Workbook> = {}): Workbook => ({
   id: `wb-${title}`,
@@ -33,9 +33,10 @@ function fakeSync(store: NotebookStore, overrides: Partial<WorkbookActions> = {}
   let offline = false;
   const listeners = new Set<() => void>();
   const actions = {
-    createWorkbook: vi.fn(async (title: string) => {
-      store.setWorkbooks([...store.getState().workbooks, workbook(title || 'Neues Workbook', { members: [ME] })]);
-      return ok;
+    createWorkbook: vi.fn(async (title: string): Promise<CreatedResult> => {
+      const created = workbook(title || 'Neues Workbook', { members: [ME] });
+      store.setWorkbooks([...store.getState().workbooks, created]);
+      return { ok: true, id: created.id };
     }),
     renameWorkbook: vi.fn(async (id: string, title: string) => {
       store.setWorkbooks(store.getState().workbooks.map((w) => (w.id === id ? { ...w, title } : w)));
@@ -51,10 +52,7 @@ function fakeSync(store: NotebookStore, overrides: Partial<WorkbookActions> = {}
       store.place(songId, workbookId);
       return ok;
     }),
-    createSongIn: vi.fn(async (workbookId: string) => {
-      store.createSong('', workbookId);
-      return ok;
-    }),
+    createSongIn: vi.fn(async (workbookId: string): Promise<CreatedResult> => ({ ok: true, id: store.createSong('', workbookId).id })),
     deleteSong: vi.fn(async (songId: string) => {
       store.deleteSong(songId);
       return ok;
@@ -112,37 +110,46 @@ function setup({
 
 const card = (name: string) => screen.getByRole('region', { name });
 const stack = () => document.querySelector<HTMLElement>('.app-notes')!;
-const cardTitles = () => within(screen.getByRole('main', { name: 'Songs' })).getAllByRole('region').map((c) => c.getAttribute('aria-label'));
+const sidebar = () => screen.getByRole('navigation', { name: 'Workbooks' });
+/** Titel der Workbooks in der Seitenleiste; leer ohne Bereich „Workbooks“. */
+const workbookTitles = () =>
+  screen.queryByRole('navigation', { name: 'Workbooks' })
+    ? within(sidebar()).getAllByRole('button').filter((b) => b.hasAttribute('aria-pressed')).map((b) => b.getAttribute('aria-label'))
+    : [];
+const entry = (title: string) => within(sidebar()).getByRole('button', { name: title });
+const tileOf = (area: string, title: string) => within(card(area)).getByText(title).closest('article')!;
 const membersOf = (title: string) => within(card(title)).getByRole('button', { name: 'Mitglieder' });
 const popover = (title: string) => screen.getByRole('dialog', { name: `Mitglieder von ${title}` });
 
 describe('Spec workbooks › Workbook anlegen (UI)', () => {
   it('Workbook anlegen', async () => {
     const { user, sync } = setup();
-    await user.type(screen.getByLabelText('Titel des neuen Workbooks'), 'Band');
-    await user.click(screen.getByRole('button', { name: 'Neues Workbook' }));
-    expect(sync.createWorkbook).toHaveBeenCalledWith('Band');
-    expect(within(card('Band')).getByRole('heading', { level: 3, name: 'Band' })).toBeInTheDocument();
-    expect(card('Band')).toHaveTextContent(ME);
-    expect(screen.getByLabelText('Titel des neuen Workbooks')).toHaveValue('');
+    await user.click(within(sidebar()).getByRole('button', { name: '+ Workbook' }));
+    expect(sync.createWorkbook).toHaveBeenCalledWith('');
+    expect(workbookTitles()).toEqual(['Neues Workbook']);
+    expect(entry('Neues Workbook')).toHaveAttribute('aria-pressed', 'true');
+    expect(entry('Neues Workbook')).toHaveAccessibleDescription('0 Songs · 1 Mitglied');
+    await user.click(within(card('Neues Workbook')).getByRole('heading', { name: 'Neues Workbook' }));
+    expect(screen.getByLabelText('Titel von Neues Workbook')).toBeInTheDocument();
   });
 
   it('Ohne Titel', async () => {
-    const { user, sync } = setup();
-    await user.click(screen.getByRole('button', { name: 'Neues Workbook' }));
-    expect(sync.createWorkbook).toHaveBeenCalledWith('');
+    const { user } = setup({ workbooks: [workbook('Band')] });
+    await user.click(within(sidebar()).getByRole('button', { name: '+ Workbook' }));
+    expect(workbookTitles()).toEqual(['Band', 'Neues Workbook']);
     expect(within(card('Neues Workbook')).getByRole('heading', { name: 'Neues Workbook' })).toBeInTheDocument();
   });
 
   it('Abgemeldet', () => {
     setup({ email: null });
-    expect(cardTitles()).toEqual(['Meine Songs']);
-    expect(screen.queryByRole('button', { name: 'Neues Workbook' })).not.toBeInTheDocument();
+    expect(workbookTitles()).toEqual([]);
+    expect(screen.queryByRole('region', { name: 'Workbooks' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Workbook' })).not.toBeInTheDocument();
   });
 
   it('Fehler beim Anlegen', async () => {
     const { user } = setup({ overrides: { createWorkbook: vi.fn(async () => unreachable) } });
-    await user.click(screen.getByRole('button', { name: 'Neues Workbook' }));
+    await user.click(screen.getByRole('button', { name: '+ Workbook' }));
     expect(screen.getByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
   });
 });
@@ -152,26 +159,80 @@ describe('Spec workbooks › Workbooks auf der Startseite (UI)', () => {
     const skizze = songWith({ title: 'Skizze' });
     const intro = songWith({ title: 'Intro' });
     setup({ songs: [skizze, intro], workbooks: [workbook('Proberaum'), workbook('Band')], placement: { [intro.id]: 'wb-Band' } });
-    expect(cardTitles()).toEqual(['Band', 'Proberaum', 'Meine Songs']);
+    expect(workbookTitles()).toEqual(['Band', 'Proberaum']);
+    const regions = within(screen.getByRole('main', { name: 'Songs' })).getAllByRole('region').map((r) => r.getAttribute('aria-label'));
+    expect(regions).toEqual(['Meine Songs', 'Workbooks', 'Band']);
     expect(within(card('Meine Songs')).getByText('Skizze')).toBeInTheDocument();
     expect(within(card('Band')).queryByText('Skizze')).not.toBeInTheDocument();
     expect(within(card('Band')).getByText('Intro')).toBeInTheDocument();
     expect(within(card('Meine Songs')).queryByText('Intro')).not.toBeInTheDocument();
   });
 
-  it('Karte zeigt Mitglieder und öffnet Songs', async () => {
+  it('Angaben in der Seitenleiste', () => {
+    const songs = ['A', 'B', 'C'].map((title) => songWith({ title }));
+    setup({ songs, workbooks: [workbook('Band')], placement: Object.fromEntries(songs.map((s) => [s.id, 'wb-Band'])) });
+    expect(entry('Band')).toHaveAccessibleDescription('3 Songs · 2 Mitglieder');
+  });
+
+  it('Ohne Workbooks', () => {
+    setup({ songs: [songWith({ title: 'Skizze' })] });
+    expect(workbookTitles()).toEqual([]);
+    expect(within(sidebar()).getByRole('button', { name: '+ Workbook' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Zu Workbook …' })).not.toBeInTheDocument();
+  });
+
+  it('Bereich zeigt Mitglieder und öffnet Songs', async () => {
     const intro = songWith({ title: 'Intro' });
     const { user, store } = setup({ songs: [intro], workbooks: [workbook('Band')], placement: { [intro.id]: 'wb-Band' } });
-    expect(card('Band')).toHaveTextContent(`${ME}, ${ANNA}`);
+    expect(membersOf('Band')).toHaveAttribute('title', `${ME}, ${ANNA}`);
     await user.click(within(card('Band')).getByText('Intro'));
     expect(store.getState().openSongId).toBe(intro.id);
   });
 
-  it('Bekannte Karten erscheinen auch ohne Sitzung (Server nicht erreichbar)', () => {
+  it('Bekannte Workbooks erscheinen auch ohne Sitzung (Server nicht erreichbar)', () => {
     const intro = songWith({ title: 'Intro' });
     setup({ songs: [intro], workbooks: [workbook('Band')], placement: { [intro.id]: 'wb-Band' }, email: null });
     expect(within(card('Band')).getByText('Intro')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Neues Workbook' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Workbook' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Spec workbooks › Workbook wählen (UI)', () => {
+  const two = () => {
+    const intro = songWith({ title: 'Intro' });
+    const probe = songWith({ title: 'Probe' });
+    return setup({ songs: [intro, probe], workbooks: [workbook('Band'), workbook('Proberaum')], placement: { [intro.id]: 'wb-Band', [probe.id]: 'wb-Proberaum' } });
+  };
+
+  it('Wählen', async () => {
+    const { user } = two();
+    await user.click(entry('Proberaum'));
+    expect(within(card('Proberaum')).getByText('Probe')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Band' })).not.toBeInTheDocument();
+    expect(entry('Proberaum')).toHaveAttribute('aria-pressed', 'true');
+    expect(entry('Band')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('Vorgabe', () => {
+    two();
+    expect(entry('Band')).toHaveAttribute('aria-pressed', 'true');
+    expect(within(card('Band')).getByText('Intro')).toBeInTheDocument();
+  });
+
+  it('Rückkehr von einem Song', async () => {
+    const { user } = two();
+    await user.click(entry('Proberaum'));
+    await user.click(within(card('Proberaum')).getByText('Probe'));
+    await user.click(within(screen.getByRole('navigation', { name: 'Pfad' })).getByRole('button', { name: 'Songs' }));
+    expect(entry('Proberaum')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Gewähltes Workbook verschwindet', async () => {
+    const { user, store } = two();
+    await user.click(entry('Proberaum'));
+    act(() => store.setWorkbooks(store.getState().workbooks.filter((w) => w.title !== 'Proberaum')));
+    expect(entry('Band')).toHaveAttribute('aria-pressed', 'true');
+    expect(card('Band')).toBeInTheDocument();
   });
 });
 
@@ -271,6 +332,26 @@ describe('Spec workbooks › Mitglied einladen (UI)', () => {
   });
 });
 
+describe('Spec workbooks › Mitglieder-Popover (UI)', () => {
+  it('Besitzer öffnet die Mitglieder', async () => {
+    const { user } = setup({ workbooks: [workbook('Band')] });
+    await user.click(membersOf('Band'));
+    const members = within(popover('Band')).getByRole('region', { name: 'Mitglieder' });
+    const add = within(popover('Band')).getByRole('region', { name: 'Hinzufügen' });
+    expect(within(members).getByText(ANNA)).toBeInTheDocument();
+    expect(within(add).getByLabelText('Mail-Adresse')).toBeInTheDocument();
+    expect(within(members).queryByLabelText('Mail-Adresse')).not.toBeInTheDocument();
+    expect(within(popover('Band')).getAllByRole('heading').map((h) => h.textContent)).toEqual(['Mitglieder', 'Hinzufügen']);
+  });
+
+  it('Mitglied öffnet die Mitglieder', async () => {
+    const { user } = setup({ workbooks: [workbook('Band', { owner: ANNA })] });
+    await user.click(membersOf('Band'));
+    expect(within(popover('Band')).getAllByRole('heading').map((h) => h.textContent)).toEqual(['Mitglieder']);
+    expect(within(popover('Band')).queryByRole('region', { name: 'Hinzufügen' })).not.toBeInTheDocument();
+  });
+});
+
 describe('Spec workbooks › Mitglied entfernen und austreten (UI)', () => {
   it('Entfernen nach Bestätigung', async () => {
     const { user, sync } = setup({ workbooks: [workbook('Band')] });
@@ -319,7 +400,7 @@ describe('Spec workbooks › Mitglied entfernen und austreten (UI)', () => {
   it('Escape schließt das Popover auch mit dem Fokus außerhalb', async () => {
     const { user } = setup({ workbooks: [workbook('Band')] });
     await user.click(membersOf('Band'));
-    screen.getByLabelText('Titel des neuen Songs').focus();
+    within(card('Meine Songs')).getByRole('button', { name: '+ Song' }).focus();
     await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -402,7 +483,7 @@ describe('Spec workbook-sync › Hinweis ohne Verbindung (UI)', () => {
 });
 
 describe('Spec workbook-sync › Song in ein Workbook verschieben (UI)', () => {
-  const row = (title: string) => within(card('Meine Songs')).getByText(title).closest('tr')!;
+  const row = (title: string) => tileOf('Meine Songs', title);
 
   it('Verschieben, ohne den Song zu öffnen', async () => {
     const uprising = songWith({ title: 'Uprising' });
@@ -454,15 +535,27 @@ describe('Spec workbook-sync › Song in ein Workbook verschieben (UI)', () => {
 
 describe('Spec workbook-sync › Song in einem Workbook anlegen (UI)', () => {
   it('Anlegen in der Karte', async () => {
-    const { user, sync } = setup({ workbooks: [workbook('Band')] });
-    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    const { user, sync, store } = setup({ workbooks: [workbook('Band')] });
+    await user.click(within(card('Band')).getByRole('button', { name: '+ Song' }));
     expect(sync.createSongIn).toHaveBeenCalledWith('wb-Band');
+    expect(screen.getByRole('heading', { level: 2, name: 'Neuer Song' })).toBeInTheDocument();
+    await user.click(within(screen.getByRole('navigation', { name: 'Pfad' })).getByRole('button', { name: 'Songs' }));
     expect(within(card('Band')).getByText('Neuer Song')).toBeInTheDocument();
+    expect(store.getState().placement[store.getState().songs[0]!.id]).toBe('wb-Band');
+  });
+
+  it('Neuer Song eines anderen Mitglieds', () => {
+    const { store } = setup({ workbooks: [workbook('Band')] });
+    act(() => {
+      store.createSong('Von Anna', 'wb-Band');
+    });
+    expect(within(card('Band')).getByText('Von Anna')).toBeInTheDocument();
+    expect(entry('Band')).toHaveAccessibleDescription('1 Song · 2 Mitglieder');
   });
 
   it('Server nicht erreichbar', async () => {
     const { user } = setup({ workbooks: [workbook('Band')], overrides: { createSongIn: vi.fn(async () => unreachable) } });
-    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    await user.click(within(card('Band')).getByRole('button', { name: '+ Song' }));
     expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
     expect(within(card('Band')).queryByRole('alert')).not.toBeInTheDocument();
   });
@@ -569,12 +662,12 @@ describe('Spec account-songs › „Meine Songs“ im Account (UI)', () => {
     const song = songWith({ title });
     return { song, placement: { [song.id]: personal.id } };
   };
-  const row = (title: string) => within(card('Meine Songs')).getByText(title).closest('tr')!;
+  const row = (title: string) => tileOf('Meine Songs', title);
 
-  it('Der eigene Bestand erscheint nicht als Workbook-Karte, seine Songs stehen in „Meine Songs“', () => {
+  it('Der eigene Bestand erscheint nicht in der Seitenleiste, seine Songs stehen in „Meine Songs“', () => {
     const { song, placement } = placed('Skizze');
     setup({ songs: [song], workbooks: [personal, workbook('Band')], placement });
-    expect(cardTitles()).toEqual(['Band', 'Meine Songs']);
+    expect(workbookTitles()).toEqual(['Band']);
     expect(within(card('Meine Songs')).getByText('Skizze')).toBeInTheDocument();
   });
 
@@ -590,7 +683,7 @@ describe('Spec account-songs › „Meine Songs“ im Account (UI)', () => {
   it('Ohne Workbooks', () => {
     const { song, placement } = placed('Skizze');
     setup({ songs: [song], workbooks: [personal], placement });
-    expect(cardTitles()).toEqual(['Meine Songs']);
+    expect(workbookTitles()).toEqual([]);
     expect(screen.queryByRole('button', { name: 'Zu Workbook …' })).not.toBeInTheDocument();
   });
 
@@ -676,28 +769,28 @@ describe('Spec app-messages › Meldungen gesammelt oben (UI)', () => {
   const rule = (selector: string) => new RegExp(`\\n${selector.replace(/[.>]/g, (c) => `\\${c}`)} \\{([^}]*)\\}`).exec(css)?.[1] ?? '';
 
   it('Fehler einer Aktion in einer Karte; ein erfolgreicher neuer Versuch entfernt ihn', async () => {
-    const createSongIn = vi.fn<() => Promise<ActionResult>>().mockResolvedValueOnce(unreachable).mockResolvedValue(ok);
+    const createSongIn = vi.fn<() => Promise<CreatedResult>>().mockResolvedValueOnce(unreachable).mockResolvedValue({ ok: true, id: 'neu' });
     const { user } = setup({ workbooks: [workbook('Band')], overrides: { createSongIn } });
-    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    await user.click(within(card('Band')).getByRole('button', { name: '+ Song' }));
     const alert = within(stack()).getByRole('alert');
     expect(alert).toHaveTextContent('Der Server ist nicht erreichbar.');
     expect(within(card('Band')).queryByRole('alert')).not.toBeInTheDocument();
-    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    await user.click(within(card('Band')).getByRole('button', { name: '+ Song' }));
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('Wiederholtes Scheitern derselben Stelle stapelt nicht', async () => {
     const { user } = setup({ workbooks: [workbook('Band')], overrides: { createSongIn: vi.fn(async () => unreachable) } });
-    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
-    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    await user.click(within(card('Band')).getByRole('button', { name: '+ Song' }));
+    await user.click(within(card('Band')).getByRole('button', { name: '+ Song' }));
     expect(within(stack()).getAllByRole('alert')).toHaveLength(1);
   });
 
   it('Mehrere Stellen stapeln sich; jede Meldung lässt sich einzeln schließen', async () => {
     const { user, addNotice } = setup({ workbooks: [workbook('Band')], overrides: { createSongIn: vi.fn(async () => unreachable), createWorkbook: vi.fn(async () => unreachable) } });
     act(() => addNotice('Hinweis'));
-    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
-    await user.click(screen.getByRole('button', { name: 'Neues Workbook' }));
+    await user.click(within(card('Band')).getByRole('button', { name: '+ Song' }));
+    await user.click(screen.getByRole('button', { name: '+ Workbook' }));
     expect(within(stack()).getAllByRole('alert')).toHaveLength(2);
     expect(within(stack()).getAllByRole('status')).toHaveLength(1);
     await user.click(within(within(stack()).getAllByRole('alert')[0]!).getByRole('button', { name: 'Meldung schließen' }));
@@ -756,11 +849,11 @@ describe('Spec app-messages › Meldungen gesammelt oben (UI)', () => {
 });
 
 describe('Spec server-limits › Meldungen (UI)', () => {
-  const fail = (error: SyncError): ActionResult => ({ ok: false, error });
+  const fail = (error: SyncError) => ({ ok: false as const, error });
 
   it('Zu viele Workbooks', async () => {
     const { user } = setup({ overrides: { createWorkbook: vi.fn(async () => fail('too-many-workbooks')) } });
-    await user.click(screen.getByRole('button', { name: 'Neues Workbook' }));
+    await user.click(screen.getByRole('button', { name: '+ Workbook' }));
     expect(within(stack()).getByRole('alert')).toHaveTextContent('Du hast die Höchstzahl an Workbooks erreicht.');
   });
 
@@ -774,7 +867,7 @@ describe('Spec server-limits › Meldungen (UI)', () => {
   it('Verschieben in ein volles Workbook', async () => {
     const song = songWith({ title: 'Eigen' });
     const { user } = setup({ songs: [song], workbooks: [workbook('Band')], overrides: { moveSong: vi.fn(async () => fail('quota-exceeded')) } });
-    await user.click(within(within(card('Meine Songs')).getByText('Eigen').closest('tr')!).getByRole('button', { name: 'Zu Workbook …' }));
+    await user.click(within(tileOf('Meine Songs', 'Eigen')).getByRole('button', { name: 'Zu Workbook …' }));
     await user.click(screen.getByRole('menuitem', { name: 'Band' }));
     expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Speicher dieses Workbooks ist voll.');
     expect(within(card('Meine Songs')).getByText('Eigen')).toBeInTheDocument();
@@ -782,7 +875,7 @@ describe('Spec server-limits › Meldungen (UI)', () => {
 
   it('Der Server ist voll', async () => {
     const { user } = setup({ workbooks: [workbook('Band')], overrides: { createSongIn: vi.fn(async () => fail('server-full')) } });
-    await user.click(within(card('Band')).getByRole('button', { name: 'Song anlegen' }));
+    await user.click(within(card('Band')).getByRole('button', { name: '+ Song' }));
     expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Server ist voll.');
   });
 });
@@ -802,7 +895,7 @@ describe('Spec workbook-sync › Abmelden mit Workbook-Songs (UI)', () => {
   it('Abmelden', async () => {
     const { user, sync, account, store } = placedSetup();
     await logout(user);
-    await waitFor(() => expect(cardTitles()).toEqual(['Meine Songs']));
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Workbooks' })).not.toBeInTheDocument());
     expect(sync.prepareLogout).toHaveBeenCalled();
     expect(account.logout).toHaveBeenCalled();
     expect(sync.afterLogout).toHaveBeenCalled();
@@ -819,7 +912,7 @@ describe('Spec workbook-sync › Abmelden mit Workbook-Songs (UI)', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
     expect(account.logout).not.toHaveBeenCalled();
     expect(sync.afterLogout).not.toHaveBeenCalled();
-    expect(cardTitles()).toEqual(['Band', 'Meine Songs']);
+    expect(workbookTitles()).toEqual(['Band']);
     expect(accountButton()).toBeInTheDocument();
   });
 
@@ -847,6 +940,6 @@ describe('Spec workbook-sync › Abmelden mit Workbook-Songs (UI)', () => {
     await logout(ctx.user);
     expect(await screen.findByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
     expect(ctx.sync.afterLogout).not.toHaveBeenCalled();
-    expect(cardTitles()).toEqual(['Band', 'Meine Songs']);
+    expect(workbookTitles()).toEqual(['Band']);
   });
 });

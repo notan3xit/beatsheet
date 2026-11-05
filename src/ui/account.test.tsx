@@ -131,9 +131,8 @@ describe('Spec account-auth › Nutzung ohne Anmeldung (UI)', () => {
     const { user, store, account } = setup(fakeAccount({ session: vi.fn(async () => null) }));
     await waitFor(() => expect(account.session).toHaveBeenCalled());
     expect(within(header()).getByRole('button', { name: 'Anmelden' })).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Titel des neuen Songs'), 'Neu');
-    await user.click(screen.getByRole('button', { name: 'Song anlegen' }));
-    expect(store.getState().songs.map((s) => s.title)).toContain('Neu');
+    await user.click(screen.getByRole('button', { name: '+ Song' }));
+    expect(store.getState().songs.map((s) => s.title)).toContain('Neuer Song');
   });
 
   it('Anmelden ohne Server', async () => {

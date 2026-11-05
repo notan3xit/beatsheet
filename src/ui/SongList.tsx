@@ -1,11 +1,14 @@
 import { useCallback, useRef, useState } from 'react';
 import type { Song } from '../domain/types';
 import type { WorkbookActions } from '../sync/sync';
-import { SongTable, sortedByTitle } from './SongTable';
+import { SongTiles, sortedByTitle } from './SongTile';
+import { MoveIcon } from './icons';
 import { useDismiss } from './useDismiss';
 import { useNotebook, useStore } from './useLibrary';
 import { useEmail, useSync } from './useWorkbooks';
-import { useReportedAction, WorkbookCard } from './WorkbookCard';
+import { SongDragProvider } from './dragSong';
+import { WorkbookArea } from './WorkbookArea';
+import { useReportedAction } from './WorkbookCard';
 
 function MoveMenu({ song, sync, run }: { song: Song; sync: WorkbookActions; run: ReturnType<typeof useReportedAction> }) {
   const { workbooks } = useNotebook();
@@ -14,8 +17,16 @@ function MoveMenu({ song, sync, run }: { song: Song; sync: WorkbookActions; run:
   useDismiss(open, area, useCallback(() => setOpen(false), []));
   return (
     <div className="card-members" ref={area}>
-      <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
-        Zu Workbook …
+      <button
+        type="button"
+        className="icon-button tile-move"
+        aria-label="Zu Workbook …"
+        title="Zu Workbook …"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <MoveIcon />
       </button>
       {open && (
         <div role="menu" className="card-popover move-menu">
@@ -42,73 +53,39 @@ function MySongs({ songs, sync }: { songs: readonly Song[]; sync: WorkbookAction
   const store = useStore();
   const { workbooks } = useNotebook();
   const email = useEmail();
-  const [title, setTitle] = useState('');
   const run = useReportedAction();
   const canMove = sync && email && workbooks.some((w) => !w.personal);
 
   return (
-    <section aria-label="Meine Songs" className="card">
-      <h3>Meine Songs</h3>
-      <form
-        className="song-create"
-        onSubmit={(e) => {
-          e.preventDefault();
-          store.createSong(title);
-          setTitle('');
-        }}
-      >
-        <label className="field">
-          Titel des neuen Songs
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Neuer Song" />
-        </label>
-        <button type="submit" className="primary">
-          Song anlegen
-        </button>
-      </form>
-      {songs.length === 0 ? (
-        <p className="hint">Noch keine Songs. Gib oben einen Titel ein und lege deinen ersten Song an.</p>
-      ) : (
-        <SongTable songs={songs} action={canMove ? (song) => <MoveMenu song={song} sync={sync} run={run} /> : undefined} />
-      )}
+    <section aria-label="Meine Songs" className="overview-section">
+      <h2>Meine Songs</h2>
+      {songs.length === 0 && <p className="hint">Noch keine Songs. Lege mit „+ Song“ deinen ersten an.</p>}
+      <SongTiles
+        songs={songs}
+        action={canMove ? (song) => <MoveMenu song={song} sync={sync} run={run} /> : undefined}
+        draggable={Boolean(canMove)}
+        onAdd={() => store.openSong(store.createSong('').id)}
+      />
     </section>
   );
 }
 
-function NewWorkbook({ sync }: { sync: WorkbookActions }) {
-  const [title, setTitle] = useState('');
-  const run = useReportedAction();
-  return (
-    <form
-      className="song-create"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void run(() => sync.createWorkbook(title)).then((ok) => ok && setTitle(''));
-      }}
-    >
-      <label className="field">
-        Titel des neuen Workbooks
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Neues Workbook" />
-      </label>
-      <button type="submit">Neues Workbook</button>
-    </form>
-  );
-}
-
-/** Startseite: je Workbook eine Karte, danach „Meine Songs“ (workbook-sync, design.md D12). */
+/** Startseite: oben „Meine Songs“, darunter die Workbooks (song-overview-tiles, design.md D3, D4). */
 export function SongList() {
   const { songs, workbooks, placement } = useNotebook();
   const sync = useSync();
-  const email = useEmail();
   const personalId = workbooks.find((w) => w.personal)?.id;
+  const mine = songs.filter((s) => !placement[s.id] || placement[s.id] === personalId);
   return (
     <main className="song-list" aria-label="Songs">
-      <h2 className="page-heading">Songs</h2>
-      {sync && email && <NewWorkbook sync={sync} />}
-      {sync &&
-        sortedByTitle(workbooks.filter((w) => !w.personal), (w) => w.title).map((workbook) => (
-          <WorkbookCard key={workbook.id} workbook={workbook} songs={songs.filter((s) => placement[s.id] === workbook.id)} sync={sync} />
-        ))}
-      <MySongs songs={songs.filter((s) => !placement[s.id] || placement[s.id] === personalId)} sync={sync} />
+      {sync ? (
+        <SongDragProvider sync={sync}>
+          <MySongs songs={mine} sync={sync} />
+          <WorkbookArea sync={sync} songs={songs} />
+        </SongDragProvider>
+      ) : (
+        <MySongs songs={mine} sync={null} />
+      )}
     </main>
   );
 }

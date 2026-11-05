@@ -41,7 +41,7 @@ export type SyncReply =
 /** Schnittstelle zum Server (workbook-sync, design.md D3). */
 export interface SyncApi {
   listWorkbooks(): Promise<SyncResult<{ workbooks: Workbook[] }>>;
-  createWorkbook(title: string): Promise<SyncResult>;
+  createWorkbook(title: string): Promise<SyncResult<{ id: string }>>;
   renameWorkbook(id: string, title: string): Promise<SyncResult>;
   deleteWorkbook(id: string): Promise<SyncResult>;
   invite(id: string, email: string): Promise<SyncResult>;

@@ -1,11 +1,13 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import type { Song, Workbook } from '../domain/types';
 import type { ActionResult, WorkbookActions } from '../sync/sync';
 import { useConfirm } from './ConfirmDialog';
 import { EditableHeading } from './EditableHeading';
 import { useReport } from './messages';
-import { SongTable } from './SongTable';
+import { useDropTarget } from './dragSong';
+import { SongTiles } from './SongTile';
 import { useDismiss } from './useDismiss';
+import { useStore } from './useLibrary';
 import { useEmail, syncMessage } from './useWorkbooks';
 
 /** Aktion, deren Fehler im Stapel oben erscheint; `true` bei Erfolg. */
@@ -45,6 +47,8 @@ function MembersPopover({ workbook, sync }: { workbook: Workbook; sync: Workbook
   const [input, setInput] = useState('');
   const [error, run] = useActionError();
   const isOwner = workbook.owner === email;
+  const membersHeading = useId();
+  const addHeading = useId();
 
   const invite = async () => {
     if (await run(() => sync.invite(workbook.id, input))) setInput('');
@@ -61,39 +65,45 @@ function MembersPopover({ workbook, sync }: { workbook: Workbook; sync: Workbook
   };
 
   return (
-    <div role="dialog" aria-label={`Mitglieder von ${workbook.title}`} className="card-popover">
-      <ul className="member-list">
-        {workbook.members.map((member) => (
-          <li key={member}>
-            <span>
-              {member}
-              {member === workbook.owner && ' (Besitzer)'}
-            </span>
-            {isOwner && member !== workbook.owner && (
-              <button type="button" aria-label={`${member} entfernen`} onClick={() => void removeMember(member)}>
-                Entfernen
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
+    <div role="dialog" aria-label={`Mitglieder von ${workbook.title}`} className="card-popover members-popover">
+      <section aria-labelledby={membersHeading}>
+        <h4 id={membersHeading}>Mitglieder</h4>
+        <ul className="member-list">
+          {workbook.members.map((member) => (
+            <li key={member}>
+              <span>
+                {member}
+                {member === workbook.owner && ' (Besitzer)'}
+              </span>
+              {isOwner && member !== workbook.owner && (
+                <button type="button" aria-label={`${member} entfernen`} onClick={() => void removeMember(member)}>
+                  Entfernen
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
       {isOwner && (
-        <form
-          className="member-invite"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault();
-            void invite();
-          }}
-        >
-          <label className="field">
-            Mail-Adresse
-            <input type="email" value={input} onChange={(e) => setInput(e.target.value)} />
-          </label>
-          <button type="submit" className="primary">
-            Einladen
-          </button>
-        </form>
+        <section aria-labelledby={addHeading}>
+          <h4 id={addHeading}>Hinzufügen</h4>
+          <form
+            className="member-invite"
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              void invite();
+            }}
+          >
+            <label className="field">
+              Mail-Adresse
+              <input type="email" value={input} onChange={(e) => setInput(e.target.value)} />
+            </label>
+            <button type="submit" className="primary">
+              Einladen
+            </button>
+          </form>
+        </section>
       )}
       {email && !isOwner && (
         <button type="button" onClick={() => void leave()}>
@@ -105,8 +115,15 @@ function MembersPopover({ workbook, sync }: { workbook: Workbook; sync: Workbook
   );
 }
 
-/** Karte eines Workbooks auf der Startseite (workbook-sync, design.md D12). */
+/** Kürzel einer Mail-Adresse: Anfangsbuchstaben der Teile vor dem @. */
+export function initials(email: string): string {
+  const parts = email.split('@')[0]!.split(/[._-]+/).filter(Boolean);
+  return (parts.length > 1 ? parts[0]![0]! + parts[1]![0]! : (parts[0] ?? email).slice(0, 2)).toUpperCase();
+}
+
+/** Das gewählte Workbook neben der Seitenleiste (song-overview-tiles, design.md D4). */
 export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; songs: readonly Song[]; sync: WorkbookActions }) {
+  const store = useStore();
   const email = useEmail();
   const confirm = useConfirm();
   const [membersOpen, setMembersOpen] = useState(false);
@@ -114,6 +131,7 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
   useDismiss(membersOpen, membersArea, useCallback(() => setMembersOpen(false), []));
   const run = useReportedAction();
   const isOwner = workbook.owner === email;
+  const target = useDropTarget() === workbook.id;
 
   const rename = (draft: string) => {
     const title = draft.trim();
@@ -122,9 +140,19 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
   const remove = async () => {
     if (await confirm(`Workbook „${workbook.title}“ für alle Mitglieder löschen?`)) await run(() => sync.deleteWorkbook(workbook.id));
   };
+  const addSong = async () => {
+    let id: string | undefined;
+    await run(async () => {
+      const result = await sync.createSongIn(workbook.id);
+      if (result.ok) id = result.id;
+      return result;
+    });
+    // Der Abgleich kann den Song inzwischen entfernt haben
+    if (id && store.getState().songs.some((s) => s.id === id)) store.openSong(id);
+  };
 
   return (
-    <section aria-label={workbook.title} className="card">
+    <section aria-label={workbook.title} className={`workbook-main${target ? ' drop-target' : ''}`} data-drop-workbook={workbook.id}>
       <div className="card-header">
         {isOwner ? (
           <EditableHeading level={3} label={`Titel von ${workbook.title}`} value={workbook.title} onCommit={rename} />
@@ -132,24 +160,36 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
           <h3>{workbook.title}</h3>
         )}
         <div className="card-members" ref={membersArea}>
-          <button type="button" aria-expanded={membersOpen} onClick={() => setMembersOpen((open) => !open)}>
-            Mitglieder
+          <button
+            type="button"
+            className="avatars"
+            aria-label="Mitglieder"
+            title={workbook.members.join(', ')}
+            aria-expanded={membersOpen}
+            onClick={() => setMembersOpen((open) => !open)}
+          >
+            {workbook.members.slice(0, 4).map((member) => (
+              <span key={member} className="avatar" aria-hidden="true">
+                {initials(member)}
+              </span>
+            ))}
+            {workbook.members.length > 4 && (
+              <span className="avatar" aria-hidden="true">
+                +{workbook.members.length - 4}
+              </span>
+            )}
           </button>
           {membersOpen && <MembersPopover workbook={workbook} sync={sync} />}
         </div>
       </div>
-      <p className="hint">{workbook.members.join(', ')}</p>
-      {songs.length > 0 && <SongTable songs={songs} />}
-      <div className="card-actions">
-        <button type="button" onClick={() => void run(() => sync.createSongIn(workbook.id))}>
-          Song anlegen
-        </button>
-        {isOwner && songs.length === 0 && (
+      <SongTiles songs={songs} onAdd={() => void addSong()} />
+      {isOwner && songs.length === 0 && (
+        <div className="card-actions">
           <button type="button" className="danger" onClick={() => void remove()}>
             Workbook löschen
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </section>
   );
 }

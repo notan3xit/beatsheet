@@ -132,6 +132,7 @@ describe('Spec app-messages › Ebenen der Oberfläche (Stylesheet)', () => {
     ['.structure-popover', 'popover'],
     ['.backdrop', 'modal'],
     ['.drag-image', 'drag'],
+    ['.drag-tile', 'drag'],
   ])('%s liegt auf der Ebene %s', (selector, name) => {
     expect(zIndexOf(selector)).toBe(`var(--z-${name})`);
   });
@@ -158,16 +159,26 @@ describe('Spec app-header › Anmeldedialog (Stylesheet)', () => {
   });
 });
 
-describe('Überschrift der Song-Liste (Stylesheet)', () => {
-  it('Ist nicht an die Maße des Schlosses gebunden, sondern gleicht den übrigen Überschriften', () => {
-    expect(css).not.toMatch(/\.page-heading,\s*\.lock-toggle/);
-    expect(css).toMatch(/\.page-heading,\s*\.editable-heading\s*\{[^}]*margin:\s*0/);
-  });
-});
-
 describe('Spec account-auth › Stabile Anordnung: freigehaltener Platz (Stylesheet)', () => {
   it('Die Meldungsstelle reserviert zwei Zeilen', () => {
     expect(css.match(/\.login-message\s*\{([^}]*)\}/)?.[1]).toMatch(/min-height:\s*calc\(2 \* /);
+  });
+});
+
+describe('Spec workbook-sync › Hervorhebung beim Ziehen (Stylesheet)', () => {
+  const rule = (selector: string) => css.match(new RegExp(`(?:^|\\n|,\\s*)${selector.replace(/[.[\]'=]/g, (c) => `\\${c}`)}\\s*(?:,[^{]*)?\\{([^}]*)\\}`))?.[1] ?? '';
+
+  it('Gewähltes Workbook als eine Fläche: Randfarbe statt outline, die Kante zum Bereich bleibt offen', () => {
+    const target = rule('.workbook-entry.drop-target');
+    expect(target).toMatch(/border-color:\s*var\(--accent\)/);
+    expect(target).not.toMatch(/outline/);
+    expect(rule('.workbook-main.drop-target')).toMatch(/border-color:\s*var\(--accent\)/);
+    expect(rule(".workbook-entry[aria-pressed='true'].drop-target")).toMatch(/border-right-color:\s*var\(--drop-fill\)/);
+  });
+
+  it('Beim Ziehen hebt nichts außer dem Ziel sich hervor', () => {
+    expect(css).toMatch(/body\.dragging-pattern \.tile-add:hover[^{]*\{[^}]*background:\s*none/);
+    expect(css).toMatch(/body\.dragging-pattern \.tile:hover[^{]*\{[^}]*border-color:\s*var\(--border\)/);
   });
 });
 

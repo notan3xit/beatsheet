@@ -359,6 +359,18 @@ describe('Spec account-songs › Fassungen beim Anmelden', () => {
   });
 });
 
+describe('Spec workbooks › Workbook anlegen (Client, song-overview-tiles D4)', () => {
+  it('Anlegen liefert die IDs von Workbook und Song', async () => {
+    await start();
+    const me = await loggedIn();
+    const created = await me.sync.createWorkbook('');
+    const band = me.store.getState().workbooks.find((w) => w.title === 'Neues Workbook')!;
+    expect(created).toEqual({ ok: true, id: band.id });
+    const song = await me.sync.createSongIn(band.id);
+    expect(song).toEqual({ ok: true, id: me.store.getState().songs.find((s) => me.store.getState().placement[s.id] === band.id)!.id });
+  });
+});
+
 describe('Spec account-songs › Eigene Songs ohne Verbindung', () => {
   it('Anlegen ohne Verbindung', async () => {
     await start();

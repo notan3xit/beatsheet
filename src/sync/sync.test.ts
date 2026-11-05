@@ -139,7 +139,7 @@ async function band({ live = false } = {}) {
   h = await startServer();
   const me = await device(OWNER, { live });
   await me.sync.syncAll();
-  expect(await me.sync.createWorkbook('Band')).toEqual({ ok: true });
+  expect(await me.sync.createWorkbook('Band')).toMatchObject({ ok: true });
   const workbook = workbookNamed(me, 'Band').id;
   expect(await me.sync.invite(workbook, ANNA)).toEqual({ ok: true });
   const anna = await device(ANNA, { live });
@@ -204,7 +204,7 @@ describe('Spec workbook-sync › Song in ein Workbook verschieben', () => {
 describe('Spec workbook-sync › Song in einem Workbook anlegen', () => {
   it('Anlegen in der Karte', async () => {
     const { me, anna, workbook } = await band();
-    expect(await me.sync.createSongIn(workbook)).toEqual({ ok: true });
+    expect(await me.sync.createSongIn(workbook)).toMatchObject({ ok: true });
     expect(inWorkbook(me, workbook)).toEqual(['Neuer Song']);
     await anna.sync.syncAll();
     expect(inWorkbook(anna, workbook)).toEqual(['Neuer Song']);
