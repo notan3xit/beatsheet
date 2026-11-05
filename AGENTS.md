@@ -29,7 +29,7 @@ Aufbau unter `src/`:
 - `domain`: reine Fachlogik (Datenmodell `Song` → `Segment` → `Block` → `Bar`, Patterns gehören zum Song), Normalisierung nach Strukturregeln
 - `notation`: Notationsmodell und VexFlow-Renderer
 - `songbook`: Layout der linken Buchseite und daraus das Motiv der Song-Kacheln
-- `audio`: Wiedergabe über Web Audio; `player` ist die einzige Stelle mit `AudioContext`
+- `audio`: Wiedergabe über Web Audio mit DRSKit-Aufnahmen oder Synth; `player` ist die einzige Stelle mit `AudioContext`. Die Aufnahmen unter `audio/samples/drs` erzeugt `scripts/drs-samples.mjs` (braucht `ffmpeg`, nicht Teil des Builds)
 - `persistence`: Dateiformat, Import nach Revision, IndexedDB mit einem Automerge-Dokument pro Song (`songDoc`: Dokumentform, Brücke vom `Song` ins Dokument, Zusammenführen)
 - `state`: Store mit Songs und Navigation
 - `account`: Client für die Anmeldung und das Profil (Name, Farbe) am Server, geteilter Anmeldestatus

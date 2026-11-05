@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Legt den Aufbau der App-Kopfzeile fest: ein Menü mit allen Aktionen zu Datei und Konto sowie ein dauerhaft sichtbares Konto-Symbol.
+Legt den Aufbau der App-Kopfzeile fest: ein Menü mit allen Aktionen zu Datei und Konto und der Wahl des Klangs sowie ein dauerhaft sichtbares Konto-Symbol.
 
 ## Requirements
 
 ### Requirement: Menü
-Links in der Kopfzeile MUST ein Knopf mit Hamburger-Symbol und ohne Text ein Menü öffnen. Das Menü MUST die Einträge „Exportieren“ und „Importieren“ enthalten, dazu abgemeldet „Anmelden“ und angemeldet „Abmelden“, jeweils mit Symbol und Text. Ein Trennstrich MUST „Exportieren“ und „Importieren“ vom Eintrag zum Konto trennen.
+Links in der Kopfzeile MUST ein Knopf mit Hamburger-Symbol und ohne Text ein Menü öffnen. Das Menü MUST die Einträge „Exportieren“ und „Importieren“ enthalten, dazu abgemeldet „Anmelden“ und angemeldet „Abmelden“, jeweils mit Symbol und Text. Ein Trennstrich MUST „Exportieren“ und „Importieren“ vom Eintrag zum Konto trennen. Unter dem Eintrag zum Konto MUST nach einem weiteren Trennstrich der Abschnitt „Klang“ folgen (siehe `playback-sound`).
 
 #### Scenario: Menü abgemeldet
 - **GIVEN** der Nutzer ist nicht angemeldet
@@ -22,6 +22,10 @@ Links in der Kopfzeile MUST ein Knopf mit Hamburger-Symbol und ohne Text ein Men
 #### Scenario: Trennstrich
 - **WHEN** der Nutzer das Menü öffnet
 - **THEN** steht ein Trennstrich zwischen „Importieren“ und dem Eintrag zum Konto
+
+#### Scenario: Abschnitt Klang
+- **WHEN** der Nutzer das Menü öffnet
+- **THEN** folgt nach dem Eintrag zum Konto ein Trennstrich und darunter der Abschnitt „Klang“ mit „DRSKit“ und „Synth“
 
 ### Requirement: Menü schließen
 Das Menü MUST sich beim Wählen eines Eintrags, mit einem Klick außerhalb und mit Escape schließen.

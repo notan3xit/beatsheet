@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Macht das im Pattern-Editor geöffnete Pattern hörbar: Es wird mit synthetisierten Drum-Klängen im Tempo seines Songs in einer Schleife abgespielt, damit der Nutzer seine Eingabe akustisch prüfen kann.
+Macht das im Pattern-Editor geöffnete Pattern hörbar: Es wird mit dem gewählten Drum-Klang im Tempo seines Songs in einer Schleife abgespielt, damit der Nutzer seine Eingabe akustisch prüfen kann.
 
 ## Requirements
 
@@ -46,7 +46,7 @@ Jeder gesetzte Schlag MUST zu dem Zeitpunkt erklingen, den Beat, Position und Un
 - **THEN** erklingen beide zum selben Zeitpunkt
 
 ### Requirement: Klang der Instrumente
-Jedes der zehn Instrumente MUST mit einem eigenen, im Browser erzeugten Klang erklingen, der ohne Audiodateien auskommt. Die Klänge MUST sich so unterscheiden, dass Bassdrum, Snare, die drei Toms, Hi-Hat geschlossen, Hi-Hat offen, Hi-Hat-Pedal, Ride und Crash einzeln erkennbar sind; die Toms MUST in der Tonhöhe von Tom 1 über Tom 2 zum Standtom abfallen.
+Jedes der zehn Instrumente MUST mit einem eigenen Klang erklingen, je nach gewähltem Klang aus einer Aufnahme oder im Browser erzeugt (siehe `playback-sound`). Die Klänge MUST sich so unterscheiden, dass Bassdrum, Snare, die drei Toms, Hi-Hat geschlossen, Hi-Hat offen, Hi-Hat-Pedal, Ride und Crash einzeln erkennbar sind; die Toms MUST in der Tonhöhe von Tom 1 über Tom 2 zum Standtom abfallen. Spielweisen und das Abstoppen der offenen Hi-Hat MUST für beide Klänge gelten.
 
 #### Scenario: Jedes Instrument klingt
 - **WHEN** ein Pattern auf je einer eigenen Position einen Schlag jedes der zehn Instrumente enthält und abgespielt wird
@@ -55,6 +55,11 @@ Jedes der zehn Instrumente MUST mit einem eigenen, im Browser erzeugten Klang er
 #### Scenario: Tonhöhe der Toms
 - **WHEN** Tom 1, Tom 2 und Standtom nacheinander erklingen
 - **THEN** ist Tom 1 am höchsten und das Standtom am tiefsten
+
+#### Scenario: Offene Hi-Hat mit Aufnahmen abgestoppt
+- **GIVEN** der Klang ist „DRSKit“ und die Aufnahmen sind bereit
+- **WHEN** die offene Hi-Hat auf der „1“ und die geschlossene Hi-Hat auf der „2“ liegen
+- **THEN** endet der Klang der offenen Hi-Hat auf der „2“
 
 ### Requirement: Klang der Spielweisen
 Eine Ghost Note MUST deutlich leiser erklingen als ein normaler Schlag desselben Instruments. Ein Flam MUST als zwei Schläge erklingen: ein leiser Vorschlag kurz vor der Position und der Hauptschlag genau auf der Position.
