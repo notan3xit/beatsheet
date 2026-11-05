@@ -7,41 +7,48 @@ Workbooks sind benannte Sammlungen von Songs auf dem Server, die ihr Besitzer mi
 ## Requirements
 
 ### Requirement: Workbook anlegen
-Ein angemeldeter Nutzer MUST ein Workbook mit Titel anlegen können. Ohne Titel MUST es „Neues Workbook“ heißen. Er MUST dessen Besitzer und einziges Mitglied sein. Ohne Anmeldung MUST es keine Workbooks geben.
+Ein angemeldeter Nutzer MUST über den Eintrag „+ Workbook“ am Ende der Seitenleiste ein Workbook anlegen können. Es MUST „Neues Workbook“ heißen und danach gewählt sein, sodass sein Besitzer es gleich umbenennen kann. Er MUST dessen Besitzer und einziges Mitglied sein. Ohne Anmeldung MUST es keine Workbooks geben.
 
 #### Scenario: Workbook anlegen
 - **GIVEN** der Nutzer ist als ich@example.com angemeldet
-- **WHEN** er ein Workbook „Band“ anlegt
-- **THEN** zeigt die Startseite eine Karte „Band“ mit dem Mitglied ich@example.com und ohne Songs
+- **WHEN** er „+ Workbook“ wählt
+- **THEN** zeigt die Seitenleiste „Neues Workbook“ mit 0 Songs und 1 Mitglied
+- **AND** „Neues Workbook“ ist gewählt und sein Titel lässt sich ändern
 
 #### Scenario: Ohne Titel
-- **WHEN** der angemeldete Nutzer ein Workbook anlegt, ohne einen Titel einzugeben
+- **WHEN** der angemeldete Nutzer ein Workbook anlegt
 - **THEN** heißt es „Neues Workbook“
 
 #### Scenario: Abgemeldet
 - **WHEN** der Nutzer nicht angemeldet ist
-- **THEN** zeigt die Startseite nur „Meine Songs“ und bietet kein Anlegen eines Workbooks an
+- **THEN** zeigt die Startseite nur „Meine Songs“, ohne den Bereich „Workbooks“
 
 ### Requirement: Workbooks auf der Startseite
-Die Startseite MUST für jedes Workbook, in dem der angemeldete Nutzer Mitglied ist, eine Karte mit Titel, Mitgliedern und den Songs des Workbooks zeigen, alphabetisch nach Titel, gefolgt von der Karte „Meine Songs“. Der eigene Bestand des Accounts (siehe `account-songs`) MUST nicht als Workbook erscheinen, weder als Karte noch als Ziel von „Zu Workbook …“. Ein Workbook MUST keine eigene Ansicht und keine eigene Adresse haben.
+Angemeldet MUST unter „Meine Songs“ der Bereich „Workbooks“ stehen: eine Seitenleiste mit einem Eintrag je Workbook des Nutzers, alphabetisch, mit Titel, Anzahl der Songs und der Mitglieder; daneben das gewählte Workbook mit Titel, Mitgliedern und den Kacheln seiner Songs. Der eigene Bestand (`account-songs`) MUST weder in der Seitenleiste noch als Ziel von „Zu Workbook …“ oder beim Ziehen erscheinen. Ein Workbook MUST keine eigene Ansicht und keine eigene Adresse haben.
 
 #### Scenario: Zwei Workbooks
 - **GIVEN** der Nutzer ist Mitglied von „Proberaum“ und „Band“ und hat den eigenen Song „Skizze“
 - **WHEN** er die Startseite öffnet
-- **THEN** zeigt sie die Karten „Band“, „Proberaum“ und „Meine Songs“ in dieser Reihenfolge
+- **THEN** zeigt die Seitenleiste „Band“ und „Proberaum“ in dieser Reihenfolge
 - **AND** „Skizze“ steht nur in „Meine Songs“
+
+#### Scenario: Angaben in der Seitenleiste
+- **GIVEN** „Band“ hat 3 Songs und 2 Mitglieder
+- **WHEN** der Nutzer die Startseite öffnet
+- **THEN** zeigt der Eintrag „Band“ „3 Songs“ und „2 Mitglieder“
 
 #### Scenario: Ohne Workbooks
 - **GIVEN** der Nutzer ist angemeldet und in keinem Workbook Mitglied
 - **WHEN** er die Startseite öffnet
-- **THEN** zeigt sie nur die Karte „Meine Songs“ und bietet „Zu Workbook …“ nicht an
+- **THEN** enthält die Seitenleiste nur „+ Workbook“
+- **AND** die App bietet „Zu Workbook …“ nicht an
 
 ### Requirement: Workbook umbenennen
 Der Besitzer MUST den Titel eines Workbooks ändern können. Ein leerer oder nur aus Leerzeichen bestehender Titel MUST abgelehnt werden. Der neue Titel MUST bei allen Mitgliedern erscheinen.
 
 #### Scenario: Umbenennen
 - **WHEN** der Besitzer „Band“ in „Band 2026“ umbenennt
-- **THEN** zeigen die Karten aller Mitglieder „Band 2026“
+- **THEN** zeigen die Seitenleisten aller Mitglieder „Band 2026“
 
 #### Scenario: Leerer Titel
 - **WHEN** der Besitzer den Titel auf eine leere Zeichenkette ändert
@@ -52,7 +59,7 @@ Der Besitzer MUST ein Workbook ohne Songs nach Bestätigung löschen können. Ei
 
 #### Scenario: Leeres Workbook löschen
 - **WHEN** der Besitzer das leere Workbook „Band“ löscht und die Nachfrage bestätigt
-- **THEN** verschwindet die Karte „Band“ bei allen Mitgliedern
+- **THEN** verschwindet „Band“ aus den Seitenleisten aller Mitglieder
 
 #### Scenario: Workbook mit Songs
 - **WHEN** das Workbook „Band“ einen Song enthält
@@ -63,13 +70,13 @@ Der Besitzer MUST eine Mail-Adresse zum Workbook einladen können. Die Person MU
 
 #### Scenario: Einladen
 - **WHEN** der Besitzer anna@example.com zu „Band“ einlädt
-- **THEN** ist anna@example.com in der Karte „Band“ als Mitglied aufgeführt
+- **THEN** ist anna@example.com unter den Mitgliedern von „Band“ aufgeführt
 - **AND** an anna@example.com geht eine Mail, die „Band“ und die Adresse des Besitzers nennt
 
 #### Scenario: Erste Anmeldung nach der Einladung
 - **GIVEN** anna@example.com wurde zu „Band“ eingeladen und hatte noch kein Konto
 - **WHEN** sie sich zum ersten Mal anmeldet
-- **THEN** zeigt ihre Startseite die Karte „Band“ mit allen Songs des Workbooks
+- **THEN** zeigt ihre Seitenleiste „Band“, und gewählt zeigt es alle Songs des Workbooks
 
 #### Scenario: Bereits Mitglied
 - **WHEN** der Besitzer eine Adresse einlädt, die schon Mitglied ist
@@ -87,11 +94,11 @@ Der Besitzer MUST jedes andere Mitglied entfernen können. Ein Mitglied, das nic
 
 #### Scenario: Entfernen
 - **WHEN** der Besitzer anna@example.com aus „Band“ entfernt
-- **THEN** ist sie in der Karte „Band“ nicht mehr aufgeführt
+- **THEN** ist sie unter den Mitgliedern von „Band“ nicht mehr aufgeführt
 
 #### Scenario: Verlassen
 - **WHEN** anna@example.com „Band“ verlässt
-- **THEN** zeigt ihre Startseite keine Karte „Band“ mehr
+- **THEN** zeigt ihre Seitenleiste „Band“ nicht mehr
 
 #### Scenario: Besitzer
 - **WHEN** der Besitzer die Mitglieder von „Band“ öffnet
@@ -129,3 +136,36 @@ Der Server MUST Workbooks, ihre Mitglieder und Songs nur Mitgliedern zeigen und 
 #### Scenario: Fremdes Workbook
 - **WHEN** ein angemeldeter Nutzer, der nicht Mitglied von „Band“ ist, Songs von „Band“ abruft oder ändert
 - **THEN** antwortet der Server wie bei einem nicht vorhandenen Workbook und ändert nichts
+
+### Requirement: Mitglieder-Popover
+Das Popover „Mitglieder“ MUST einen Abschnitt „Mitglieder“ mit der Liste der Mitglieder zeigen und, nur für den Besitzer, darunter einen Abschnitt „Hinzufügen“ mit dem Formular zum Einladen.
+
+#### Scenario: Besitzer öffnet die Mitglieder
+- **WHEN** der Besitzer die Mitglieder von „Band“ öffnet
+- **THEN** zeigt das Popover die Abschnitte „Mitglieder“ und „Hinzufügen“, das Formular steht unter „Hinzufügen“
+
+#### Scenario: Mitglied öffnet die Mitglieder
+- **WHEN** ein Mitglied, das nicht Besitzer ist, die Mitglieder von „Band“ öffnet
+- **THEN** zeigt das Popover nur den Abschnitt „Mitglieder“
+
+### Requirement: Workbook wählen
+Ein Klick auf einen Eintrag der Seitenleiste MUST dieses Workbook wählen; der gewählte Eintrag MUST hervorgehoben sein. Ohne frühere Wahl MUST das erste Workbook gewählt sein. Die Wahl MUST erhalten bleiben, wenn der Nutzer einen Song öffnet und zur Startseite zurückkehrt. Verschwindet das gewählte Workbook, MUST das erste verbliebene gewählt sein.
+
+#### Scenario: Wählen
+- **WHEN** der Nutzer in der Seitenleiste „Proberaum“ wählt
+- **THEN** zeigt die Startseite die Songs von „Proberaum“ und der Eintrag „Proberaum“ ist hervorgehoben
+
+#### Scenario: Vorgabe
+- **GIVEN** der Nutzer ist Mitglied von „Band“ und „Proberaum“
+- **WHEN** er die Startseite zum ersten Mal öffnet
+- **THEN** ist „Band“ gewählt
+
+#### Scenario: Rückkehr von einem Song
+- **GIVEN** „Proberaum“ ist gewählt
+- **WHEN** der Nutzer dort einen Song öffnet und über den Pfad „Songs“ zurückkehrt
+- **THEN** ist weiterhin „Proberaum“ gewählt
+
+#### Scenario: Gewähltes Workbook verschwindet
+- **GIVEN** „Proberaum“ ist gewählt
+- **WHEN** der Nutzer „Proberaum“ verlässt
+- **THEN** ist „Band“ gewählt

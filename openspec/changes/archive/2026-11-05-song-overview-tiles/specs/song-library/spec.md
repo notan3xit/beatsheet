@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Song-Liste
-Die Startseite MUST oben „Meine Songs“ mit den lokalen und den zum Account gehörenden Songs zeigen (siehe `account-songs`), darunter angemeldet die Workbooks (siehe `workbooks`). Songs MUST als Kacheln erscheinen, alphabetisch nach Titel, nebeneinander und umbrechend. Jede Kachel MUST das Motiv des Songs (siehe `song-motif`) und darunter Titel, Anzahl der Takte und Tempo zeigen. Ist „Meine Songs“ leer, MUST ein Hinweis zeigen, wie man den ersten Song anlegt. Die Auswahl einer Kachel MUST die Doppelseite des Songs öffnen.
+Oben auf der Startseite MUST „Meine Songs“ die lokalen und die zum Account gehörenden Songs zeigen (`account-songs`), darunter angemeldet die Workbooks (`workbooks`). Songs MUST als umbrechende Kacheln erscheinen, alphabetisch nach Titel, jede mit Motiv (`song-motif`), Titel, Taktzahl und Tempo. Ein leeres „Meine Songs“ MUST zeigen, wie man den ersten Song anlegt. Die Auswahl einer Kachel MUST die Doppelseite des Songs öffnen.
 
 #### Scenario: Sortierte Liste
 - **WHEN** die Songs „Uprising“ (32 Takte, Tempo 128) und „Hysteria“ (0 Takte, Tempo 120) in „Meine Songs“ existieren

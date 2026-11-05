@@ -7,11 +7,11 @@ Hält die Songs eines Workbooks auf allen Geräten seiner Mitglieder auf demselb
 ## Requirements
 
 ### Requirement: Song in ein Workbook verschieben
-Der angemeldete Nutzer MUST einen Song aus „Meine Songs“ in eines seiner Workbooks verschieben können. Der Song MUST danach mit unveränderter ID und unverändertem Inhalt im Workbook stehen, bei allen Mitgliedern erscheinen und nicht mehr in „Meine Songs“ stehen. Ist der Server nicht erreichbar, MUST die App das melden und den Song in „Meine Songs“ lassen.
+Der angemeldete Nutzer MUST einen Song aus „Meine Songs“ in eines seiner Workbooks verschieben können, über „Zu Workbook …“ an der Kachel oder durch Ziehen (siehe „Song in ein Workbook ziehen“). Der Song MUST danach mit unveränderter ID und unverändertem Inhalt im Workbook stehen, bei allen Mitgliedern erscheinen und nicht mehr in „Meine Songs“ stehen. Ist der Server nicht erreichbar, MUST die App das melden und den Song in „Meine Songs“ lassen.
 
 #### Scenario: Verschieben
-- **WHEN** der Nutzer „Uprising“ aus „Meine Songs“ zu „Band“ verschiebt
-- **THEN** steht „Uprising“ in der Karte „Band“ und nicht mehr in „Meine Songs“
+- **WHEN** der Nutzer „Uprising“ über „Zu Workbook …“ aus „Meine Songs“ zu „Band“ verschiebt
+- **THEN** steht „Uprising“ in „Band“ und nicht mehr in „Meine Songs“
 - **AND** die anderen Mitglieder von „Band“ sehen „Uprising“ mit denselben Takten und Patterns
 
 #### Scenario: Server nicht erreichbar
@@ -19,11 +19,12 @@ Der angemeldete Nutzer MUST einen Song aus „Meine Songs“ in eines seiner Wor
 - **THEN** meldet die App, dass der Server nicht erreichbar ist, und „Uprising“ bleibt in „Meine Songs“
 
 ### Requirement: Song in einem Workbook anlegen
-In der Karte eines Workbooks MUST der Nutzer einen Song anlegen können. Er MUST „Neuer Song“ heißen, direkt zum Workbook gehören und bei allen Mitgliedern erscheinen. Ist der Server nicht erreichbar, MUST die App das melden und keinen Song anlegen.
+Im gewählten Workbook MUST als letzte Kachel „+ Song“ stehen. Sie MUST einen Song „Neuer Song“ anlegen, der direkt zum Workbook gehört und bei allen Mitgliedern erscheint, und seine Doppelseite öffnen. Ist der Server nicht erreichbar, MUST die App das melden und keinen Song anlegen.
 
 #### Scenario: Anlegen in der Karte
-- **WHEN** der Nutzer in der Karte „Band“ einen Song anlegt
-- **THEN** steht „Neuer Song“ in der Karte „Band“ und bei allen Mitgliedern
+- **WHEN** der Nutzer im gewählten Workbook „Band“ „+ Song“ wählt
+- **THEN** zeigt die App die Doppelseite von „Neuer Song“
+- **AND** „Neuer Song“ steht in „Band“, auch bei allen Mitgliedern
 
 ### Requirement: Workbook-Song löschen
 Das Löschen eines Songs, der zu einem Workbook gehört, MUST ihn für alle Mitglieder löschen. Die Nachfrage MUST darauf hinweisen. Ein gelöschter Song MUST auch auf Geräten verschwinden, die ihn in der Zwischenzeit offline geändert haben. Ist der Server nicht erreichbar, MUST die App das melden und den Song behalten.
@@ -51,8 +52,8 @@ Das Löschen eines Songs, der zu einem Workbook gehört, MUST ihn für alle Mitg
 - **THEN** zeigt das zweite Gerät den Takt binnen 5 Sekunden
 
 #### Scenario: Neuer Song eines anderen Mitglieds
-- **WHEN** anna@example.com einen Song zu „Band“ hinzufügt, während ein anderes Mitglied die Startseite geöffnet hat
-- **THEN** erscheint der Song binnen 5 Sekunden in dessen Karte „Band“
+- **WHEN** anna@example.com einen Song zu „Band“ hinzufügt, während ein anderes Mitglied die Startseite mit gewähltem „Band“ geöffnet hat
+- **THEN** erscheint der Song binnen 5 Sekunden bei diesem Mitglied in „Band“, und die Anzahl im Eintrag „Band“ steigt
 
 ### Requirement: Offline arbeiten
 Workbook-Songs MUST ohne erreichbaren Server lesbar und bearbeitbar bleiben. Offline gemachte Änderungen MUST lokal gespeichert und beim nächsten Kontakt mit dem Server übertragen werden. Gleichzeitige Änderungen MUST nach den Regeln von `song-merge` zusammengeführt werden. Solange ein angemeldeter Nutzer oder ein Nutzer mit bekannten Workbooks den Server nicht erreicht, MUST die App oben einen Hinweis zeigen, dass er weiterarbeiten kann und die Änderungen später übertragen werden.
@@ -70,7 +71,7 @@ Workbook-Songs MUST ohne erreichbaren Server lesbar und bearbeitbar bleiben. Off
 
 #### Scenario: Neuladen ohne Server
 - **WHEN** der Nutzer die App bei nicht erreichbarem Server neu lädt
-- **THEN** zeigt die Startseite die Karten seiner Workbooks mit ihren Songs wie zuletzt bekannt
+- **THEN** zeigt die Startseite seine Workbooks mit ihren Songs wie zuletzt bekannt
 
 ### Requirement: Unabhängig entstandene Fassung
 Hat ein Gerät einen Song unter derselben ID wie ein Workbook-Song, ohne dass er von dessen Fassung auf dem Server abstammt (etwa durch Import einer Exportdatei auf einem neuen Gerät), MUST der Server die Fassung des Geräts zurückweisen. Das Gerät MUST die Fassung des Servers übernehmen und seine eigene als Song „<Titel> (Kopie)“ mit neuer ID in „Meine Songs“ behalten.
@@ -94,10 +95,48 @@ Beim Abmelden MUST die App noch nicht übertragene Änderungen an Workbook-Songs
 
 #### Scenario: Abmelden
 - **WHEN** der Nutzer sich abmeldet
-- **THEN** zeigt die Startseite keine Workbook-Karten mehr
+- **THEN** zeigt die Startseite den Bereich „Workbooks“ nicht mehr
 
 #### Scenario: Abmelden mit nicht übertragenen Änderungen
 - **GIVEN** der Nutzer hat „Intro“ aus „Band“ offline geändert
 - **WHEN** er sich abmeldet
 - **THEN** fragt die App nach, ob die nicht übertragenen Änderungen verworfen werden sollen
 - **AND** lehnt er ab, bleibt er angemeldet und die Änderung bleibt erhalten
+
+### Requirement: Song in ein Workbook ziehen
+Eine Kachel aus „Meine Songs“ MUST sich auf einen Eintrag der Seitenleiste oder in den Bereich des gewählten Workbooks ziehen lassen; Loslassen dort MUST den Song in dieses Workbook verschieben. Während des Ziehens MUST die Kachel dem Zeiger folgen. Loslassen außerhalb eines Ziels und Escape MUST nichts ändern. Kacheln in einem Workbook MUST sich nicht ziehen lassen.
+
+#### Scenario: Auf einen Eintrag ziehen
+- **GIVEN** „Band“ ist gewählt
+- **WHEN** der Nutzer die Kachel „Skizze“ aus „Meine Songs“ auf den Eintrag „Proberaum“ zieht und loslässt
+- **THEN** steht „Skizze“ in „Proberaum“ und nicht mehr in „Meine Songs“
+
+#### Scenario: In das gewählte Workbook ziehen
+- **GIVEN** „Band“ ist gewählt
+- **WHEN** der Nutzer die Kachel „Skizze“ in den Bereich von „Band“ zieht und loslässt
+- **THEN** steht „Skizze“ in „Band“
+
+#### Scenario: Abbrechen
+- **WHEN** der Nutzer „Skizze“ zieht und über „Meine Songs“ loslässt oder Escape drückt
+- **THEN** bleibt „Skizze“ in „Meine Songs“ und nichts wird übertragen
+
+#### Scenario: Klick statt Ziehen
+- **WHEN** der Nutzer die Kachel „Skizze“ anklickt, ohne sie zu bewegen
+- **THEN** zeigt die App die Doppelseite von „Skizze“
+
+#### Scenario: Workbook-Kachel
+- **WHEN** der Nutzer die Kachel „Uprising“ in „Band“ zu ziehen versucht
+- **THEN** wird sie nicht gezogen und bleibt in „Band“
+
+### Requirement: Hervorhebung beim Ziehen
+Während des Ziehens MUST nur das Ziel unter dem Zeiger hervorgehoben sein, andere Flächen wie „+ Song“ MUST unverändert bleiben. Ist das Ziel das gewählte Workbook, MUST sein Eintrag mit dem Bereich zusammen eine hervorgehobene Fläche bilden.
+
+#### Scenario: Ziel hervorgehoben
+- **WHEN** der Nutzer „Skizze“ über den Eintrag „Proberaum“ zieht
+- **THEN** ist „Proberaum“ als Ziel hervorgehoben
+
+#### Scenario: Gewähltes Workbook als Ziel
+- **GIVEN** „Band“ ist gewählt
+- **WHEN** der Nutzer „Skizze“ über den Bereich von „Band“ zieht
+- **THEN** sind Eintrag und Bereich von „Band“ als eine Fläche mit gemeinsamem Rand hervorgehoben
+- **AND** „+ Song“ in „Band“ ist nicht hervorgehoben

@@ -20,7 +20,7 @@ Ein angemeldeter Nutzer MUST über den Eintrag „+ Workbook“ am Ende der Seit
 - **THEN** zeigt die Startseite nur „Meine Songs“, ohne den Bereich „Workbooks“
 
 ### Requirement: Workbooks auf der Startseite
-Angemeldet MUST die Startseite unter „Meine Songs“ den Bereich „Workbooks“ zeigen: eine Seitenleiste mit je einem Eintrag für jedes Workbook, in dem der Nutzer Mitglied ist, alphabetisch nach Titel, mit Titel, Anzahl der Songs und Anzahl der Mitglieder. Daneben MUST das gewählte Workbook mit Titel, Mitgliedern und den Kacheln seiner Songs stehen. Der eigene Bestand des Accounts (siehe `account-songs`) MUST nicht als Workbook erscheinen, weder in der Seitenleiste noch als Ziel von „Zu Workbook …“ oder beim Ziehen. Ein Workbook MUST keine eigene Ansicht und keine eigene Adresse haben.
+Angemeldet MUST unter „Meine Songs“ der Bereich „Workbooks“ stehen: eine Seitenleiste mit einem Eintrag je Workbook des Nutzers, alphabetisch, mit Titel, Anzahl der Songs und der Mitglieder; daneben das gewählte Workbook mit Titel, Mitgliedern und den Kacheln seiner Songs. Der eigene Bestand (`account-songs`) MUST weder in der Seitenleiste noch als Ziel von „Zu Workbook …“ oder beim Ziehen erscheinen. Ein Workbook MUST keine eigene Ansicht und keine eigene Adresse haben.
 
 #### Scenario: Zwei Workbooks
 - **GIVEN** der Nutzer ist Mitglied von „Proberaum“ und „Band“ und hat den eigenen Song „Skizze“

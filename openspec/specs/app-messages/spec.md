@@ -10,11 +10,11 @@ Legt fest, wo die App Meldungen zeigt: gesammelt an einer Stelle oben, damit sie
 Hinweise, Ergebnisse und Fehler von Aktionen MUST gestapelt unter dem Kopf der App erscheinen, unabhängig davon, wo die Aktion ausgelöst wurde. Der Stapel MUST beim Scrollen sichtbar bleiben und MUST keine Inhalte verdecken. Meldungen zu einem Ereignis MUST sich über ein Kreuz am rechten Rand schließen lassen. Hinweise zu einem Zustand MUST stehen bleiben, solange er andauert.
 
 #### Scenario: Fehler einer Aktion in einer Karte
-- **WHEN** das Anlegen eines Songs in der Karte „Band“ scheitert
-- **THEN** erscheint der Fehler im Stapel und nicht in der Karte
+- **WHEN** das Anlegen eines Songs in „Band“ scheitert
+- **THEN** erscheint der Fehler im Stapel und nicht im Bereich von „Band“
 
 #### Scenario: Erfolgreicher neuer Versuch
-- **GIVEN** das Anlegen eines Songs in der Karte „Band“ ist gescheitert
+- **GIVEN** das Anlegen eines Songs in „Band“ ist gescheitert
 - **WHEN** ein neuer Versuch gelingt
 - **THEN** verschwindet der Fehler aus dem Stapel
 

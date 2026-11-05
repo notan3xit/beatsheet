@@ -40,24 +40,27 @@ Das System MUST das Löschen eines Songs nach Bestätigung ermöglichen. Die Nac
 - **THEN** bleibt der Song unverändert
 
 ### Requirement: Song-Liste
-Das System MUST die Songs in Karten auflisten: je Workbook eine Karte (siehe `workbooks`) und eine Karte „Meine Songs“ mit den lokalen und den zum Account gehörenden Songs (siehe `account-songs`). Jede Karte MUST ihre Songs alphabetisch nach Titel in einer Tabelle mit den Spalten Titel, Takte, Grooves und Fills zeigen, mit einer Kopfzeile. Ist „Meine Songs“ leer, MUST die Karte einen Hinweis zeigen, wie man den ersten Song anlegt. Die Auswahl eines Songs MUST seine Doppelseite öffnen.
+Oben auf der Startseite MUST „Meine Songs“ die lokalen und die zum Account gehörenden Songs zeigen (`account-songs`), darunter angemeldet die Workbooks (`workbooks`). Songs MUST als umbrechende Kacheln erscheinen, alphabetisch nach Titel, jede mit Motiv (`song-motif`), Titel, Taktzahl und Tempo. Ein leeres „Meine Songs“ MUST zeigen, wie man den ersten Song anlegt. Die Auswahl einer Kachel MUST die Doppelseite des Songs öffnen.
 
 #### Scenario: Sortierte Liste
-- **WHEN** die Songs „Uprising“ (32 Takte, 2 Grooves, 1 Fill) und „Hysteria“ (0 Takte, keine Patterns) in „Meine Songs“ existieren
-- **THEN** zeigt die Tabelle von „Meine Songs“ zuerst „Hysteria“ mit 0, 0, 0, dann „Uprising“ mit 32, 2, 1
-- **AND** die Kopfzeile lautet Titel, Takte, Grooves, Fills
+- **WHEN** die Songs „Uprising“ (32 Takte, Tempo 128) und „Hysteria“ (0 Takte, Tempo 120) in „Meine Songs“ existieren
+- **THEN** zeigt „Meine Songs“ zuerst die Kachel „Hysteria“ mit „0 Takte“ und „♩ = 120“, dann „Uprising“ mit „32 Takte“ und „♩ = 128“
 
 #### Scenario: Leere Liste
 - **WHEN** keine Songs existieren
 - **THEN** zeigt „Meine Songs“ einen Hinweis zum Anlegen des ersten Songs
 
 #### Scenario: Song öffnen
-- **WHEN** der Nutzer in einer Karte „Hysteria“ auswählt
+- **WHEN** der Nutzer die Kachel „Hysteria“ auswählt
+- **THEN** zeigt die App die Doppelseite von „Hysteria“
+
+#### Scenario: Song per Tastatur öffnen
+- **WHEN** der Nutzer die Kachel „Hysteria“ mit der Tastatur fokussiert und Enter drückt
 - **THEN** zeigt die App die Doppelseite von „Hysteria“
 
 #### Scenario: Neuer Song landet in „Meine Songs“
-- **WHEN** der Nutzer über das Eingabefeld der Song-Liste den Song „Skizze“ anlegt
-- **THEN** steht „Skizze“ in „Meine Songs“
+- **WHEN** der Nutzer in „Meine Songs“ „+ Song“ wählt und danach zur Startseite zurückkehrt
+- **THEN** steht „Neuer Song“ in „Meine Songs“
 
 ### Requirement: Song-Tempo
 Jeder Song MUST ein Tempo in BPM haben, eine ganze Zahl von 30 bis 300. Ein neuer Song und ein Song, für den kein Tempo gespeichert ist, MUST das Tempo 120 haben. Ein Tempo außerhalb des Bereichs oder keine ganze Zahl MUST abgelehnt werden; das bisherige Tempo bleibt dann erhalten. Eine Änderung des Tempos MUST die Revision des Songs um 1 erhöhen.
@@ -105,3 +108,10 @@ Beim Bearbeiten der Tempoangabe MUST „♩ =“ stehen bleiben, und das Feld MU
 - **WHEN** der Nutzer auf „♩ = 120“ klickt
 - **THEN** steht weiterhin „♩ =“ da, nur die Zahl ist ein Eingabefeld ohne Pfeil-Knöpfe
 - **AND** alles neben der Angabe bleibt an seiner Stelle
+
+### Requirement: Song über die Kachel „+ Song“ anlegen
+„Meine Songs“ MUST als letzte Kachel „+ Song“ zeigen. Sie MUST einen Song „Neuer Song“ in „Meine Songs“ anlegen und seine Doppelseite öffnen, wo er sich umbenennen lässt.
+
+#### Scenario: Doppelseite des neuen Songs
+- **WHEN** der Nutzer in „Meine Songs“ „+ Song“ wählt
+- **THEN** zeigt die App die Doppelseite von „Neuer Song“

@@ -7,7 +7,7 @@ Zeigt, wo im Notenbuch man sich befindet (Song-Liste, Doppelseite eines Songs, P
 ## Requirements
 
 ### Requirement: Breadcrumbs
-Die Doppelseite MUST über ihrer Überschrift den Pfad „Songs“ zeigen, der Pattern-Editor den Pfad „Songs“ und den Songtitel. „Songs“ MUST zur Song-Liste führen, der Songtitel zur Doppelseite des Songs. Die Song-Liste MUST die Überschrift „Songs“ tragen. Eigene Zurück-Knöpfe MUST es nicht mehr geben.
+Die Doppelseite MUST über ihrer Überschrift den Pfad „Songs“ zeigen, der Pattern-Editor den Pfad „Songs“ und den Songtitel. „Songs“ MUST zur Song-Liste führen, der Songtitel zur Doppelseite des Songs. Die Song-Liste MUST keine eigene Überschrift „Songs“ tragen; sie beginnt mit „Meine Songs“. Eigene Zurück-Knöpfe MUST es nicht mehr geben.
 
 #### Scenario: Pfad im Pattern-Editor
 - **WHEN** der Nutzer im Song „Hysteria“ den Groove „Verse“ öffnet
@@ -25,6 +25,10 @@ Die Doppelseite MUST über ihrer Überschrift den Pfad „Songs“ zeigen, der P
 - **WHEN** der Nutzer die Doppelseite von „Hysteria“ öffnet
 - **THEN** zeigt der Pfad nur „Songs“ und die Überschrift lautet „Hysteria“
 - **AND** es gibt keinen Knopf „Alle Songs“
+
+#### Scenario: Song-Liste ohne Überschrift
+- **WHEN** der Nutzer die Song-Liste öffnet
+- **THEN** ist „Meine Songs“ ihre erste Überschrift, und eine Überschrift „Songs“ gibt es nicht
 
 ### Requirement: Editierbare Überschrift
 Songtitel auf der Doppelseite und Patternname im Pattern-Editor MUST als Überschrift erscheinen. Bei entsperrtem Song MUST ein Klick auf die Überschrift sie in ein Eingabefeld mit dem aktuellen Namen verwandeln. Enter oder Verlassen des Felds MUST den Namen übernehmen, Escape MUST die Eingabe verwerfen. Danach MUST wieder die Überschrift erscheinen. Ein abgelehnter Name MUST den bisherigen Namen stehen lassen.
