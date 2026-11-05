@@ -7,7 +7,7 @@ Stellt einen Song als Doppelseite dar: links die Struktur maßstabsgetreu als Fa
 ## Requirements
 
 ### Requirement: Doppelseite
-Die Ansicht eines Songs MUST links die Struktur und rechts die Patterns des Songs nebeneinander zeigen. Die Auswahl eines Patterns auf der rechten Seite MUST den Pattern-Editor für dieses Pattern öffnen, von dem aus man zur Doppelseite zurückkehrt.
+Die Ansicht eines Songs MUST links die Struktur und rechts die Patterns des Songs nebeneinander zeigen, solange daneben die Struktur in voller Breite pro Beat und die Patternseite mit einer Spalte Platz haben. Nebeneinander MUST der übrige Platz im Verhältnis 3:2 an Struktur und Patternseite gehen, bis die Struktur ihre größte Breite pro Beat und die Patternseite ihre größte Breite von zwei Spalten erreicht hat; weiterer Platz bleibt frei. Sonst MUST die Patternseite unter der Struktur stehen, und beide Seiten MUST die volle Breite einnehmen. Die Auswahl eines Patterns auf der rechten Seite MUST den Pattern-Editor für dieses Pattern öffnen, von dem aus man zur Doppelseite zurückkehrt.
 
 #### Scenario: Song öffnen
 - **WHEN** der Nutzer einen Song mit Struktur und Patterns öffnet
@@ -17,8 +17,20 @@ Die Ansicht eines Songs MUST links die Struktur und rechts die Patterns des Song
 - **WHEN** der Nutzer den Song entsperrt, rechts den Groove „Verse-Beat“ auswählt, einen Schlag setzt und zurückkehrt
 - **THEN** zeigt die Doppelseite den geänderten Groove
 
+#### Scenario: Tablet quer
+- **WHEN** der Nutzer einen Song mit 16-Beat-Zeilen in einem 1024 px breiten Fenster öffnet
+- **THEN** stehen Struktur und Patterns nebeneinander und die Struktur liegt vollständig in ihrer Seite
+
+#### Scenario: Tablet hochkant
+- **WHEN** der Nutzer einen Song mit 16-Beat-Zeilen in einem 768 px breiten Fenster öffnet
+- **THEN** steht die Patternseite unter der Struktur, beide Seiten sind gleich breit und die Breite pro Beat beträgt mindestens 2,25rem
+
+#### Scenario: Großes Fenster
+- **WHEN** der Nutzer einen Song mit 16-Beat-Zeilen in einem 1650 px breiten Fenster öffnet
+- **THEN** ist die Struktur breiter als in einem 1024 px breiten Fenster und die Patternseite höchstens so breit wie zwei Spalten
+
 ### Requirement: Maßstabsgetreue Struktur
-Jedes Segment MUST mit seinem Namen als Überschrift erscheinen, gefolgt von seinen Takten in Zeilen zu höchstens 16 Beats. Ein Takt MUST in der laufenden Zeile stehen, wenn er ganz hineinpasst, sonst in einer neuen. Ein Takt MUST NOT geteilt werden. Die Breite eines Takts MUST proportional zu seinen Beats sein, mit gleicher Breite pro Beat im ganzen Song. Jeder Block und damit jedes Segment MUST in einer neuen Zeile beginnen.
+Jedes Segment MUST mit seinem Namen als Überschrift erscheinen, gefolgt von seinen Takten in Zeilen zu höchstens 16 Beats. Ein Takt MUST in der laufenden Zeile stehen, wenn er ganz hineinpasst, sonst in einer neuen. Ein Takt MUST NOT geteilt werden. Die Breite eines Takts MUST proportional zu seinen Beats sein, mit gleicher Breite pro Beat im ganzen Song. Jeder Block und damit jedes Segment MUST in einer neuen Zeile beginnen. Die Breite pro Beat MUST sich nach der Breite der linken Seite richten, sodass eine Zeile von 16 Beats genau hineinpasst, höchstens aber 3rem. Sie MUST mindestens 2,25rem betragen, solange eine Zeile von 16 Beats mit 2,25rem in die linke Seite passt. Die Struktur MUST NOT über die linke Seite hinausragen.
 
 #### Scenario: Unterschiedliche Taktlängen
 - **WHEN** ein Segment die Takte 4/4, 2/4, 4/4 enthält
@@ -39,6 +51,10 @@ Jedes Segment MUST mit seinem Namen als Überschrift erscheinen, gefolgt von sei
 #### Scenario: Neuer Block in neuer Zeile
 - **WHEN** ein Segment aus einem Block mit 2 Takten und einem Block mit 4 Takten besteht
 - **THEN** stehen die 2 Takte des ersten Blocks allein in der ersten Zeile und die 4 Takte des zweiten Blocks in der zweiten Zeile
+
+#### Scenario: Smartphone hochkant
+- **WHEN** der Nutzer einen Song mit 16-Beat-Zeilen in einem 390 px breiten Fenster öffnet
+- **THEN** stehen weiterhin 4 Takte 4/4 in einer Zeile, die Zeile liegt vollständig in der linken Seite und die Seite ist nicht breiter als das Fenster
 
 ### Requirement: Groove-Kennzeichnung im Takt
 Ein Takt mit Groove MUST in der Farbe des Grooves erscheinen. Den Groove-Namen MUST er nur zeigen, wenn er der erste Takt seines Segments ist oder sein Groove sich gegenüber dem vorigen Takt des Segments ändert; sonst MUST der Name nur als Tooltip verfügbar sein. Ist der Groove länger als der Takt, MUST zusätzlich angezeigt werden, mit welchem Beat des Grooves der Takt beginnt. Ein Takt ohne Groove MUST neutral und ohne Namen erscheinen.
@@ -134,7 +150,7 @@ Solange nichts ausgewählt ist und sich der Mauszeiger nicht über der Struktur 
 - **THEN** zeigt die linke Seite keine Einfüge-Knöpfe mehr
 
 ### Requirement: Bearbeiten über die Auswahl
-Ein Klick auf einen Segmentnamen MUST das Segment auswählen. Ein Klick auf einen Takt MUST diesen Takt auswählen, Shift+Klick einen Bereich in Songreihenfolge. Es MUST immer nur entweder ein Segment oder Takte ausgewählt sein. Zur Auswahl MUST ein Popover an der Auswahl erscheinen, das alle Aktionen für diese Auswahl enthält, die der Sperrzustand des Songs zulässt. Escape oder ein Klick außerhalb von Struktur und Popover MUST die Auswahl aufheben und das Popover schließen.
+Ein Klick auf einen Segmentnamen MUST das Segment auswählen. Ein Klick auf einen Takt MUST diesen Takt auswählen, Shift+Klick einen Bereich in Songreihenfolge. Es MUST immer nur entweder ein Segment oder Takte ausgewählt sein. Zur Auswahl MUST ein Popover an der Auswahl erscheinen, das alle Aktionen für diese Auswahl enthält, die der Sperrzustand des Songs zulässt. Das Popover MUST innerhalb der Breite der linken Seite liegen und nach links rücken, wo es an der Auswahl über den rechten Rand ragen würde. Escape oder ein Klick außerhalb von Struktur und Popover MUST die Auswahl aufheben und das Popover schließen.
 
 #### Scenario: Takte auswählen
 - **WHEN** der Nutzer Takt 5 anklickt und mit Shift Takt 8 anklickt
@@ -147,6 +163,10 @@ Ein Klick auf einen Segmentnamen MUST das Segment auswählen. Ein Klick auf eine
 #### Scenario: Auswahl aufheben
 - **WHEN** Takte ausgewählt sind und der Nutzer Escape drückt
 - **THEN** ist nichts mehr ausgewählt und kein Popover ist geöffnet
+
+#### Scenario: Popover am rechten Rand
+- **WHEN** der Nutzer in einem 390 px breiten Fenster den letzten Takt einer 16-Beat-Zeile auswählt
+- **THEN** liegt das Takt-Popover vollständig innerhalb der Breite der linken Seite
 
 ### Requirement: Segment-Popover
 Das Popover eines ausgewählten Segments MUST anbieten: den Namen ändern, das Segment nach oben oder unten verschieben, duplizieren, ein Segment danach einfügen, einen Block unten anfügen, das Segment nach Bestätigung löschen, ab dem Segment abspielen („Ab hier abspielen“) und das Segment in Schleife abspielen („In Schleife abspielen“). Nicht mögliche Verschiebungen MUST deaktiviert sein.
@@ -258,18 +278,26 @@ Lässt der Nutzer ein gezogenes Pattern außerhalb eines Takts los oder drückt 
 - **THEN** hat der Song keinen neuen Fill und Takt 2 ist unverändert
 
 ### Requirement: Zweispaltige Patternseite
-Die Pattern-Karten der rechten Seite MUST in zwei Spalten stehen, in der Reihenfolge der Anforderung „Patternseite“ zeilenweise von links nach rechts. Zwischen den Kartenzeilen MUST derselbe Abstand stehen wie zwischen den Segmenten der Struktur. Ein Pattern mit höchstens 4 Beats MUST eine Spalte belegen, ein längeres MUST beide Spalten belegen.
+Die Pattern-Karten der rechten Seite MUST in zwei Spalten stehen, wenn zwei Karten mit je einem System von 4 Beats in Kartengröße ungeschrumpft nebeneinander passen, sonst in einer Spalte. Die Reihenfolge MUST der Anforderung „Patternseite“ folgen, bei zwei Spalten zeilenweise von links nach rechts. Zwischen den Kartenzeilen MUST derselbe Abstand stehen wie zwischen den Segmenten der Struktur. Bei zwei Spalten MUST ein Pattern, dessen Noten ungeschrumpft in einer Zeile nicht in eine Spalte passen, beide Spalten belegen, sonst eine Spalte.
 
 #### Scenario: Kurze Patterns nebeneinander
-- **WHEN** der Song die Grooves A und B mit je 4 Beats hat
+- **WHEN** der Song die Grooves A und B mit je 4 Beats hat und die Patternseite breit genug für zwei Spalten ist
 - **THEN** stehen die Karten von A und B nebeneinander, jede eine Spalte breit
 
 #### Scenario: Langes Pattern über beide Spalten
-- **WHEN** der Song den Groove A mit 8 Beats und den Fill f1 mit 2 Beats hat
+- **WHEN** der Song den Groove A mit 8 Beats und den Fill f1 mit 2 Beats hat und die Patternseite breit genug für zwei Spalten ist
 - **THEN** belegt die Karte von A beide Spalten und die Karte von f1 eine Spalte
 
+#### Scenario: Dichtes kurzes Pattern über beide Spalten
+- **WHEN** der Song den Groove D mit 4 Beats und durchgehender Hi-Hat in 32teln und den Groove A mit 4 Beats in Achteln hat und die Patternseite breit genug für zwei Spalten ist
+- **THEN** belegt die Karte von D beide Spalten und die Karte von A eine Spalte
+
+#### Scenario: Schmale Patternseite
+- **WHEN** der Nutzer einen Song mit den Grooves A und B mit je 4 Beats in einem 1024 px breiten Fenster öffnet
+- **THEN** steht die Karte von B unter der Karte von A und die Noten beider Karten sind nicht verkleinert
+
 ### Requirement: Kompakte Pattern-Karten
-Die Noten auf der Patternseite MUST verkleinert und in allen Karten im gleichen Maßstab erscheinen, ohne Rahmen. Reicht die Breite einer Karte nicht, MUST die Notation in der Karte umbrechen. Die Kopfzeile MUST einzeilig sein und nur den Namen in der Farbe des Patterns und die Länge zeigen. Ein Klick auf den Namen MUST den Pattern-Editor öffnen. Die Knöpfe zum Anlegen MUST als „+ Groove“ und „+ Fill“ erscheinen.
+Die Noten auf der Patternseite MUST verkleinert und in allen Karten im gleichen Maßstab erscheinen, ohne Rahmen. Reicht die Breite einer Karte nicht, MUST die Notation in der Karte umbrechen. Die Kopfzeile MUST einzeilig sein und nur den Namen in der Farbe des Patterns und die Länge zeigen. Passt der Name nicht neben die Länge, MUST er mit „…“ gekürzt erscheinen und vollständig als Tooltip verfügbar sein. Ein Klick auf den Namen MUST den Pattern-Editor öffnen. Die Knöpfe zum Anlegen MUST als „+ Groove“ und „+ Fill“ erscheinen.
 
 #### Scenario: Gleicher Maßstab
 - **WHEN** der Song einen Groove mit 4 Beats und einen Groove mit 8 Beats hat, beide mit Vierteln auf der Snare
@@ -278,6 +306,10 @@ Die Noten auf der Patternseite MUST verkleinert und in allen Karten im gleichen 
 #### Scenario: Kopfzeile
 - **WHEN** die rechte Seite den Groove „Verse-Beat“ mit 4 Beats zeigt
 - **THEN** enthält seine Kopfzeile nur „Verse-Beat“ und „4 Beats“, ohne „Groove“ und ohne einen Knopf „Bearbeiten“
+
+#### Scenario: Langer Name
+- **WHEN** die rechte Seite in einem 390 px breiten Fenster den Groove „Verse-Beat mit Ghost Notes und offener Hi-Hat im Refrain“ zeigt
+- **THEN** ist seine Kopfzeile einzeilig, der Name endet mit „…“ und der vollständige Name ist als Tooltip verfügbar
 
 #### Scenario: Name öffnet den Editor
 - **WHEN** der Nutzer auf der rechten Seite auf den Namen „Verse-Beat“ klickt
