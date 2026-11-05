@@ -4,7 +4,7 @@ import { toNotation } from '../notation/model';
 import { renderNotation } from '../notation/render/vexflow';
 
 /** Verfügbare Breite des Elements; ohne Layout (jsdom) undefined. */
-function useWidth(ref: React.RefObject<HTMLElement | null>): number | undefined {
+export function useWidth(ref: React.RefObject<HTMLElement | null>): number | undefined {
   const [width, setWidth] = useState<number>();
   useEffect(() => {
     const el = ref.current;
@@ -25,14 +25,18 @@ export function NotationView({
   pattern,
   compact = false,
   size = compact ? 'compact' : 'normal',
+  maxWidth,
 }: {
   pattern: Pattern;
   compact?: boolean;
   size?: NotationSize;
+  /** Umbruchbreite in px; ohne Angabe die Breite des eigenen Containers. */
+  maxWidth?: number;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const model = useMemo(() => toNotation(pattern), [pattern]);
-  const width = useWidth(container);
+  const measured = useWidth(container);
+  const width = maxWidth ?? measured;
 
   useEffect(() => {
     if (container.current) {

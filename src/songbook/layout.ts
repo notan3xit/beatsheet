@@ -268,24 +268,19 @@ function layoutRow(
   return { width: rowEnd - rowStart, bars: frames, items };
 }
 
-/** Rechte Buchseite: Grooves vor Fills, jeweils nach erstem Auftreten, danach unbenutzte alphabetisch. */
-export function patternPageOrder(song: Song): Pattern[] {
+/**
+ * Patterns in der Reihenfolge ihres ersten Auftretens im Song, Grooves und Fills gemischt; im selben
+ * Takt der Groove vor dem Fill. Nicht verwendete danach, Grooves vor Fills, jeweils alphabetisch.
+ */
+export function songPatternOrder(song: Song): Pattern[] {
   const firstUse = new Map<string, number>();
-  song.segments
-    .flatMap((s) => s.blocks.flatMap((b) => b.bars))
-    .forEach((bar, i) => {
-      for (const id of [bar.grooveId, bar.fillId]) if (id && !firstUse.has(id)) firstUse.set(id, i);
-    });
-  const order = (a: Pattern, b: Pattern) => {
-    const ua = firstUse.get(a.id);
-    const ub = firstUse.get(b.id);
-    if (ua !== undefined && ub !== undefined) return ua - ub;
-    if (ua !== undefined) return -1;
-    if (ub !== undefined) return 1;
-    return a.name.localeCompare(b.name, 'de', { sensitivity: 'base' });
-  };
-  return [
-    ...song.patterns.filter((p) => p.kind === 'groove').sort(order),
-    ...song.patterns.filter((p) => p.kind === 'fill').sort(order),
-  ];
+  for (const bar of song.segments.flatMap((s) => s.blocks.flatMap((b) => b.bars))) {
+    for (const id of [bar.grooveId, bar.fillId]) if (id && !firstUse.has(id)) firstUse.set(id, firstUse.size);
+  }
+  const rank = (p: Pattern) => firstUse.get(p.id)!;
+  const unused = (kind: Pattern['kind']) =>
+    song.patterns
+      .filter((p) => p.kind === kind && !firstUse.has(p.id))
+      .sort((a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }));
+  return [...song.patterns.filter((p) => firstUse.has(p.id)).sort((a, b) => rank(a) - rank(b)), ...unused('groove'), ...unused('fill')];
 }

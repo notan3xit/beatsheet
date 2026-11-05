@@ -185,14 +185,6 @@ export interface RenderOptions {
 const lineWidth = (row: readonly BuiltMeasure[], sizing: Sizing, clef: boolean) =>
   row.reduce((sum, m, i) => sum + staveWidth(m, clef && i === 0, sizing), 0) + 2 * sizing.margin;
 
-/**
- * Breite der Noten im Kartenmaßstab in px, alle Takte in einer Zeile ohne Umbruch
- * (responsive-songbook D7: Karte über beide Spalten, wenn das nicht in eine Spalte passt).
- */
-export function naturalCardWidth(model: NotationModel): number {
-  return lineWidth(model.measures.map((m) => buildMeasure(m, CARD)), CARD, true) * CARD_SCALE;
-}
-
 /** Zeichnet das Notationsmodell als SVG in den Container (vorheriger Inhalt wird ersetzt). */
 export function renderNotation(model: NotationModel, container: HTMLElement, options: RenderOptions = {}): void {
   const { maxWidth = 900, compact = false } = options;

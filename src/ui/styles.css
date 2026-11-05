@@ -1760,37 +1760,38 @@ button.link {
 }
 
 /* Rechte Seite: Patterns */
-/* Eine Spalte, zwei erst ab zwei 4-Beat-Karten (@container unten) */
+/* Karten im Fluss: in Song-Reihenfolge, je so breit wie ihre Noten, Umbruch wenn die nächste nicht passt */
 .pattern-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   /* Zeilenabstand wie zwischen den Segmenten der Struktur (.segment + .segment) */
   gap: 1rem 0.75rem;
-  align-items: start;
+  align-items: flex-start;
 }
 
+/* Breite aus dem Karten-SVG; breiter als die Seite schrumpft die Karte auf die Zeile */
 .pattern-card {
+  flex: 0 1 auto;
+  min-width: min(7.5rem, 100%);
+  max-width: 100%;
+}
+
+/* Wie in der Struktur: Groove mit Kante links, Fill ringsum gerahmt und getönt (schwächer als .item.fill, Noten bleiben lesbar) */
+.pattern-card.groove {
   border-left: 3px solid var(--pc);
   padding-left: 0.5rem;
-  min-width: 0;
 }
 
-/*
- * Zwei Spalten, wenn zwei ungeschrumpfte 4-Beat-Karten (~220px: Noten in Kartengröße, Farbkante, Einzug)
- * samt Spaltenabstand nebeneinander passen. Patterns über 4 Beats belegen dann beide
- * (Reihenfolge bleibt, daher kein dense).
- */
-@container (min-width: 28.5rem) {
-  .pattern-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .pattern-card.wide {
-    grid-column: 1 / -1;
-  }
+.pattern-card.fill {
+  border: 1px solid var(--pc);
+  border-radius: 3px;
+  padding: 0.25rem 0.5rem;
+  background: color-mix(in srgb, var(--pc) 15%, transparent);
 }
 
+/* contain: Die Kopfzeile trägt nichts zur Kartenbreite bei, ein langer Name wird gekürzt */
 .pattern-card-header {
+  contain: inline-size;
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
@@ -1840,11 +1841,6 @@ button.link {
 .notation-card svg {
   max-width: 100%;
   height: auto;
-}
-
-/* Basis nebeneinander (16rem): eine Spalte mit einer 4-Beat-Karte (ungeschrumpft ~220px) samt Padding */
-.pattern-page {
-  container-type: inline-size;
 }
 
 .pattern-page .page-actions {

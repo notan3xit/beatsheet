@@ -1,28 +1,23 @@
-import { useMemo } from 'react';
-import { toNotation } from '../notation/model';
-import { naturalCardWidth } from '../notation/render/vexflow';
+import { useRef } from 'react';
 import { useDragSource } from './dragPattern';
 import type { Pattern } from '../domain/types';
-import { patternPageOrder } from '../songbook/layout';
+import { songPatternOrder } from '../songbook/layout';
 import { beatsLabel, patternStyle } from './patternStyle';
-import { NotationView } from './NotationView';
+import { NotationView, useWidth } from './NotationView';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
 
-/**
- * Kleinste Spalte bei zwei Spalten: (28,5rem − 0,75rem) / 2 (styles.css, .pattern-grid), abzüglich
- * Farbkante und Einzug der Karte (3px + 0,5rem). Breitere Noten belegen beide Spalten (design.md D7).
- */
-const COLUMN_NOTATION_WIDTH = 222 - 11;
+/** Rand und Einzug der Karte in px (styles.css): Groove Kante 3px und Einzug 0,5rem, Fill Rahmen 1px und Einzug 0,5rem je Seite. */
+const CARD_EDGE = { groove: 3 + 8, fill: 2 * (1 + 8) };
 
-function PatternCard({ pattern }: { pattern: Pattern }) {
+/** Umbruchbreite der Noten: Breite der Patternseite, nicht der Karte, die sich nach den Noten richtet (design.md D3). */
+function PatternCard({ pattern, flowWidth }: { pattern: Pattern; flowWidth: number | undefined }) {
   const store = useStore();
   const { locked } = useNotebook();
   const headingId = `pattern-${pattern.id}`;
   const drag = useDragSource({ kind: 'pattern', patternId: pattern.id });
-  const wide = useMemo(() => naturalCardWidth(toNotation(pattern)) > COLUMN_NOTATION_WIDTH, [pattern]);
   return (
     <article
-      className={wide ? 'pattern-card wide' : 'pattern-card'}
+      className={`pattern-card ${pattern.kind}`}
       aria-labelledby={headingId} style={patternStyle(pattern.color)}>
       <header className="pattern-card-header" {...(locked ? {} : drag)}>
         <h3 id={headingId}>
@@ -40,7 +35,7 @@ function PatternCard({ pattern }: { pattern: Pattern }) {
         </h3>
         <span className="pattern-meta">{beatsLabel(pattern.beats.length)}</span>
       </header>
-      <NotationView pattern={pattern} size="card" />
+      <NotationView pattern={pattern} size="card" maxWidth={flowWidth && flowWidth - CARD_EDGE[pattern.kind]} />
     </article>
   );
 }
@@ -52,6 +47,8 @@ export function PatternPage() {
   const { locked } = useNotebook();
   const newGroove = useDragSource({ kind: 'new', patternKind: 'groove' });
   const newFill = useDragSource({ kind: 'new', patternKind: 'fill' });
+  const grid = useRef<HTMLDivElement>(null);
+  const flowWidth = useWidth(grid);
   return (
     <section className="page pattern-page" aria-label="Patterns">
       {!locked && (
@@ -65,9 +62,9 @@ export function PatternPage() {
         </div>
       )}
       {!locked && song.patterns.length === 0 && <p className="hint">Noch keine Patterns. Lege Grooves und Fills hier oder beim Aufbau der Struktur an.</p>}
-      <div className="pattern-grid">
-        {patternPageOrder(song).map((p) => (
-          <PatternCard key={p.id} pattern={p} />
+      <div ref={grid} className="pattern-grid">
+        {songPatternOrder(song).map((p) => (
+          <PatternCard key={p.id} pattern={p} flowWidth={flowWidth} />
         ))}
       </div>
     </section>

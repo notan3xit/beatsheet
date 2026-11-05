@@ -142,6 +142,17 @@ describe('Spec songbook-view › Pattern-Chips', () => {
     expect(chips.getByRole('button', { name: 'Neuer Groove' }).style.getPropertyValue('--pc')).toBe(`var(--ctp-${nextColor(patterns)})`);
   });
 
+  it('Chips in Reihenfolge des Songs', async () => {
+    const [a, b] = seed({ kind: 'groove', name: 'A' }, { kind: 'groove', name: 'B' });
+    const { user } = setup([a!, b!], (s) => {
+      const withBars = appendSegment(s, { name: 'V', bars: 2, grooveId: a!.id });
+      return setBarProps(withBars, [allBars(withBars)[0]!.id], { grooveId: b!.id });
+    });
+    await selectBars(user, 1);
+    const chips = within(within(barPopover()).getByRole('group', { name: 'Groove' }));
+    expect(chips.getAllByRole('button').map((x) => x.getAttribute('aria-label'))).toEqual(['Kein Groove', 'Neuer Groove', 'B', 'A']);
+  });
+
   it('Gemischte Auswahl', async () => {
     const [a, b] = seed({ kind: 'groove', name: 'A' }, { kind: 'groove', name: 'B' });
     const { user } = setup([a!, b!], (s) => {

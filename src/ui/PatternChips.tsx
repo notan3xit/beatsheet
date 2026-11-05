@@ -3,6 +3,7 @@ import { allBars } from '../domain/songPatterns';
 import { assignPlaceholder, setBarProps } from '../domain/structure';
 import type { PatternKind, Song } from '../domain/types';
 import { beatsLabel, patternStyle } from './patternStyle';
+import { songPatternOrder } from '../songbook/layout';
 import { useOpenSong } from './useLibrary';
 
 const LABELS: Record<PatternKind, { group: string; create: string; none: string }> = {
@@ -61,7 +62,7 @@ export function PatternChips({
       >
         +
       </button>
-      {song.patterns
+      {songPatternOrder(song)
         .filter((p) => p.kind === kind)
         .map((p) => (
           <button

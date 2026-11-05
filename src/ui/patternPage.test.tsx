@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createPattern } from '../domain/pattern';
+import { allBars } from '../domain/songPatterns';
+import { appendSegment, setBarProps } from '../domain/structure';
 import type { Pattern } from '../domain/types';
 import { notebookWith } from '../test/notebook';
-import { patternOf } from '../test/patterns';
 import { App } from './App';
 
 function seed(...specs: { kind: 'groove' | 'fill'; name: string; length?: number }[]): Pattern[] {
@@ -27,35 +28,33 @@ const cardOf = (name: string) =>
     .getAllByRole('article')
     .find((card) => within(card).getByRole('heading').textContent === name)!;
 
-describe('Spec songbook-view › Zweispaltige Patternseite', () => {
-  it('Kurze Patterns nebeneinander', () => {
-    setup(seed({ kind: 'groove', name: 'A', length: 4 }, { kind: 'groove', name: 'B', length: 4 }));
-    for (const name of ['A', 'B']) {
-      expect(cardOf(name).parentElement).toHaveClass('pattern-grid');
-      expect(cardOf(name)).not.toHaveClass('wide');
-    }
-  });
-
-  it('Langes Pattern über beide Spalten', () => {
-    setup(seed({ kind: 'groove', name: 'A', length: 8 }, { kind: 'fill', name: 'f1', length: 2 }));
-    expect(cardOf('A')).toHaveClass('wide');
-    expect(cardOf('f1')).not.toHaveClass('wide');
-    expect(cardOf('f1').parentElement).toHaveClass('pattern-grid');
-  });
-});
-
-describe('Spec songbook-view › Zweispaltige Patternseite (Notenbreite)', () => {
-  it('Dichtes kurzes Pattern über beide Spalten', () => {
-    const named = (name: string, pattern: Pattern): Pattern => ({ ...pattern, name });
-    const dense = named('D', patternOf(Array.from({ length: 4 }, () => ({ sub: 8 as const, hits: { hihat: [1, 2, 3, 4, 5, 6, 7, 8], kick: [1] } }))));
-    const eighths = named('A', patternOf(Array.from({ length: 4 }, () => ({ sub: 2 as const, hits: { hihat: [1, 2], kick: [1] } }))));
-    setup([dense, eighths]);
-    expect(cardOf('D')).toHaveClass('wide');
-    expect(cardOf('A')).not.toHaveClass('wide');
+describe('Spec songbook-view › Patternseite (UI)', () => {
+  it('Reihenfolge: Karten wie im Song, Grooves und Fills gemischt', () => {
+    const [a, b, f1] = seed({ kind: 'groove', name: 'A' }, { kind: 'groove', name: 'B' }, { kind: 'fill', name: 'f1' });
+    const { store } = setup([a!, b!, f1!]);
+    act(() =>
+      store.updateSong((s) => {
+        const withBars = appendSegment(s, { name: 'V', bars: 3, grooveId: b!.id });
+        const [, second, third] = allBars(withBars);
+        return setBarProps(setBarProps(withBars, [second!.id], { fillId: f1!.id }), [third!.id], { grooveId: a!.id });
+      }),
+    );
+    const names = within(patternPage())
+      .getAllByRole('article')
+      .map((card) => within(card).getByRole('heading').textContent);
+    expect(names).toEqual(['B', 'f1', 'A']);
   });
 });
 
 describe('Spec songbook-view › Kompakte Pattern-Karten (UI)', () => {
+  it('Fill und Groove unterscheiden', () => {
+    setup(seed({ kind: 'groove', name: 'Verse-Beat' }, { kind: 'fill', name: 'Tom-Fill' }));
+    expect(cardOf('Tom-Fill')).toHaveClass('pattern-card', 'fill');
+    expect(cardOf('Tom-Fill')).not.toHaveClass('groove');
+    expect(cardOf('Verse-Beat')).toHaveClass('pattern-card', 'groove');
+    expect(cardOf('Verse-Beat')).not.toHaveClass('fill');
+  });
+
   it('Kopfzeile', () => {
     setup(seed({ kind: 'groove', name: 'Verse-Beat', length: 4 }));
     const header = cardOf('Verse-Beat').querySelector('header')!;

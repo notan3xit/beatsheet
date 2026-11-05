@@ -3,7 +3,7 @@ import { createPattern } from '../domain/pattern';
 import type { Bar, Pattern, Song } from '../domain/types';
 import { barOf, songWith } from '../test/songs';
 import { patternOf } from '../test/patterns';
-import { layoutStructure, patternPageOrder, type FillItem, type Item } from './layout';
+import { layoutStructure, songPatternOrder, type FillItem, type Item } from './layout';
 
 const groove = (beats: number, name: string, existing: Pattern[] = []) =>
   createPattern(existing, { kind: 'groove', name, length: beats });
@@ -185,10 +185,21 @@ describe('Spec songbook-view › Patternseite', () => {
     const a = groove(4, 'A');
     const b = groove(4, 'B', [a]);
     const c = groove(4, 'C', [a, b]);
-    const z = fill(1, 'Z', [a, b, c]);
-    const y = fill(1, 'Y', [a, b, c, z]);
-    const s = song([a, b, c, z, y], [[barOf({ grooveId: b.id }), barOf({ grooveId: a.id, fillId: z.id })]]);
-    expect(patternPageOrder(s).map((p) => p.name)).toEqual(['B', 'A', 'C', 'Z', 'Y']);
+    const f1 = fill(1, 'f1', [a, b, c]);
+    const f2 = fill(1, 'f2', [a, b, c, f1]);
+    const s = song(
+      [a, b, c, f1, f2],
+      [[barOf({ grooveId: b.id }), barOf({ grooveId: b.id, fillId: f1.id }), barOf({ grooveId: a.id })]],
+    );
+    expect(songPatternOrder(s).map((p) => p.name)).toEqual(['B', 'f1', 'A', 'C', 'f2']);
+  });
+
+  it('Nicht verwendete Patterns: Grooves vor Fills, jeweils alphabetisch', () => {
+    const y = fill(1, 'Y');
+    const d = groove(4, 'd', [y]);
+    const x = fill(1, 'X', [y, d]);
+    const c = groove(4, 'C', [y, d, x]);
+    expect(songPatternOrder(song([y, d, x, c], [[barOf({})]])).map((p) => p.name)).toEqual(['C', 'd', 'X', 'Y']);
   });
 });
 

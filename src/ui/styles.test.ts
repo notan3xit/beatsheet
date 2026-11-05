@@ -226,18 +226,49 @@ describe('Spec songbook-view › Maßstabsgetreue Struktur (Stylesheet)', () => 
   });
 });
 
-describe('Spec songbook-view › Zweispaltige Patternseite (Stylesheet)', () => {
-  const twoColumns = containerBlock('(min-width: 28.5rem)');
+describe('Spec songbook-view › Karten im Fluss (Stylesheet)', () => {
+  const grid = () => ruleBody('.pattern-grid');
+  const card = () => ruleBody('.pattern-card');
 
-  it('Schmale Patternseite: eine Spalte, zwei erst ab der Breite zweier 4-Beat-Karten', () => {
-    expect(decl(ruleBody('.pattern-page'), 'container-type')).toBe('inline-size');
-    expect(decl(ruleBody('.pattern-grid'), 'grid-template-columns')).toBe('minmax(0, 1fr)');
-    expect(decl(ruleBody('.pattern-grid', twoColumns), 'grid-template-columns')).toBe('repeat(2, minmax(0, 1fr))');
+  it('Kurze Patterns nebeneinander: Karten in natürlicher Breite in umbrechenden Zeilen', () => {
+    expect(decl(grid(), 'display')).toBe('flex');
+    expect(decl(grid(), 'flex-wrap')).toBe('wrap');
+    expect(decl(card(), 'flex')).toBe('0 1 auto');
+    expect(decl(card(), 'width')).toBeUndefined();
   });
 
-  it('Langes Pattern über beide Spalten: nur bei zwei Spalten', () => {
-    expect(decl(ruleBody('.pattern-card.wide', twoColumns), 'grid-column')).toBe('1 / -1');
-    expect(ruleBody('.pattern-card.wide')).toBe('');
+  it('Umbruch in Reihenfolge: keine Spalten, kein Umsortieren, Zeilenabstand wie zwischen Segmenten', () => {
+    expect(css).not.toMatch(/grid-auto-flow|(?<![-\w])order:/);
+    expect(css).not.toMatch(/\.pattern-card\.wide/);
+    expect(css).not.toMatch(/@container \(min-width: 28\.5rem\)/);
+    const segmentGap = decl(ruleBody('.segment + .segment'), 'margin-top');
+    expect(decl(grid(), 'gap')?.split(' ')[0]).toBe(segmentGap);
+  });
+
+  it('Langes Pattern: höchstens so breit wie die Patternseite, Noten schrumpfen erst darüber', () => {
+    expect(decl(card(), 'max-width')).toBe('100%');
+    expect(decl(ruleBody('.notation-card svg'), 'max-width')).toBe('100%');
+  });
+
+  it('Kurzer Fill: mindestens 7,5rem, Kopfzeile ohne Einfluss auf die Kartenbreite', () => {
+    expect(decl(card(), 'min-width')).toBe('min(7.5rem, 100%)');
+    expect(decl(ruleBody('.pattern-card-header'), 'contain')).toBe('inline-size');
+  });
+});
+
+describe('Spec songbook-view › Kompakte Pattern-Karten (Stylesheet): Fill und Groove unterscheiden', () => {
+  it('Fill-Karte ringsum gerahmt und getönt, wie die Fill-Blöcke der Struktur', () => {
+    const fill = ruleBody('.pattern-card.fill');
+    expect(decl(fill, 'border')).toBe('1px solid var(--pc)');
+    expect(decl(fill, 'background')).toMatch(/^color-mix\(in srgb, var\(--pc\) \d+%, transparent\)$/);
+    expect(decl(ruleBody('.item.fill'), 'border')).toBe('1px solid var(--pc)');
+  });
+
+  it('Groove-Karte nur mit Kante links, ohne Tönung', () => {
+    const groove = ruleBody('.pattern-card.groove');
+    expect(decl(groove, 'border-left')).toBe('3px solid var(--pc)');
+    expect(decl(groove, 'background')).toBeUndefined();
+    expect(decl(ruleBody('.pattern-card'), 'border-left')).toBeUndefined();
   });
 });
 
