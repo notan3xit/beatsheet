@@ -4,6 +4,7 @@ import type { AccountSession } from '../account/session';
 import type { MemberProfile } from '../domain/types';
 import { AccountMenu, useLogout } from './AccountMenu';
 import { AppMenu } from './AppMenu';
+import { Logo } from './Logo';
 import { ProfileDialog } from './ProfileDialog';
 
 /** Profil des angemeldeten Accounts; `undefined`, solange unbekannt (Server nicht erreichbar), `null` ohne Profil. */
@@ -50,7 +51,7 @@ export function AppHeader({ session, profileApi }: { session: AccountSession; pr
   return (
     <header className="app-header">
       <AppMenu onLogin={() => setAccountOpen(true)} onLogout={() => void logout()} loggingOut={loggingOut} />
-      <h1>Beatsheet</h1>
+      <Logo />
       <AccountMenu
         session={session}
         open={accountOpen}

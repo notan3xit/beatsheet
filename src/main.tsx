@@ -10,6 +10,7 @@ import { createSync, type Sync } from './sync/sync';
 import { App } from './ui/App';
 import { installTheme } from './ui/theme';
 import { connectUrl } from './ui/urlSync';
+import '@fontsource/comfortaa/700.css';
 import './ui/styles.css';
 
 installTheme();

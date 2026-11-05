@@ -224,3 +224,24 @@ describe('Spec song-lock › Gleiche Anordnung beim Entsperren', () => {
     expect(shared).toMatch(/height:\s*2rem/);
   });
 });
+
+describe('Spec color-theme › Farben ausschließlich aus der Palette: Mischfarbe im Logo', () => {
+  const logoTokens = [...css.matchAll(/--(logo-[a-z0-9-]+):\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()] as const);
+  const palette = /^var\(--ctp-(?!red\b)[a-z0-9]+\)$/;
+  const mixWithBase = /^color-mix\(in srgb, var\(--(?:ctp-(?!red\b)[a-z0-9]+|logo-[a-z0-9-]+)\) \d+%, var\(--bg\)\)$/;
+  const mixOfTwo = /^color-mix\(in srgb, var\(--ctp-(?!red\b)[a-z0-9]+\) \d+%, var\(--ctp-(?!red\b)[a-z0-9]+\)\)$/;
+
+  it('Jede Logo-Farbe ist Palettenfarbe, Mischung mit base oder Mischung zweier Palettenfarben außer red', () => {
+    expect(logoTokens.length).toBeGreaterThan(0);
+    const invalid = logoTokens.filter(([, v]) => !palette.test(v) && !mixWithBase.test(v) && !mixOfTwo.test(v));
+    expect(invalid).toEqual([]);
+  });
+
+  it('Die Beete mischt mauve und maroon', () => {
+    expect(token('logo-beet')).toMatch(/^color-mix\(in srgb, var\(--ctp-mauve\) \d+%, var\(--ctp-maroon\)\)$/);
+  });
+
+  it('red bleibt allein --danger vorbehalten', () => {
+    expect(css.match(/var\(--ctp-red\)/g)).toHaveLength(1);
+  });
+});
