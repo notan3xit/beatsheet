@@ -6,7 +6,7 @@ import { layoutStructure, type BarEdges, type FillItem, type Item, type Row, typ
 import { useDropTargets } from './dragPattern';
 import { patternStyle } from './patternStyle';
 import { PlayheadLine, useSongPlayback } from './playback';
-import { BarPopover, Popover, POPOVER_BEATS, SegmentPopover } from './StructurePopovers';
+import { BarPopover, Popover, SegmentPopover } from './StructurePopovers';
 import { openSongOf } from '../state/notebookStore';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
 import { useStructureSelection, type StructureSelection } from './useStructureSelection';
@@ -328,7 +328,7 @@ function barAnchor(layout: SegmentLayout[], song: Song, barIds: readonly string[
   const row = layout.flatMap((s) => s.rows).find((r) => r.bars.some((b) => b.barId === last));
   if (!row) return null;
   const x = row.bars.find((b) => barIds.includes(b.barId))!.x;
-  return { row, x: Math.max(0, Math.min(x, row.width - POPOVER_BEATS)) };
+  return { row, x };
 }
 
 /** Escape und Klick außerhalb von Struktur und Popover heben die Auswahl auf; offene Eingaben werden vorher übernommen. */

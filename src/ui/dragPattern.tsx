@@ -9,6 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { nextColor } from '../domain/pattern';
 import { assignPlaceholder, setBarProps } from '../domain/structure';
 import type { PatternKind, Song } from '../domain/types';
@@ -175,7 +176,8 @@ export function DragProvider({ children }: { children: ReactNode }) {
   return (
     <DragContext.Provider value={value}>
       {children}
-      {drag && <DragImage drag={drag} />}
+      {/* Portal: .songbook ist Container und damit Bezugsrahmen für position: fixed */}
+      {drag && createPortal(<DragImage drag={drag} />, document.body)}
     </DragContext.Provider>
   );
 }

@@ -110,6 +110,149 @@ describe('Spec songbook-view › Kompakte Zeilen (Stylesheet)', () => {
   });
 });
 
+/** Stylesheet ohne @container-Blöcke: nur Regeln auf oberster Ebene. */
+const topLevel = (() => {
+  let out = '';
+  let i = 0;
+  for (let start = css.indexOf('@container'); start >= 0; start = css.indexOf('@container', i)) {
+    out += css.slice(i, start);
+    let depth = 0;
+    i = css.indexOf('{', start);
+    do {
+      if (css[i] === '{') depth++;
+      if (css[i] === '}') depth--;
+      i++;
+    } while (depth > 0);
+  }
+  return out + css.slice(i);
+})();
+
+/** Deklarationen einer Regel mit genau diesem Selektor, auf oberster Ebene oder im übergebenen Block. */
+const ruleBody = (selector: string, scope = topLevel) =>
+  scope.match(new RegExp(`(?:^|[}{])\\s*${selector.replace(/[.()[\]'*+?^$|]/g, '\\$&')}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
+const decl = (body: string, prop: string) => body.match(new RegExp(`(?:^|;)\\s*${prop}:\\s*([^;]+);`))?.[1]?.trim();
+/** Inhalt eines @container-Blocks mit dieser Bedingung (eine Verschachtelungsebene). */
+const containerBlock = (condition: string) => {
+  const start = css.indexOf(`@container ${condition}`);
+  if (start < 0) return '';
+  const open = css.indexOf('{', start);
+  let depth = 0;
+  for (let i = open; i < css.length; i++) {
+    if (css[i] === '{') depth++;
+    if (css[i] === '}' && --depth === 0) return css.slice(open + 1, i);
+  }
+  return '';
+};
+const remOf = (value: string | undefined) => Number(value?.match(/^([\d.]+)rem$/)?.[1]);
+
+describe('Spec songbook-view › Doppelseite (Stylesheet)', () => {
+  // Maße in rem bei 16px; Fensterbreite minus Rand der Doppelseite (.songbook) links und rechts
+  const songbookPadding = remOf(css.match(/\.songbook,\s*\.workspace\s*\{[^}]*padding:\s*[\d.]+rem ([\d.]+rem);/)?.[1]);
+  const available = (px: number) => px / 16 - 2 * songbookPadding;
+  const gutter = remOf(decl(ruleBody('.structure-page'), '--row-gutter'));
+  /** Wert eines calc()-Ausdrucks in rem (rem, px, var(--row-gutter)). */
+  const evalRem = (value = '') =>
+    Number(
+      new Function(
+        `return ${value
+          .replace(/^calc/, '')
+          .replace(/var\(--row-gutter\)/g, String(gutter))
+          .replace(/([\d.]+)px/g, '($1 / 16)')
+          .replace(/([\d.]+)rem/g, '$1')}`,
+      )(),
+    );
+
+  const threshold = Number(css.match(/@container \(min-width: ([\d.]+)rem\)\s*\{\s*\.pages\s*\{/)?.[1]);
+  const wide = containerBlock(`(min-width: ${threshold}rem)`);
+  const structure = ruleBody('.structure-page', wide);
+  const patterns = ruleBody('.pattern-page', wide);
+  const gap = remOf(decl(ruleBody('.pages'), 'gap'));
+  const structureBasis = evalRem(decl(ruleBody('.structure-page'), '--structure-width'));
+  const structureMax = evalRem(decl(ruleBody('.structure-page'), '--structure-max'));
+  const patternBasis = remOf(decl(patterns, 'flex')?.split(' ')[2]);
+  const patternMax = evalRem(decl(patterns, 'max-width'));
+
+  /** Breiten beider Seiten in rem, nachgerechnet wie Flexbox mit Wachstum 3:2 und Höchstbreiten. */
+  function layout(px: number) {
+    const width = available(px);
+    if (width < threshold) return { side: false, structure: width, patterns: width };
+    const free = width - gap - structureBasis - patternBasis;
+    let s = structureBasis + (free * 3) / 5;
+    let p = patternBasis + (free * 2) / 5;
+    if (s > structureMax) [s, p] = [structureMax, Math.min(patternMax, width - gap - structureMax)];
+    if (p > patternMax) [s, p] = [Math.min(structureMax, width - gap - patternMax), patternMax];
+    return { side: true, structure: s, patterns: p };
+  }
+
+  it('Ohne Bedingung untereinander; nebeneinander ab der Summe der Basisbreiten, 3:2 mit Höchstbreiten', () => {
+    expect(css).toMatch(/\.songbook\s*\{[^}]*container-type:\s*inline-size/);
+    expect(decl(ruleBody('.pages'), 'flex-direction')).toBe('column');
+    expect(decl(ruleBody('.pages', wide), 'flex-direction')).toBe('row');
+    expect(decl(ruleBody('.structure-page'), '--structure-width')).toBe('calc(16 * 2.25rem + var(--row-gutter) + 2rem + 2px)');
+    expect(decl(ruleBody('.structure-page'), '--structure-max')).toBe('calc(16 * 3rem + var(--row-gutter) + 2rem + 2px)');
+    expect(decl(structure, 'flex')).toBe('3 1 var(--structure-width)');
+    expect(decl(structure, 'max-width')).toBe('var(--structure-max)');
+    expect(decl(patterns, 'flex')).toMatch(/^2 1 [\d.]+rem$/);
+    expect(threshold).toBeCloseTo(structureBasis + gap + patternBasis, 5);
+  });
+
+  it('Tablet quer: bei 1024 px nebeneinander, die Struktur in voller Breite pro Beat', () => {
+    const at = layout(1024);
+    expect(at.side).toBe(true);
+    expect(at.structure).toBeGreaterThanOrEqual(structureBasis);
+  });
+
+  it('Tablet hochkant: bei 768 px untereinander, gleich breit, mindestens volle Breite pro Beat', () => {
+    const at = layout(768);
+    expect(at.side).toBe(false);
+    expect(at.structure).toBe(at.patterns);
+    expect(at.structure).toBeGreaterThanOrEqual(structureBasis);
+  });
+
+  it('Großes Fenster: bei 1650 px Struktur breiter als bei 1024 px, Patternseite höchstens zwei Spalten', () => {
+    expect(layout(1650).structure).toBeGreaterThan(layout(1024).structure);
+    expect(layout(1650).patterns).toBeLessThanOrEqual(patternMax);
+    // Inhalt der Patternseite an der Höchstbreite: zwei Spalten zu 15rem samt Spaltenabstand
+    expect(decl(patterns, 'max-width')).toBe('calc(2 * 15rem + 0.75rem + 2rem + 2px)');
+  });
+});
+
+describe('Spec songbook-view › Maßstabsgetreue Struktur (Stylesheet)', () => {
+  it('Smartphone hochkant: --beat folgt der Breite der Strukturseite, höchstens 3rem', () => {
+    const page = ruleBody('.structure-page');
+    expect(decl(page, 'container-type')).toBe('inline-size');
+    expect(decl(page, '--beat')).toBe('min(3rem, (100cqw - var(--row-gutter)) / 16)');
+    expect(decl(ruleBody('.page'), 'min-width')).toBe('0');
+  });
+});
+
+describe('Spec songbook-view › Zweispaltige Patternseite (Stylesheet)', () => {
+  const twoColumns = containerBlock('(min-width: 28.5rem)');
+
+  it('Schmale Patternseite: eine Spalte, zwei erst ab der Breite zweier 4-Beat-Karten', () => {
+    expect(decl(ruleBody('.pattern-page'), 'container-type')).toBe('inline-size');
+    expect(decl(ruleBody('.pattern-grid'), 'grid-template-columns')).toBe('minmax(0, 1fr)');
+    expect(decl(ruleBody('.pattern-grid', twoColumns), 'grid-template-columns')).toBe('repeat(2, minmax(0, 1fr))');
+  });
+
+  it('Langes Pattern über beide Spalten: nur bei zwei Spalten', () => {
+    expect(decl(ruleBody('.pattern-card.wide', twoColumns), 'grid-column')).toBe('1 / -1');
+    expect(ruleBody('.pattern-card.wide')).toBe('');
+  });
+});
+
+describe('Spec songbook-view › Kompakte Pattern-Karten (Stylesheet)', () => {
+  it('Langer Name: einzeilig, mit „…“ gekürzt statt umgebrochen', () => {
+    const name = ruleBody('.pattern-name');
+    expect(decl(name, 'white-space')).toBe('nowrap');
+    expect(decl(name, 'overflow')).toBe('hidden');
+    expect(decl(name, 'text-overflow')).toBe('ellipsis');
+    expect(name).not.toMatch(/overflow-wrap/);
+    expect(decl(ruleBody('.pattern-card h3'), 'min-width')).toBe('0');
+    expect(decl(ruleBody('.pattern-meta'), 'flex')).toBe('none');
+  });
+});
+
 describe('Spec app-messages › Ebenen der Oberfläche (Stylesheet)', () => {
   const zIndexOf = (selector: string) =>
     new RegExp(`(?:^|\\n)${selector.replace(/[.]/g, '\\.')} \\{[^}]*z-index: ([^;]+);`).exec(css)?.[1]?.trim();

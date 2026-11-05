@@ -1,6 +1,6 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPattern, nextColor } from '../domain/pattern';
 import { allBars } from '../domain/songPatterns';
 import { appendSegment, setBarProps } from '../domain/structure';
@@ -72,6 +72,41 @@ describe('Spec songbook-view › Bearbeiten über die Auswahl', () => {
     await user.click(screen.getByRole('region', { name: 'Patterns' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(segmentButton('Intro')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  describe('Popover am rechten Rand', () => {
+    // jsdom hat kein Layout: Strukturseite von 0 bis 400 px, Popover an seiner Stelle ohne Verschiebung bei natural
+    const rect = (left: number, width: number) =>
+      ({ left, right: left + width, width, top: 0, bottom: 0, height: 0, x: left, y: 0, toJSON: () => ({}) }) as DOMRect;
+    const shiftOf = (el: HTMLElement) => Number(el.style.transform.match(/translateX\((-?[\d.]+)px\)/)?.[1] ?? 0);
+
+    async function openWith(natural: { left: number; width: number }) {
+      vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+        if (this.classList.contains('structure-page')) return rect(0, 400);
+        if (this.classList.contains('structure-popover')) return rect(natural.left + shiftOf(this as HTMLElement), natural.width);
+        return rect(0, 0);
+      });
+      const { user } = setup([], (s) => appendSegment(s, { name: 'Verse', bars: 4 }));
+      await selectBars(user, 4);
+      return barPopover();
+    }
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('Überstand: das Popover rückt um den Überstand nach links', async () => {
+      const panel = await openWith({ left: 300, width: 200 });
+      expect(shiftOf(panel)).toBe(-100);
+    });
+
+    it('Breiter als der Platz links davon: höchstens bis an den linken Rand der Seite', async () => {
+      const panel = await openWith({ left: 50, width: 500 });
+      expect(shiftOf(panel)).toBe(-50);
+    });
+
+    it('Kein Überstand: das Popover bleibt an der Auswahl', async () => {
+      const panel = await openWith({ left: 100, width: 200 });
+      expect(shiftOf(panel)).toBe(0);
+    });
   });
 });
 

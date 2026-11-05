@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ValidationError } from '../domain/pattern';
 import { allBars } from '../domain/songPatterns';
 import {
@@ -24,13 +24,56 @@ import { useSongPlayback } from './playback';
 import { PlayButton } from './PlayButton';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
 
-/** Breite des Popovers in Beats, für die Begrenzung am rechten Zeilenrand (design.md D4). */
-export const POPOVER_BEATS = 11;
+/** Inhaltsrand eines Elements (ohne Rahmen und Padding) in Viewport-Koordinaten. */
+function contentEdges(el: Element) {
+  const rect = el.getBoundingClientRect();
+  const style = getComputedStyle(el);
+  const px = (value: string) => parseFloat(value) || 0;
+  return {
+    left: rect.left + px(style.borderLeftWidth) + px(style.paddingLeft),
+    right: rect.right - px(style.borderRightWidth) - px(style.paddingRight),
+  };
+}
 
-/** Nicht modales Popover an der Auswahl; x in Beats relativ zur Zeile. */
+/**
+ * Nicht modales Popover an der Auswahl; x in Beats relativ zur Zeile. Ragt es über den rechten
+ * Inhaltsrand der Strukturseite, rückt es nach links, höchstens bis an den linken (design.md D4).
+ */
 export function Popover({ label, x, children }: { label: string; x: number; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shift, setShift] = useState(0);
+  const shiftRef = useRef(0);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const page = el?.closest('.structure-page');
+    if (!el || !page) return;
+    const fit = () => {
+      const rect = el.getBoundingClientRect();
+      const bounds = contentEdges(page);
+      // Lage ohne die bisherige Verschiebung
+      const left = rect.left - shiftRef.current;
+      const right = rect.right - shiftRef.current;
+      const next = -Math.max(0, Math.min(right - bounds.right, left - bounds.left));
+      shiftRef.current = next;
+      setShift(next);
+    };
+    fit();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(fit);
+    observer.observe(page);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [x]);
+
   return (
-    <div role="dialog" aria-label={label} className="structure-popover" style={{ left: `calc(var(--beat) * ${x})` }}>
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label={label}
+      className="structure-popover"
+      style={{ left: `calc(var(--beat) * ${x})`, ...(shift ? { transform: `translateX(${shift}px)` } : {}) }}
+    >
       {children}
     </div>
   );

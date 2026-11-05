@@ -991,6 +991,11 @@ body.dragging-pattern .tile-add:hover {
   padding: 1rem 1.25rem;
 }
 
+/* Container für die Anordnung der Doppelseite (.pages) */
+.songbook {
+  container-type: inline-size;
+}
+
 /* Kopf von Doppelseite und Pattern-Editor: Pfad über der Überschrift (navigation) */
 .page-header {
   margin-bottom: 0.25rem;
@@ -1167,11 +1172,33 @@ button.tempo-mark:hover {
   margin: 0;
 }
 
+/* Doppelseite: untereinander in voller Breite, nebeneinander ab der Summe der Basisbreiten (unten) */
 .pages {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
-  align-items: start;
+}
+
+/*
+ * Nebeneinander ab Basis Struktur (--structure-width, 39.75rem) + Abstand 1rem + Basis Patternseite 16rem.
+ * Übriger Platz 3:2 bis zu den Höchstbreiten: Struktur 3rem pro Beat, Patternseite zwei Spalten zu 15rem
+ * (eine 4-Beat-Karte mit Luft; zwei Spalten fassen eine dichte 4-Beat-Karte). Was beide nicht nehmen, bleibt frei.
+ */
+@container (min-width: 56.75rem) {
+  .pages {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .structure-page {
+    flex: 3 1 var(--structure-width);
+    max-width: var(--structure-max);
+  }
+
+  .pattern-page {
+    flex: 2 1 16rem;
+    max-width: calc(2 * 15rem + 0.75rem + 2rem + 2px);
+  }
 }
 
 .page {
@@ -1191,7 +1218,12 @@ button.tempo-mark:hover {
 /* Linke Seite: Struktur, Breite = Länge (1 Beat = --beat), flache Zeilen */
 /* Kein overflow: sonst wird die Seite zum Scrollbereich und schneidet das Popover ab */
 .structure-page {
-  --beat: 2.25rem;
+  /* Basis und Höchstbreite: 16 Beats zu 2,25rem bzw. 3rem, Rand der Zeilennummern, Padding und Rahmen der Seite */
+  --structure-width: calc(16 * 2.25rem + var(--row-gutter) + 2rem + 2px);
+  --structure-max: calc(16 * 3rem + var(--row-gutter) + 2rem + 2px);
+  /* Maßstab aus der Breite der Seite: 16 Beats füllen die Zeile, höchstens 3rem pro Beat */
+  container-type: inline-size;
+  --beat: min(3rem, (100cqw - var(--row-gutter)) / 16);
   /* Maße auf ganze Pixel (bei 16px), damit Striche und Kreise nicht je nach Lage verwischen */
   --row-gutter: 1.625rem;
   /* Abstand der Balken zu Taktstrichen und zueinander */
@@ -1554,7 +1586,8 @@ body.dragging-pattern * {
   flex-direction: column;
   gap: 0.4rem;
   width: max-content;
-  max-width: 24rem;
+  /* 100cqw: Inhaltsbreite der Strukturseite; rückt bei Überstand nach links (Popover in StructurePopovers.tsx) */
+  max-width: min(24rem, 100cqw);
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1727,10 +1760,10 @@ button.link {
 }
 
 /* Rechte Seite: Patterns */
-/* Zwei Spalten; Patterns über 4 Beats belegen beide (Reihenfolge bleibt, daher kein dense) */
+/* Eine Spalte, zwei erst ab zwei 4-Beat-Karten (@container unten) */
 .pattern-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   /* Zeilenabstand wie zwischen den Segmenten der Struktur (.segment + .segment) */
   gap: 1rem 0.75rem;
   align-items: start;
@@ -1742,8 +1775,19 @@ button.link {
   min-width: 0;
 }
 
-.pattern-card.wide {
-  grid-column: 1 / -1;
+/*
+ * Zwei Spalten, wenn zwei ungeschrumpfte 4-Beat-Karten (~220px: Noten in Kartengröße, Farbkante, Einzug)
+ * samt Spaltenabstand nebeneinander passen. Patterns über 4 Beats belegen dann beide
+ * (Reihenfolge bleibt, daher kein dense).
+ */
+@container (min-width: 28.5rem) {
+  .pattern-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pattern-card.wide {
+    grid-column: 1 / -1;
+  }
 }
 
 .pattern-card-header {
@@ -1755,19 +1799,24 @@ button.link {
 }
 
 .pattern-card h3 {
+  flex: 0 1 auto;
   margin: 0;
   font-size: inherit;
   min-width: 0;
 }
 
-/* Name als Knopf zum Bearbeiten: ohne Fläche, in der Patternfarbe (mit Text gemischt, damit lesbar) */
+/* Name als Knopf zum Bearbeiten: ohne Fläche, in der Patternfarbe (mit Text gemischt, damit lesbar); einzeilig, zu lang mit „…“ */
 .pattern-name {
+  display: block;
+  max-width: 100%;
   padding: 0;
   background: none;
   font-weight: 600;
   color: color-mix(in srgb, var(--pc) 65%, var(--text));
   text-align: left;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .pattern-name:hover {
@@ -1775,6 +1824,7 @@ button.link {
 }
 
 .pattern-meta {
+  flex: none;
   font-size: 0.75rem;
   color: var(--muted);
   white-space: nowrap;
@@ -1790,6 +1840,11 @@ button.link {
 .notation-card svg {
   max-width: 100%;
   height: auto;
+}
+
+/* Basis nebeneinander (16rem): eine Spalte mit einer 4-Beat-Karte (ungeschrumpft ~220px) samt Padding */
+.pattern-page {
+  container-type: inline-size;
 }
 
 .pattern-page .page-actions {

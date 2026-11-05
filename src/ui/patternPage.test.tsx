@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { createPattern } from '../domain/pattern';
 import type { Pattern } from '../domain/types';
 import { notebookWith } from '../test/notebook';
+import { patternOf } from '../test/patterns';
 import { App } from './App';
 
 function seed(...specs: { kind: 'groove' | 'fill'; name: string; length?: number }[]): Pattern[] {
@@ -43,6 +44,17 @@ describe('Spec songbook-view › Zweispaltige Patternseite', () => {
   });
 });
 
+describe('Spec songbook-view › Zweispaltige Patternseite (Notenbreite)', () => {
+  it('Dichtes kurzes Pattern über beide Spalten', () => {
+    const named = (name: string, pattern: Pattern): Pattern => ({ ...pattern, name });
+    const dense = named('D', patternOf(Array.from({ length: 4 }, () => ({ sub: 8 as const, hits: { hihat: [1, 2, 3, 4, 5, 6, 7, 8], kick: [1] } }))));
+    const eighths = named('A', patternOf(Array.from({ length: 4 }, () => ({ sub: 2 as const, hits: { hihat: [1, 2], kick: [1] } }))));
+    setup([dense, eighths]);
+    expect(cardOf('D')).toHaveClass('wide');
+    expect(cardOf('A')).not.toHaveClass('wide');
+  });
+});
+
 describe('Spec songbook-view › Kompakte Pattern-Karten (UI)', () => {
   it('Kopfzeile', () => {
     setup(seed({ kind: 'groove', name: 'Verse-Beat', length: 4 }));
@@ -54,6 +66,12 @@ describe('Spec songbook-view › Kompakte Pattern-Karten (UI)', () => {
     expect(buttons).toHaveLength(1);
     expect(buttons[0]).toHaveAccessibleName('Verse-Beat bearbeiten');
     expect(buttons[0]).toHaveTextContent(/^Verse-Beat$/);
+  });
+
+  it('Langer Name: der vollständige Name ist als Tooltip verfügbar', () => {
+    setup(seed({ kind: 'groove', name: 'Verse-Beat mit Ghost Notes', length: 4 }));
+    const name = within(cardOf('Verse-Beat mit Ghost Notes').querySelector('header')!).getByRole('button');
+    expect(name).toHaveAttribute('title', 'Verse-Beat mit Ghost Notes');
   });
 
   it('Name öffnet den Editor', async () => {

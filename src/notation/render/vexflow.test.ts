@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { emptyBeats, patternOf } from '../../test/patterns';
 import { toNotation } from '../model';
 import type { NotationEvent } from '../model';
-import { CARD_SCALE, noteFor, renderNotation } from './vexflow';
+import { CARD_SCALE, naturalCardWidth, noteFor, renderNotation } from './vexflow';
 
 describe('VexFlow-Adapter (Smoke-Test)', () => {
   it('rendert ein gemischtes Pattern ohne Fehler als SVG', () => {
@@ -89,6 +89,35 @@ describe('VexFlow-Adapter (Smoke-Test)', () => {
       new Set([...c.querySelectorAll('.vf-stave path')].map((p) => p.getAttribute('d')!.match(/^M[\d.]+ ([\d.]+)/)?.[1])).size;
     expect(rows(narrow)).toBeGreaterThan(rows(wide));
     expect(rows(wide)).toBe(rows(single()));
+  });
+
+  describe('Natürliche Kartenbreite (responsive-songbook D7)', () => {
+    // Kleinste Spalte bei zwei Spalten (28,5rem − 0,75rem) / 2 und Farbkante plus Einzug der Karte (3px + 0,5rem)
+    const COLUMN = 222;
+    const EDGE = 11;
+    const eighths = (n: number) =>
+      patternOf(Array.from({ length: n }, (_, i) => ({ sub: 2 as const, hits: { hihat: [1, 2], ...(i % 2 ? { snare: [1] } : { kick: [1] }) } })));
+    const thirtySeconds = patternOf(Array.from({ length: 4 }, () => ({ sub: 8 as const, hits: { hihat: [1, 2, 3, 4, 5, 6, 7, 8], kick: [1] } })));
+    const rendered = (pattern: ReturnType<typeof patternOf>) => {
+      const container = document.createElement('div');
+      renderNotation(toNotation(pattern), container, { card: true, maxWidth: 10000 });
+      return Number.parseFloat(container.querySelector('svg')!.getAttribute('width')!);
+    };
+
+    it('4 Beats in Achteln passen in eine Spalte', () => {
+      expect(naturalCardWidth(toNotation(eighths(4))) + EDGE).toBeLessThanOrEqual(COLUMN);
+    });
+
+    it('4 Beats in 32teln und 8 Beats in Achteln passen nicht in eine Spalte', () => {
+      expect(naturalCardWidth(toNotation(thirtySeconds)) + EDGE).toBeGreaterThan(COLUMN);
+      expect(naturalCardWidth(toNotation(eighths(8))) + EDGE).toBeGreaterThan(COLUMN);
+    });
+
+    it('gleich der Breite des gezeichneten Karten-SVG ohne Umbruch', () => {
+      for (const pattern of [eighths(4), eighths(8), thirtySeconds]) {
+        expect(naturalCardWidth(toNotation(pattern))).toBeCloseTo(rendered(pattern), 3);
+      }
+    });
   });
 
   describe('Pausen der Stimmen (rest-voices)', () => {
