@@ -1,8 +1,10 @@
-import { useEffect, useId, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react';
 import type { AccountError } from '../account/api';
 import type { AccountSession } from '../account/session';
 import { useConfirm } from './ConfirmDialog';
+import { PersonIcon } from './icons';
 import { useReport } from './messages';
+import { useDismiss } from './useDismiss';
 import { useSync } from './useWorkbooks';
 
 const MESSAGES: Record<AccountError, string> = {
@@ -15,22 +17,61 @@ const MESSAGES: Record<AccountError, string> = {
   unreachable: 'Der Server ist nicht erreichbar. Deine Songs bleiben auf diesem Gerät.',
 };
 
-type Step = { kind: 'closed' } | { kind: 'email' } | { kind: 'code'; email: string };
+type Step = { kind: 'email' } | { kind: 'code'; email: string; resent: boolean };
 
-/** Anmelden/Abmelden im App-Kopf (server-auth, design.md D8); der Anmeldestatus gehört nicht zum Notebook. */
-export function AccountMenu({ session }: { session: AccountSession }) {
-  const { api } = session;
+/** Abmelden mit Nachfrage bei nicht übertragenen Änderungen; Reihenfolge nach workbook-sync, design.md D13. */
+export function useLogout(session: AccountSession) {
   const sync = useSync();
   const confirm = useConfirm();
   const report = useReport();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const logout = async () => {
+    setLoggingOut(true);
+    try {
+      if (sync && !(await sync.prepareLogout())) {
+        const discard = await confirm('Einige Änderungen an Workbook-Songs wurden nicht übertragen und gehen beim Abmelden verloren. Trotzdem abmelden?');
+        if (!discard) return;
+      }
+      report();
+      const result = await session.api.logout();
+      if (!result.ok) return report('alert', MESSAGES[result.error]);
+      await sync?.afterLogout();
+      session.setEmail(null);
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  return { logout, loggingOut };
+}
+
+/** Konto-Symbol im App-Kopf mit Anmeldedialog bzw. Popover (header-cleanup, design.md D2); der Anmeldestatus gehört nicht zum Notebook. */
+export function AccountMenu({
+  session,
+  open,
+  onOpenChange,
+  logout,
+  loggingOut,
+}: {
+  session: AccountSession;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  logout: () => Promise<void>;
+  loggingOut: boolean;
+}) {
+  const { api } = session;
   const email = useSyncExternalStore(session.subscribe, session.getEmail);
-  const [step, setStep] = useState<Step>({ kind: 'closed' });
+  const [step, setStep] = useState<Step>({ kind: 'email' });
   const [input, setInput] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState<AccountError | null>(null);
   const [busy, setBusy] = useState(false);
   const emailId = useId();
   const codeId = useId();
+  const titleId = useId();
+  const area = useRef<HTMLDivElement>(null);
+  useDismiss(open && email !== null, area, useCallback(() => onOpenChange(false), [onOpenChange]));
 
   useEffect(() => {
     void session.refresh();
@@ -46,8 +87,9 @@ export function AccountMenu({ session }: { session: AccountSession }) {
     }
   };
 
-  const close = () => {
-    setStep({ kind: 'closed' });
+  const reset = () => {
+    onOpenChange(false);
+    setStep({ kind: 'email' });
     setCode('');
     setError(null);
   };
@@ -57,8 +99,12 @@ export function AccountMenu({ session }: { session: AccountSession }) {
       const result = await api.requestCode(address);
       if (!result.ok) return setError(result.error);
       setCode('');
-      setStep({ kind: 'code', email: address });
+      setStep({ kind: 'code', email: address, resent: step.kind === 'code' });
     });
+
+  const onDialogKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') onOpenChange(false);
+  };
 
   const verify = (address: string) =>
     run(async () => {
@@ -66,90 +112,97 @@ export function AccountMenu({ session }: { session: AccountSession }) {
       if (!result.ok) return setError(result.error);
       session.setEmail(result.email);
       setInput('');
-      close();
+      reset();
     });
-
-  const logout = () =>
-    run(async () => {
-      // Reihenfolge nach workbook-sync, design.md D13
-      if (sync && !(await sync.prepareLogout())) {
-        const discard = await confirm('Einige Änderungen an Workbook-Songs wurden nicht übertragen und gehen beim Abmelden verloren. Trotzdem abmelden?');
-        if (!discard) return;
-      }
-      report();
-      const result = await api.logout();
-      if (!result.ok) return report('alert', MESSAGES[result.error]);
-      await sync?.afterLogout();
-      session.setEmail(null);
-    });
-
-  if (email) {
-    return (
-      <div className="account">
-        <span className="account-email">{email}</span>
-        <button type="button" onClick={() => void logout()} disabled={busy}>
-          Abmelden
-        </button>
-      </div>
-    );
-  }
 
   return (
-    <div className="account">
-      {step.kind === 'closed' ? (
-        <button type="button" onClick={() => setStep({ kind: 'email' })}>
-          Anmelden
-        </button>
-      ) : (
-        <form
-          aria-label="Anmelden"
-          className="account-form"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault();
-            void (step.kind === 'email' ? sendCode(input) : verify(step.email));
-          }}
-        >
-          {step.kind === 'email' ? (
-            <label className="field" htmlFor={emailId}>
-              Mail-Adresse
-              <input id={emailId} type="email" autoComplete="email" value={input} onChange={(e) => setInput(e.target.value)} autoFocus />
-            </label>
-          ) : (
-            <>
-              <p className="hint">Wir haben einen Code an {step.email} geschickt.</p>
-              <label className="field" htmlFor={codeId}>
-                Code
-                <input
-                  id={codeId}
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  autoFocus
-                />
-              </label>
-            </>
-          )}
-          {error && (
-            <p role="alert" className="message alert">
-              {MESSAGES[error]}
-            </p>
-          )}
+    <div className="account" ref={area}>
+      <button
+        type="button"
+        className="icon-button"
+        aria-label={email ? `Konto ${email}` : 'Anmelden'}
+        aria-expanded={open}
+        title={email ?? 'Anmelden'}
+        onClick={() => onOpenChange(!open)}
+      >
+        <PersonIcon filled={email !== null} />
+      </button>
+      {open && email && (
+        <div className="account-form">
+          <span className="account-email">{email}</span>
           <div className="dialog-actions">
-            <button type="button" onClick={close}>
-              Abbrechen
-            </button>
-            {step.kind === 'code' && (
-              <button type="button" onClick={() => void sendCode(step.email)} disabled={busy}>
-                Neuen Code anfordern
-              </button>
-            )}
-            <button type="submit" className="primary" disabled={busy}>
-              {step.kind === 'email' ? 'Code senden' : 'Anmelden'}
+            <button
+              type="button"
+              disabled={loggingOut}
+              onClick={() => {
+                onOpenChange(false);
+                void logout();
+              }}
+            >
+              Abmelden
             </button>
           </div>
-        </form>
+        </div>
+      )}
+      {open && !email && (
+        <div className="backdrop">
+          <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="dialog login-dialog" tabIndex={-1} onKeyDown={onDialogKeyDown}>
+            <h2 id={titleId}>Anmelden</h2>
+            <form
+              aria-label="Anmelden"
+              className="login-form"
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                void (step.kind === 'email' ? sendCode(input) : verify(step.email));
+              }}
+            >
+              {step.kind === 'email' ? (
+                <label key="email" className="field" htmlFor={emailId}>
+                  Mail-Adresse
+                  <input id={emailId} type="email" autoComplete="email" value={input} onChange={(e) => setInput(e.target.value)} autoFocus />
+                </label>
+              ) : (
+                <label key="code" className="field" htmlFor={codeId}>
+                  Code
+                  <input
+                    id={codeId}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value)}
+                    autoFocus
+                  />
+                </label>
+              )}
+              {/* Einzige Stelle für Hinweise und Fehler; ihr Platz bleibt immer frei (design.md D10) */}
+              <div className="login-message">
+                {error ? (
+                  <p role="alert">{MESSAGES[error]}</p>
+                ) : (
+                  step.kind === 'code' && (
+                    <p role="status">
+                      Wir haben einen {step.resent ? 'neuen ' : ''}Code an {step.email} geschickt.
+                    </p>
+                  )
+                )}
+              </div>
+              <div className="dialog-actions">
+                {step.kind === 'code' && (
+                  <button type="button" className="text-button" onClick={() => void sendCode(step.email)} disabled={busy}>
+                    Neu senden
+                  </button>
+                )}
+                <button type="button" onClick={reset}>
+                  Abbrechen
+                </button>
+                <button type="submit" className="primary" disabled={busy}>
+                  {step.kind === 'email' ? 'Code senden' : 'Anmelden'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -127,12 +127,65 @@ describe('Spec app-messages › Ebenen der Oberfläche (Stylesheet)', () => {
   it.each([
     ['.app-notes', 'messages'],
     ['.account-form', 'popover'],
+    ['.app-menu', 'popover'],
     ['.card-popover', 'popover'],
     ['.structure-popover', 'popover'],
     ['.backdrop', 'modal'],
     ['.drag-image', 'drag'],
   ])('%s liegt auf der Ebene %s', (selector, name) => {
     expect(zIndexOf(selector)).toBe(`var(--z-${name})`);
+  });
+});
+
+describe('Spec account-auth › Stabile Anordnung im Anmeldedialog (Stylesheet)', () => {
+  it.each(['.login-form', '.login-form .field'])('%s ist ein Block ohne gap: Eingefügtes bekommt keinen Abstand', (selector) => {
+    const rule = css.match(new RegExp(`${selector.replace(/\./g, '\\.')}\\s*\\{([^}]*)\\}`))?.[1];
+    expect(rule).toMatch(/display:\s*block/);
+    expect(rule).not.toMatch(/gap/);
+  });
+});
+
+describe('Spec app-header › Anmeldedialog (Stylesheet)', () => {
+  it('Kontrast zum Hintergrund: Der Schleier dunkelt in beiden Farbschemata ab', () => {
+    expect(token('backdrop')).toContain('--ctp-text');
+    expect(css.match(/prefers-color-scheme: dark[\s\S]*?--backdrop:\s*([^;]+);/)?.[1]).toContain('--ctp-crust');
+  });
+
+  it('Kontrast zum Hintergrund: Dialoge heben sich mit Rand ab', () => {
+    const rule = css.match(/(?:^|\n)\.dialog\s*\{([^}]*)\}/)?.[1];
+    expect(rule).toMatch(/background:\s*var\(--bg\)/);
+    expect(rule).toMatch(/border:\s*1px solid var\(--border\)/);
+  });
+});
+
+describe('Überschrift der Song-Liste (Stylesheet)', () => {
+  it('Ist nicht an die Maße des Schlosses gebunden, sondern gleicht den übrigen Überschriften', () => {
+    expect(css).not.toMatch(/\.page-heading,\s*\.lock-toggle/);
+    expect(css).toMatch(/\.page-heading,\s*\.editable-heading\s*\{[^}]*margin:\s*0/);
+  });
+});
+
+describe('Spec account-auth › Stabile Anordnung: freigehaltener Platz (Stylesheet)', () => {
+  it('Die Meldungsstelle reserviert zwei Zeilen', () => {
+    expect(css.match(/\.login-message\s*\{([^}]*)\}/)?.[1]).toMatch(/min-height:\s*calc\(2 \* /);
+  });
+});
+
+describe('Spec app-header › Konto-Symbol (Stylesheet)', () => {
+  it('Angemeldet ohne eigene Farbe', () => {
+    expect(css.match(/\.icon\.filled\s*\{([^}]*)\}/)?.[1]).not.toMatch(/(?:^|\s)color:/);
+  });
+});
+
+describe('Spec account-auth › Code neu senden (Stylesheet)', () => {
+  it('Knöpfe des Anmeldeformulars bleiben einzeilig', () => {
+    expect(css).toMatch(/\.login-form \.dialog-actions button\s*\{[^}]*white-space:\s*nowrap/);
+  });
+
+  it('Textknopf ohne Hintergrund steht links', () => {
+    const rule = css.match(/\.text-button\s*\{([^}]*)\}/)?.[1];
+    expect(rule).toMatch(/background:\s*none/);
+    expect(rule).toMatch(/margin-right:\s*auto/);
   });
 });
 

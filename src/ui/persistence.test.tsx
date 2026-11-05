@@ -60,7 +60,8 @@ describe('Spec library-persistence › Export der Bibliothek (UI)', () => {
     const save = vi.spyOn(download, 'downloadFile').mockImplementation(() => {});
     const songs = [songWith({ title: 'A', groove: true }), songWith({ title: 'B' })];
     const { user } = setup(songs);
-    await user.click(screen.getByRole('button', { name: 'Exportieren' }));
+    await user.click(screen.getByRole('button', { name: 'Menü' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Exportieren' }));
     expect(save).toHaveBeenCalledTimes(1);
     const [name, content] = save.mock.calls[0]!;
     expect(name).toMatch(/^beatsheet-\d{4}-\d{2}-\d{2}\.json$/);

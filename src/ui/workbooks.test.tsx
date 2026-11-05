@@ -555,7 +555,8 @@ describe('Spec library-persistence › Workbook-Songs im Import (UI)', () => {
     const save = vi.spyOn(download, 'downloadFile').mockImplementation(() => {});
     const intro = songWith({ title: 'Intro' });
     const { user } = setup({ songs: [intro], workbooks: [workbook('Band')], placement: { [intro.id]: 'wb-Band' } });
-    await user.click(screen.getByRole('button', { name: 'Exportieren' }));
+    await user.click(screen.getByRole('button', { name: 'Menü' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Exportieren' }));
     const parsed = parseNotebookFile(save.mock.calls[0]![1]);
     expect(parsed.ok && parsed.songs.map((s) => s.title)).toEqual(['Intro']);
     save.mockRestore();
@@ -638,6 +639,7 @@ describe('Spec library-persistence › Dauerhaften Speicher anfordern (UI)', () 
     setup({ email: null, storagePersisted: false });
     expect(note()).toHaveTextContent('gelöscht werden');
     expect(note()).toHaveTextContent('Exportieren');
+    expect(note()).toHaveTextContent('im Menü');
   });
 
   it('Speicher nicht dauerhaft, angemeldet: nennt Account und nicht übertragene Änderungen', () => {
@@ -723,6 +725,7 @@ describe('Spec app-messages › Meldungen gesammelt oben (UI)', () => {
     expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
     vi.mocked(ctx.account.logout).mockResolvedValue({ ok: false, error: 'unreachable' });
     const appHeader = document.querySelector<HTMLElement>('.app-header')!;
+    await ctx.user.click(within(appHeader).getByRole('button', { name: /^Konto/ }));
     await ctx.user.click(within(appHeader).getByRole('button', { name: 'Abmelden' }));
     await waitFor(() => expect(within(stack()).getAllByRole('alert')).toHaveLength(2));
     expect(within(appHeader).queryByRole('alert')).not.toBeInTheDocument();
@@ -785,7 +788,11 @@ describe('Spec server-limits › Meldungen (UI)', () => {
 });
 
 describe('Spec workbook-sync › Abmelden mit Workbook-Songs (UI)', () => {
-  const logout = () => within(screen.getByRole('banner')).getByRole('button', { name: 'Abmelden' });
+  const accountButton = () => within(screen.getByRole('banner')).getByRole('button', { name: /^Konto/ });
+  const logout = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(accountButton());
+    await user.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Abmelden' }));
+  };
   const placedSetup = (overrides: Partial<WorkbookActions> = {}) => {
     const intro = songWith({ title: 'Intro' });
     const skizze = songWith({ title: 'Skizze' });
@@ -794,7 +801,7 @@ describe('Spec workbook-sync › Abmelden mit Workbook-Songs (UI)', () => {
 
   it('Abmelden', async () => {
     const { user, sync, account, store } = placedSetup();
-    await user.click(logout());
+    await logout(user);
     await waitFor(() => expect(cardTitles()).toEqual(['Meine Songs']));
     expect(sync.prepareLogout).toHaveBeenCalled();
     expect(account.logout).toHaveBeenCalled();
@@ -805,7 +812,7 @@ describe('Spec workbook-sync › Abmelden mit Workbook-Songs (UI)', () => {
 
   it('Abmelden mit nicht übertragenen Änderungen: Ablehnen lässt angemeldet', async () => {
     const { user, sync, account } = placedSetup({ prepareLogout: vi.fn(async () => false) });
-    await user.click(logout());
+    await logout(user);
     const dialog = await screen.findByRole('alertdialog');
     expect(dialog).toHaveTextContent('nicht übertragen');
     expect(dialog).toHaveTextContent('verloren');
@@ -813,22 +820,31 @@ describe('Spec workbook-sync › Abmelden mit Workbook-Songs (UI)', () => {
     expect(account.logout).not.toHaveBeenCalled();
     expect(sync.afterLogout).not.toHaveBeenCalled();
     expect(cardTitles()).toEqual(['Band', 'Meine Songs']);
-    expect(logout()).toBeInTheDocument();
+    expect(accountButton()).toBeInTheDocument();
   });
 
   it('Abmelden mit nicht übertragenen Änderungen: Bestätigen meldet ab', async () => {
     const { user, account, sync } = placedSetup({ prepareLogout: vi.fn(async () => false) });
-    await user.click(logout());
+    await logout(user);
     await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Bestätigen' }));
     await waitFor(() => expect(sync.afterLogout).toHaveBeenCalled());
     expect(account.logout).toHaveBeenCalled();
+  });
+
+  it('Abmelden im Menü mit nicht übertragenen Änderungen (app-header)', async () => {
+    const { user, account } = placedSetup({ prepareLogout: vi.fn(async () => false) });
+    await user.click(screen.getByRole('button', { name: 'Menü' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Abmelden' }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Abbrechen' }));
+    expect(account.logout).not.toHaveBeenCalled();
+    expect(accountButton()).toBeInTheDocument();
   });
 
   it('Schlägt das Abmelden am Server fehl, bleiben die Songs', async () => {
     const intro = songWith({ title: 'Intro' });
     const ctx = setup({ songs: [intro], workbooks: [workbook('Band')], placement: { [intro.id]: 'wb-Band' } });
     vi.mocked(ctx.account.logout).mockResolvedValue({ ok: false, error: 'unreachable' });
-    await ctx.user.click(logout());
+    await logout(ctx.user);
     expect(await screen.findByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
     expect(ctx.sync.afterLogout).not.toHaveBeenCalled();
     expect(cardTitles()).toEqual(['Band', 'Meine Songs']);

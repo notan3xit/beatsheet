@@ -4,10 +4,9 @@ import { createAccountSession, type AccountSession } from '../account/session';
 import { createWebAudioPlayer, type Player } from '../audio/player';
 import type { NotebookStore } from '../state/notebookStore';
 import type { WorkbookActions } from '../sync/sync';
-import { AccountMenu } from './AccountMenu';
+import { AppHeader } from './AppHeader';
 import { ConfirmProvider } from './ConfirmDialog';
 import { HitTestContext, type HitTest } from './dragPattern';
-import { LibraryFileActions } from './LibraryFileActions';
 import { useLockGuard } from './lock';
 import { MessageRow, MessagesProvider, ReportedMessages } from './messages';
 import { PatternEditor } from './PatternEditor';
@@ -42,7 +41,7 @@ function StorageNote({ synced }: { synced: boolean }) {
       Der Browser hat keinen dauerhaften Speicher gewährt.{' '}
       {synced && email
         ? 'Deine Songs liegen im Account, nur noch nicht übertragene Änderungen könnten verloren gehen.'
-        : 'Deine Daten könnten gelöscht werden. Sichere sie regelmäßig über „Exportieren“.'}
+        : 'Deine Daten könnten gelöscht werden. Sichere sie regelmäßig über „Exportieren“ im Menü.'}
     </p>
   );
 }
@@ -98,11 +97,7 @@ export function App({
         <ConfirmProvider>
         <MessagesProvider>
           <div className="app">
-            <header className="app-header">
-              <h1>Beatsheet</h1>
-              <LibraryFileActions />
-              <AccountMenu session={session} />
-            </header>
+            <AppHeader session={session} />
             <div className="app-notes">
               {!storagePersisted && <StorageNote synced={sync !== undefined} />}
               {sync && <OfflineNote sync={sync} />}

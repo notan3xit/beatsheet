@@ -65,7 +65,7 @@ export async function requestCode(deps: AuthDeps, rawEmail: unknown): Promise<Re
   ).run(email, hashCode(deps.secret, email, code), now + CODE_TTL);
   await deps.mail.send({
     to: email,
-    subject: 'Dein Anmeldecode für beatsheet',
+    subject: `${code} ist dein Anmeldecode für beatsheet`,
     text: `Dein Anmeldecode für beatsheet: ${code}\n\nEr gilt 10 Minuten. Wenn du keinen Code angefordert hast, kannst du diese Mail ignorieren.\n`,
   });
   return 'sent';

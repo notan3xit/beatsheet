@@ -26,7 +26,8 @@
   --danger: var(--ctp-red);
   --success: var(--ctp-green);
   --warning: var(--ctp-yellow);
-  --backdrop: color-mix(in srgb, var(--ctp-crust) 60%, transparent);
+  /* Schleier hinter Dialogen: crust ist in Latte hell und würde aufhellen */
+  --backdrop: color-mix(in srgb, var(--ctp-text) 40%, transparent);
   --shadow: color-mix(in srgb, var(--ctp-crust) 35%, transparent);
   /* Ebenen von unten nach oben; z-index nur über diese Tokens */
   --z-local-1: 1;
@@ -47,6 +48,7 @@
     --accent-fill-hover-mix: 85%;
     --on-accent-fill: var(--on-accent);
     --step-on-mix: 100%;
+    --backdrop: color-mix(in srgb, var(--ctp-crust) 60%, transparent);
   }
 }
 
@@ -129,24 +131,50 @@ input {
   gap: 1.5rem;
 }
 
-.file-actions {
+/* Menü der Kopfzeile */
+.app-menu-area {
+  position: relative;
+  display: flex;
+  margin-right: -0.5rem; /* Symbol und Titel rücken zusammen */
+}
+
+.app-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  padding: 0.3rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px var(--shadow);
+}
+
+.app-menu button {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
+  gap: 0.6rem;
+  background: none;
+  text-align: left;
 }
 
-.button-like {
-  border: none;
-  background: var(--control);
-  border-radius: 6px;
-  padding: 0.4rem 0.8rem;
-  cursor: pointer;
-}
-
-.button-like:hover,
-.button-like:focus-within {
+.app-menu button:hover:not(:disabled) {
   background: var(--control-hover);
+}
+
+.app-menu hr {
+  width: auto;
+  margin: 0.3rem 0.2rem;
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.account > .icon-button .icon {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .visually-hidden {
@@ -214,17 +242,48 @@ input {
 
 .account {
   position: relative;
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
+.icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon.filled {
+  fill: currentColor;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: none;
+}
+
+.icon-button:hover,
+.icon-button[aria-expanded='true'] {
+  background: var(--control-hover);
+}
+
 .account-email {
   color: var(--muted);
   font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 
-/* Anmeldeformular als Aufklapper unter dem Kopf */
+/* Konto-Popover der Angemeldeten unter dem Symbol */
 .account-form {
   position: absolute;
   top: calc(100% + 0.5rem);
@@ -233,7 +292,8 @@ input {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
-  min-width: 19rem;
+  width: max-content;
+  max-width: min(21rem, calc(100vw - 2rem));
   padding: 0.9rem;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -241,9 +301,67 @@ input {
   box-shadow: 0 6px 20px var(--shadow);
 }
 
-.account-form .hint {
-  margin: 0;
+/* Anmeldedialog: Blöcke statt flex mit gap, damit eingefügte Elemente (Passwortmanager) keinen Abstand bekommen */
+.login-dialog {
+  width: min(23rem, calc(100vw - 2rem));
+  outline: none;
+}
+
+.login-dialog h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.login-form {
+  display: block;
+}
+
+.login-form .field {
+  display: block;
+}
+
+.login-form .field input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 0.2rem;
+}
+
+.login-message {
+  min-height: calc(2 * 1.3em);
+  margin-top: 0.5rem;
   font-size: 0.85rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.login-message p {
+  margin: 0;
+}
+
+.login-message [role='alert'] {
+  color: var(--danger);
+}
+
+.login-form .dialog-actions {
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.login-form .dialog-actions button {
+  white-space: nowrap;
+}
+
+.text-button {
+  margin-right: auto;
+  padding-inline: 0;
+  background: none;
+  color: var(--muted);
+}
+
+.text-button:hover:not(:disabled) {
+  color: var(--text);
+  text-decoration: underline;
 }
 
 .app-header h1 {
@@ -433,7 +551,6 @@ input {
   text-decoration: underline;
 }
 
-.page-heading,
 .lock-toggle {
   display: inline-flex;
   flex: none;
@@ -473,6 +590,7 @@ input {
   stroke-width: 1.5;
 }
 
+.page-heading,
 .editable-heading {
   margin: 0;
   font-size: 1.4rem;
@@ -1504,7 +1622,8 @@ span.value-control {
 }
 
 .dialog {
-  background: var(--surface);
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 10px;
   padding: 1.25rem;
   max-width: 26rem;

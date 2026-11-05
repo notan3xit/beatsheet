@@ -85,6 +85,12 @@ describe('Spec account-auth › Anmeldecode anfordern', () => {
     expect(codeIn(h.mails[0]!)).toBe('012345');
   });
 
+  it('Code im Betreff', async () => {
+    const h = await start({ codes: ['012345'] });
+    await requestCode(h, 'ich@example.com');
+    expect(h.mails[0]!.subject).toBe('012345 ist dein Anmeldecode für beatsheet');
+  });
+
   it('Ungültige Adresse', async () => {
     const h = await start();
     for (const email of ['keine-adresse', 'a@b', 'a b@example.com', `${'x'.repeat(250)}@example.com`, 'a@example.com\nBcc: x@y.z']) {
