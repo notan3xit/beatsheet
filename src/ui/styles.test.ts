@@ -42,8 +42,15 @@ describe('Spec color-theme › Rot nur für Fehler und destruktive Aktionen', ()
   });
 });
 
+describe('Spec color-theme › Farbschema folgt der Systemeinstellung (Stylesheet)', () => {
+  it('Dunkle Werte hängen am Attribut, nicht an der Media Query', () => {
+    expect(css).toMatch(/:root\[data-theme='dark'\]\s*\{/);
+    expect(css).not.toContain('prefers-color-scheme');
+  });
+});
+
 describe('Spec color-theme › Akzentflächen je nach Variante tonal oder voll', () => {
-  const darkBlock = css.match(/@media \(prefers-color-scheme: dark\)\s*\{\s*:root\s*\{([^}]*)\}/)?.[1] ?? '';
+  const darkBlock = css.match(/:root\[data-theme='dark'\]\s*\{([^}]*)\}/)?.[1] ?? '';
   const dark = (name: string) => darkBlock.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1]?.trim();
   const rule = (selector: string) =>
     css.match(new RegExp(`(?:^|\\})\\s*${selector.replace(/[.[\]()'*]/g, '\\$&')}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
@@ -149,7 +156,7 @@ describe('Spec account-auth › Stabile Anordnung im Anmeldedialog (Stylesheet)'
 describe('Spec app-header › Anmeldedialog (Stylesheet)', () => {
   it('Kontrast zum Hintergrund: Der Schleier dunkelt in beiden Farbschemata ab', () => {
     expect(token('backdrop')).toContain('--ctp-text');
-    expect(css.match(/prefers-color-scheme: dark[\s\S]*?--backdrop:\s*([^;]+);/)?.[1]).toContain('--ctp-crust');
+    expect(css.match(/:root\[data-theme='dark'\][\s\S]*?--backdrop:\s*([^;]+);/)?.[1]).toContain('--ctp-crust');
   });
 
   it('Kontrast zum Hintergrund: Dialoge heben sich mit Rand ab', () => {

@@ -11,6 +11,7 @@ import { createNotebookStore } from '../state/notebookStore';
 import { fakePlayer } from '../test/fakePlayer';
 import { songWith } from '../test/songs';
 import { App } from './App';
+import { connectTheme, createThemeSetting, THEME_STORAGE_KEY, type ThemeSetting } from './theme';
 import * as download from './download';
 
 const ME = 'ich@example.com';
@@ -22,7 +23,7 @@ function fakeSound({ stored, state = 'ready' }: { stored?: Record<string, string
   return { setting: createSoundSetting(storage), loader, data } satisfies PlaybackSound & { data: Map<string, string> };
 }
 
-function setup(email: string | null = null, sound: PlaybackSound = fakeSound()) {
+function setup(email: string | null = null, sound: PlaybackSound = fakeSound(), theme: ThemeSetting = createThemeSetting(null)) {
   const account: AccountApi = {
     session: vi.fn(async () => email),
     requestCode: vi.fn(async () => ({ ok: true as const })),
@@ -32,14 +33,15 @@ function setup(email: string | null = null, sound: PlaybackSound = fakeSound()) 
   const session = createAccountSession(account);
   session.setEmail(email);
   const user = userEvent.setup();
-  render(<App store={createNotebookStore([songWith({ title: 'Hysteria' })])} session={session} player={fakePlayer().player} sound={sound} />);
-  return { user, account, session, sound };
+  render(<App store={createNotebookStore([songWith({ title: 'Hysteria' })])} session={session} player={fakePlayer().player} sound={sound} theme={theme} />);
+  return { user, account, session, sound, theme };
 }
 
 const menuButton = () => screen.getByRole('button', { name: 'Menü' });
 const menu = () => screen.getByRole('menu');
 const entries = () => within(menu()).getAllByRole('menuitem').map((item) => item.textContent);
 const item = (name: string) => within(menu()).getByRole('menuitem', { name });
+const follows = (a: Node, b: Node) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
 const expectClosed = () => expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 
 describe('Spec app-header › Menü', () => {
@@ -156,16 +158,84 @@ describe('Spec app-header › Anmelden und Abmelden über das Menü', () => {
 const soundOption = (name: string) => within(menu()).getByRole('menuitemradio', { name: new RegExp(`^${name}`) });
 const UNAVAILABLE = 'auf diesem Gerät nicht verfügbar';
 
-describe('Spec app-header › Menü › Abschnitt Klang', () => {
-  it('nach dem Eintrag zum Konto ein Trennstrich und darunter „Klang“ mit „DRSKit“ und „Synth“', async () => {
+describe('Spec app-header › Menü › Abschnitt Farbschema', () => {
+  it('nach dem Eintrag zum Konto ein Trennstrich und darunter „Farbschema“ mit „Wie System“, „Hell“ und „Dunkel“', async () => {
     const { user } = setup();
     await user.click(menuButton());
     const separators = within(menu()).getAllByRole('separator');
+    const group = within(menu()).getByRole('group', { name: 'Farbschema' });
+    expect(follows(item('Anmelden'), separators[1]!)).toBe(true);
+    expect(follows(separators[1]!, group)).toBe(true);
+    expect(within(group).getAllByRole('menuitemradio').map((r) => r.textContent)).toEqual(['Wie System', 'Hell', 'Dunkel']);
+  });
+});
+
+describe('Spec app-header › Menü › Abschnitt Klang', () => {
+  it('nach dem Abschnitt „Farbschema“ ein Trennstrich und darunter „Klang“ mit „DRSKit“ und „Synth“', async () => {
+    const { user } = setup();
+    await user.click(menuButton());
+    const separators = within(menu()).getAllByRole('separator');
+    const themeGroup = within(menu()).getByRole('group', { name: 'Farbschema' });
     const group = within(menu()).getByRole('group', { name: 'Klang' });
-    const account = item('Anmelden');
-    expect(account.compareDocumentPosition(separators[1]!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(separators[1]!.compareDocumentPosition(group) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(follows(themeGroup, separators[2]!)).toBe(true);
+    expect(follows(separators[2]!, group)).toBe(true);
     expect(within(group).getAllByRole('menuitemradio').map((r) => r.textContent)).toEqual(['DRSKit', 'Synth']);
+  });
+});
+
+/** Farbschema-Wahl über einen gemeinsamen Speicher, verbunden mit dem Dokument bei heller Systemeinstellung. */
+function themeOnDocument(data = new Map<string, string>()) {
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => void data.set(key, value) };
+  const setting = createThemeSetting(storage);
+  const media = { matches: false, addEventListener: () => {}, removeEventListener: () => {} };
+  connectTheme(setting, document.documentElement, media);
+  return { setting, data };
+}
+const themeOption = (name: string) => within(within(menu()).getByRole('group', { name: 'Farbschema' })).getByRole('menuitemradio', { name });
+const documentTheme = () => document.documentElement.getAttribute('data-theme');
+
+describe('Spec color-theme › Farbschema wählen', () => {
+  it('Dunkel wählen: markiert, Menü schließt, App sofort in Mocha', async () => {
+    const { setting } = themeOnDocument();
+    const { user } = setup(null, fakeSound(), setting);
+    expect(documentTheme()).toBe('light');
+    await user.click(menuButton());
+    await user.click(themeOption('Dunkel'));
+    expectClosed();
+    expect(documentTheme()).toBe('dark');
+    await user.click(menuButton());
+    expect(themeOption('Dunkel')).toHaveAttribute('aria-checked', 'true');
+    expect(themeOption('Wie System')).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('Zurück zu Wie System: bei heller Systemeinstellung wieder Latte', async () => {
+    const { setting } = themeOnDocument(new Map([[THEME_STORAGE_KEY, 'dark']]));
+    const { user } = setup(null, fakeSound(), setting);
+    expect(documentTheme()).toBe('dark');
+    await user.click(menuButton());
+    await user.click(themeOption('Wie System'));
+    expect(documentTheme()).toBe('light');
+  });
+});
+
+describe('Spec color-theme › Wahl des Farbschemas pro Gerät', () => {
+  it('Vorgabe: „Wie System“ ist gewählt', async () => {
+    const { user } = setup();
+    await user.click(menuButton());
+    expect(themeOption('Wie System')).toHaveAttribute('aria-checked', 'true');
+    expect(themeOption('Hell')).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('Wahl bleibt erhalten: nach Neuladen von Anfang an dunkel und „Dunkel“ markiert', async () => {
+    const first = themeOnDocument();
+    first.setting.set('dark');
+    cleanup();
+    document.documentElement.removeAttribute('data-theme');
+    const { setting } = themeOnDocument(first.data);
+    expect(documentTheme()).toBe('dark');
+    const { user } = setup(null, fakeSound(), setting);
+    await user.click(menuButton());
+    expect(themeOption('Dunkel')).toHaveAttribute('aria-checked', 'true');
   });
 });
 

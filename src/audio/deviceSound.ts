@@ -1,6 +1,7 @@
 import { DRS_FORMATS } from './drsSamples';
 import { browserDecode, browserFetch, createSampleLoader, type SampleLoader } from './sampleLoader';
-import { browserStorage, createSoundSetting, type SoundSetting } from './soundSetting';
+import { browserStorage } from '../state/deviceSetting';
+import { createSoundSetting, type SoundSetting } from './soundSetting';
 
 /** Klangwahl und Aufnahmen, gemeinsam für Player und Menü (playback-sound). */
 export interface PlaybackSound {

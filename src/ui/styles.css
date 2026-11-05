@@ -60,16 +60,14 @@
   background: var(--bg);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --accent-fill-mix: 100%;
-    --accent-fill-hover-mix: 85%;
-    --on-accent-fill: var(--on-accent);
-    --step-on-mix: 100%;
-    --avatar-mix: 100%;
-    --avatar-text: var(--on-accent);
-    --backdrop: color-mix(in srgb, var(--ctp-crust) 60%, transparent);
-  }
+:root[data-theme='dark'] {
+  --accent-fill-mix: 100%;
+  --accent-fill-hover-mix: 85%;
+  --on-accent-fill: var(--on-accent);
+  --step-on-mix: 100%;
+  --avatar-mix: 100%;
+  --avatar-text: var(--on-accent);
+  --backdrop: color-mix(in srgb, var(--ctp-crust) 60%, transparent);
 }
 
 * {
@@ -192,8 +190,8 @@ input {
   border-top: 1px solid var(--border);
 }
 
-/* Abschnitt „Klang“ (drum-samples, design.md D7) */
-.app-menu-sound {
+/* Auswahl-Abschnitte „Farbschema“ und „Klang“ (theme-choice, design.md D4) */
+.app-menu-choice {
   display: flex;
   flex-direction: column;
 }

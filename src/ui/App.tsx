@@ -13,6 +13,8 @@ import { useLockGuard } from './lock';
 import { MessageRow, MessagesProvider, ReportedMessages } from './messages';
 import { PatternEditor } from './PatternEditor';
 import { PlayerContext, SoundContext } from './playback';
+import { createThemeSetting, type ThemeSetting } from './theme';
+import { ThemeContext } from './useTheme';
 import { SongList } from './SongList';
 import { Songbook } from './Songbook';
 import { StoreContext, useNotebook, useOpenSong } from './useLibrary';
@@ -73,6 +75,7 @@ export function App({
   hitTest,
   player: playerProp,
   sound: soundProp,
+  theme: themeProp,
   account: accountProp,
   profile: profileProp,
   session: sessionProp,
@@ -86,6 +89,8 @@ export function App({
   player?: Player;
   /** Klangwahl und Aufnahmen; Vorgabe Gerätespeicher und DRSKit vom Server, in Tests ein Nachbau. */
   sound?: PlaybackSound;
+  /** Wahl des Farbschemas; `main` verbindet sie vor dem ersten Rendern mit dem Dokument, in Tests ohne Speicher. */
+  theme?: ThemeSetting;
   /** Anmeldeserver; Vorgabe HTTP über `/api`, in Tests ein Nachbau. */
   account?: AccountApi;
   /** Profil am Server; Vorgabe HTTP über `/api/auth/profile`, in Tests ein Nachbau. */
@@ -96,6 +101,7 @@ export function App({
   sync?: WorkbookActions;
 }) {
   const [sound] = useState(() => soundProp ?? createDeviceSound());
+  const [theme] = useState(() => themeProp ?? createThemeSetting(null));
   const [player] = useState(() => playerProp ?? createWebAudioPlayer(undefined, sound));
   // Aufnahmen im Hintergrund laden, sobald DRSKit gewählt ist; ohne Web Audio gibt es nichts abzuspielen
   const chosen = useSyncExternalStore(sound.setting.subscribe, sound.setting.get);
@@ -108,6 +114,7 @@ export function App({
     <StoreContext.Provider value={store}>
       <PlayerContext.Provider value={player}>
         <SoundContext.Provider value={sound}>
+        <ThemeContext.Provider value={theme}>
         <SessionContext.Provider value={session}>
         <SyncContext.Provider value={sync ?? null}>
         <ConfirmProvider>
@@ -126,6 +133,7 @@ export function App({
         </ConfirmProvider>
         </SyncContext.Provider>
         </SessionContext.Provider>
+        </ThemeContext.Provider>
         </SoundContext.Provider>
       </PlayerContext.Provider>
     </StoreContext.Provider>

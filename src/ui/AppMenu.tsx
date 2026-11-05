@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useSyncExternalStore, type ChangeEvent } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore, type ChangeEvent, type ReactNode } from 'react';
 import type { Sound } from '../audio/soundSetting';
 import { newId } from '../domain/id';
 import { exportFileName, parseNotebookFile, serializeNotebook } from '../persistence/fileFormat';
@@ -10,11 +10,13 @@ import { useSound } from './playback';
 import { useReport } from './messages';
 import { useDismiss } from './useDismiss';
 import { useStore } from './useLibrary';
+import { useThemeSetting } from './useTheme';
+import type { ThemeChoice } from './theme';
 import { useEmail } from './useWorkbooks';
 
 type Pending = { plan: ImportEntry[]; fromNewerVersion: boolean };
 
-/** Menü der Kopfzeile: Export und Import aller Songs, Anmelden bzw. Abmelden, Wahl des Klangs. */
+/** Menü der Kopfzeile: Export und Import aller Songs, Anmelden bzw. Abmelden, Wahl von Farbschema und Klang. */
 export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void; onLogout: () => void; loggingOut: boolean }) {
   const store = useStore();
   const report = useReport();
@@ -98,6 +100,8 @@ export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void
             </button>
           )}
           <hr />
+          <ThemeChoiceSection onChoose={() => setOpen(false)} />
+          <hr />
           <SoundChoice onChoose={() => setOpen(false)} />
         </div>
       )}
@@ -116,41 +120,93 @@ export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void
   );
 }
 
-const SOUNDS: { value: Sound; label: string }[] = [
-  { value: 'drs', label: 'DRSKit' },
-  { value: 'synth', label: 'Synth' },
+interface ChoiceOption<T extends string> {
+  value: T;
+  label: string;
+  hint?: string;
+}
+
+/** Abschnitt mit Überschrift und genau einer gewählten Option; Wählen schließt das Menü (theme-choice, design.md D4). */
+function MenuChoice<T extends string>({
+  id,
+  heading,
+  options,
+  chosen,
+  onChoose,
+  children,
+}: {
+  id: string;
+  heading: string;
+  options: ChoiceOption<T>[];
+  chosen: T;
+  onChoose: (value: T) => void;
+  children?: ReactNode;
+}) {
+  return (
+    <div role="group" aria-labelledby={id} className="app-menu-choice">
+      <span id={id} className="app-menu-heading">
+        {heading}
+      </span>
+      {options.map(({ value, label, hint }) => (
+        <button key={value} type="button" role="menuitemradio" aria-checked={chosen === value} onClick={() => onChoose(value)}>
+          <span className="app-menu-check" aria-hidden="true">
+            {chosen === value ? <CheckIcon /> : null}
+          </span>
+          <span>
+            {label}
+            {hint && <span className="app-menu-hint">{hint}</span>}
+          </span>
+        </button>
+      ))}
+      {children}
+    </div>
+  );
+}
+
+const THEMES: ChoiceOption<ThemeChoice>[] = [
+  { value: 'system', label: 'Wie System' },
+  { value: 'light', label: 'Hell' },
+  { value: 'dark', label: 'Dunkel' },
 ];
+
+/** Abschnitt „Farbschema“ (color-theme). */
+function ThemeChoiceSection({ onChoose }: { onChoose: () => void }) {
+  const setting = useThemeSetting();
+  const chosen = useSyncExternalStore(setting.subscribe, setting.get);
+  return (
+    <MenuChoice
+      id="app-menu-theme"
+      heading="Farbschema"
+      options={THEMES}
+      chosen={chosen}
+      onChoose={(value) => {
+        onChoose();
+        setting.set(value);
+      }}
+    />
+  );
+}
 
 /** Abschnitt „Klang“: Wahl zwischen Aufnahmen und Synth, Hinweis und Namensnennung (drum-samples, design.md D7). */
 function SoundChoice({ onChoose }: { onChoose: () => void }) {
   const { setting, loader } = useSound();
   const chosen = useSyncExternalStore(setting.subscribe, setting.get);
   const loaderState = useSyncExternalStore(loader.subscribe, loader.state);
+  const sounds: ChoiceOption<Sound>[] = [
+    { value: 'drs', label: 'DRSKit', hint: loaderState === 'unavailable' ? 'auf diesem Gerät nicht verfügbar' : undefined },
+    { value: 'synth', label: 'Synth' },
+  ];
   return (
-    <div role="group" aria-labelledby="app-menu-sound" className="app-menu-sound">
-      <span id="app-menu-sound" className="app-menu-heading">
-        Klang
-      </span>
-      {SOUNDS.map(({ value, label }) => (
-        <button
-          key={value}
-          type="button"
-          role="menuitemradio"
-          aria-checked={chosen === value}
-          onClick={() => {
-            onChoose();
-            setting.set(value);
-          }}
-        >
-          <span className="app-menu-check" aria-hidden="true">
-            {chosen === value ? <CheckIcon /> : null}
-          </span>
-          <span>
-            {label}
-            {value === 'drs' && loaderState === 'unavailable' && <span className="app-menu-hint">auf diesem Gerät nicht verfügbar</span>}
-          </span>
-        </button>
-      ))}
+    <MenuChoice
+      id="app-menu-sound"
+      heading="Klang"
+      options={sounds}
+      chosen={chosen}
+      onChoose={(value) => {
+        onChoose();
+        setting.set(value);
+      }}
+    >
       <p className="app-menu-credit">
         <a href="https://drumgizmo.org/wiki/doku.php?id=kits:drskit" target="_blank" rel="noopener">
           DRSKit von DrumGizmo.org
@@ -160,6 +216,6 @@ function SoundChoice({ onChoose }: { onChoose: () => void }) {
           CC BY 4.0
         </a>
       </p>
-    </div>
+    </MenuChoice>
   );
 }

@@ -8,18 +8,22 @@ import { createNotebookStore, type NotebookStore } from './state/notebookStore';
 import { createSyncApi, openEventSource } from './sync/api';
 import { createSync, type Sync } from './sync/sync';
 import { App } from './ui/App';
-import { installTheme } from './ui/theme';
+import { browserStorage } from './state/deviceSetting';
+import { browserThemeMedia, connectTheme, createThemeSetting, installTheme } from './ui/theme';
 import { connectUrl } from './ui/urlSync';
 import '@fontsource/comfortaa/700.css';
 import './ui/styles.css';
 
+// Farbschema vor dem ersten Rendern, damit nichts aufblitzt (theme-choice, design.md D3)
+const theme = createThemeSetting(browserStorage());
 installTheme();
+connectTheme(theme, document.documentElement, browserThemeMedia());
 const root = createRoot(document.getElementById('root')!);
 
 const renderApp = (store: NotebookStore, session: AccountSession, sync: Sync, storagePersisted: boolean) =>
   root.render(
     <StrictMode>
-      <App store={store} session={session} sync={sync} storagePersisted={storagePersisted} />
+      <App store={store} session={session} sync={sync} storagePersisted={storagePersisted} theme={theme} />
     </StrictMode>,
   );
 
