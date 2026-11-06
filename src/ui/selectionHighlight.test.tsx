@@ -94,3 +94,59 @@ describe('Spec songbook-view › Pattern-Chips (Haken)', () => {
     expect(chips.getByRole('button', { name: 'B' }).querySelector('.chip-check')).toBeNull();
   });
 });
+
+describe('Spec songbook-view › Hervorhebung der Patterns ausgewählter Takte', () => {
+  const cards = () =>
+    [...document.querySelectorAll('.pattern-card.highlighted')].map((card) => card.querySelector('.pattern-name')!.textContent);
+  const selectBoth = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(bar(1));
+    await user.keyboard('{Shift>}');
+    await user.click(bar(2));
+    await user.keyboard('{/Shift}');
+  };
+
+  /** Groove A über alle Takte, B ungenutzt, Fill im letzten Takt. */
+  const grooveAndFill = (bars: number, length: number) => {
+    const [a, b, f] = seed({ kind: 'groove', name: 'A' }, { kind: 'groove', name: 'B' }, { kind: 'fill', name: 'f1', length });
+    return setup([a!, b!, f!], (s) => {
+      const song = appendSegment(s, { name: 'V', bars, grooveId: a!.id });
+      return setBarProps(song, [song.segments[0]!.blocks[0]!.bars[bars - 1]!.id], { fillId: f!.id });
+    });
+  };
+
+  it('Takt mit Groove und Fill', async () => {
+    const { user } = grooveAndFill(1, 1);
+    expect(cards()).toEqual([]);
+    await user.click(bar(1));
+    expect(cards()).toEqual(['A', 'f1']);
+  });
+
+  it('Mehrere Takte mit verschiedenen Grooves', async () => {
+    const [a, b] = seed({ kind: 'groove', name: 'A' }, { kind: 'groove', name: 'B' });
+    const { user } = setup([a!, b!], (s) => {
+      const song = appendSegment(s, { name: 'V', bars: 2, grooveId: a!.id });
+      return setBarProps(song, [song.segments[0]!.blocks[0]!.bars[1]!.id], { grooveId: b!.id });
+    });
+    await selectBoth(user);
+    expect(cards()).toEqual(['A', 'B']);
+  });
+
+  it('Von einem Fill überdeckter Takt', async () => {
+    const { user } = grooveAndFill(2, 8);
+    await user.click(bar(1));
+    expect(cards()).toEqual(['A', 'f1']);
+  });
+
+  it('Auswahl aufheben', async () => {
+    const { user } = grooveAndFill(1, 1);
+    await user.click(bar(1));
+    await user.keyboard('{Escape}');
+    expect(cards()).toEqual([]);
+  });
+
+  it('Segment auswählen', async () => {
+    const { user } = grooveAndFill(1, 1);
+    await user.click(within(structure()).getByRole('button', { name: 'V' }));
+    expect(cards()).toEqual([]);
+  });
+});

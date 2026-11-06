@@ -304,7 +304,7 @@ describe('Spec song-lock › Auswahl im gesperrten Song', () => {
   const popoverButtons = (dialog: HTMLElement) =>
     within(dialog)
       .getAllByRole('button')
-      .map((b) => b.getAttribute('aria-label'));
+      .map((b) => b.getAttribute('aria-label') ?? b.textContent);
 
   async function selectBars(user: ReturnType<typeof userEvent.setup>, from: number, to: number) {
     await user.click(bar(from));
@@ -320,7 +320,7 @@ describe('Spec song-lock › Auswahl im gesperrten Song', () => {
     expect(bar(4)).toHaveAttribute('aria-pressed', 'false');
     expect(document.querySelectorAll('.item.groove.highlighted')).toHaveLength(4);
     const popover = screen.getByRole('dialog', { name: 'Takt-Auswahl' });
-    expect(popoverButtons(popover)).toEqual(PLAY_ACTIONS);
+    expect(popoverButtons(popover)).toEqual([...PLAY_ACTIONS, 'zum Groove']);
     expect(within(popover).getByRole('heading', { name: 'Takte 5–8' })).toBeInTheDocument();
   });
 
@@ -329,6 +329,21 @@ describe('Spec song-lock › Auswahl im gesperrten Song', () => {
     await user.click(within(structure()).getByRole('button', { name: 'Verse' }));
     expect(popoverButtons(screen.getByRole('dialog', { name: 'Segment Verse' }))).toEqual(PLAY_ACTIONS);
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('Link im gesperrten Song', async () => {
+    const pattern = verse();
+    const { user, store } = setup(hysteria(pattern));
+    await user.click(bar(1));
+    await user.click(screen.getByRole('button', { name: 'zum Groove' }));
+    expect(store.getState().view).toEqual({ kind: 'pattern', patternId: pattern.id });
+    expect(isLocked()).toBe(true);
+  });
+
+  it('Karten im gesperrten Song', async () => {
+    const { user } = setup();
+    await user.click(bar(1));
+    expect([...document.querySelectorAll('.pattern-card.highlighted .pattern-name')].map((n) => n.textContent)).toEqual(['Verse']);
   });
 
   it('Schleife im gesperrten Song', async () => {

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { allBars } from '../domain/songPatterns';
+import { selectedPatterns } from '../songbook/layout';
 import { Breadcrumbs } from './Breadcrumbs';
 import { useConfirm } from './ConfirmDialog';
 import { DragProvider } from './dragPattern';
@@ -13,6 +14,7 @@ import { NoAudioNote, usePlayer, useSongPlayback } from './playback';
 import { MeterMark } from './meter';
 import { TempoMark } from './TempoMark';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
+import { useStructureSelection } from './useStructureSelection';
 import { syncMessage, useSync } from './useWorkbooks';
 
 /** Kopftaste: ganzen Song einmal abspielen; während jeder Song-Wiedergabe „Stopp“. */
@@ -69,6 +71,21 @@ function SongHeader() {
   );
 }
 
+const NO_PATTERNS: ReadonlySet<string> = new Set();
+
+/** Die beiden Seiten teilen sich die Auswahl: Rechts sind die Patterns der ausgewählten Takte hervorgehoben. */
+function Pages() {
+  const song = useOpenSong();
+  const selectionState = useStructureSelection(song);
+  const { selection } = selectionState;
+  return (
+    <div className="pages">
+      <StructurePage selectionState={selectionState} />
+      <PatternPage highlighted={selection.kind === 'bars' ? selectedPatterns(song, selection.barIds).patternIds : NO_PATTERNS} />
+    </div>
+  );
+}
+
 /** Doppelseite: links die Struktur, rechts die Patterns des Songs. */
 export function Songbook() {
   const player = usePlayer();
@@ -79,10 +96,7 @@ export function Songbook() {
     <main className="songbook" aria-label="Song" {...guard}>
       <SongHeader />
       <DragProvider>
-        <div className="pages">
-          <StructurePage />
-          <PatternPage />
-        </div>
+        <Pages />
       </DragProvider>
     </main>
   );

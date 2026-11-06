@@ -38,3 +38,5 @@ export function useStructureSelection(song: Song) {
     clear: () => setRaw(NONE),
   };
 }
+
+export type StructureSelectionState = ReturnType<typeof useStructureSelection>;

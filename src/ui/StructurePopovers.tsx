@@ -15,6 +15,7 @@ import {
   renameSegment,
 } from '../domain/structure';
 import type { Song } from '../domain/types';
+import { selectedPatterns } from '../songbook/layout';
 import { openSongOf } from '../state/notebookStore';
 import { AccentEditor } from './AccentEditor';
 import { CommitField } from './CommitField';
@@ -211,6 +212,23 @@ export function SegmentPopover({
   );
 }
 
+/** Link in den Pattern-Editor; auch im gesperrten Song nutzbar, der Editor öffnet dann gesperrt. */
+function PatternLink({ patternId, label }: { patternId: string; label: string }) {
+  const store = useStore();
+  const song = useOpenSong();
+  return (
+    <button
+      type="button"
+      className="popover-link"
+      data-read-safe=""
+      title={song.patterns.find((p) => p.id === patternId)?.name}
+      onClick={() => store.openPattern(patternId)}
+    >
+      {label}
+    </button>
+  );
+}
+
 export function BarPopover({ barIds, onPlay }: { barIds: string[]; onPlay: () => void }) {
   const song = useOpenSong();
   const { locked } = useNotebook();
@@ -222,11 +240,14 @@ export function BarPopover({ barIds, onPlay }: { barIds: string[]; onPlay: () =>
   const first = bars[0]!;
   const last = bars.at(-1)!;
   const beats = bars.every((b) => b.beats === first.beats) ? `${first.beats}/4` : 'gemischt';
+  const { grooveId, fillId } = selectedPatterns(song, barIds);
 
   const head = (
     <div className="popover-section popover-head">
       <h4 className="popover-title">{title}</h4>
       <PlayActions first={first.id} last={last.id} onPlay={onPlay} />
+      {grooveId && <PatternLink patternId={grooveId} label="zum Groove" />}
+      {fillId && <PatternLink patternId={fillId} label="zum Fill" />}
     </div>
   );
   if (locked) return head;

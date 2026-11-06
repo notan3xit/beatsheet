@@ -1030,13 +1030,15 @@ body.dragging-pattern .tile-add:hover {
   color: var(--muted);
 }
 
-.breadcrumbs button {
+.breadcrumbs button,
+.popover-link {
   padding: 0;
   background: none;
   color: var(--muted);
 }
 
-.breadcrumbs button:hover {
+.breadcrumbs button:hover,
+.popover-link:hover {
   background: none;
   color: var(--text);
   text-decoration: underline;
@@ -1649,8 +1651,14 @@ body.dragging-pattern * {
 
 .popover-head {
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
+}
+
+/* Links in den Pattern-Editor: Aussehen wie der Pfad (.breadcrumbs button), Größe wie die übrigen Aktionen */
+.popover-link {
+  font-size: 0.75rem;
 }
 
 .popover-actions .danger {
@@ -1821,6 +1829,16 @@ button.link {
   border-radius: 3px;
   padding: 0.25rem 0.5rem;
   background: color-mix(in srgb, var(--pc) 15%, transparent);
+}
+
+/* Karte einer ausgewählten Struktur-Stelle: outline nimmt keinen Platz ein, die Karten bleiben stehen */
+.pattern-card.highlighted {
+  outline: 2px solid var(--pc);
+  background: color-mix(in srgb, var(--pc) 15%, transparent);
+}
+
+.pattern-card.fill.highlighted {
+  background: color-mix(in srgb, var(--pc) 30%, transparent);
 }
 
 /* contain: Die Kopfzeile trägt nichts zur Kartenbreite bei, ein langer Name wird gekürzt */

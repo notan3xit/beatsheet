@@ -147,7 +147,11 @@ describe('Spec songbook-view › Aufbau des Takt-Popovers', () => {
     const [head, patterns, accentSection, actions, ...rest] = sections();
     expect(rest).toEqual([]);
     expect(within(head!).getByRole('heading', { name: 'Takt 1' })).toBeInTheDocument();
-    expect(within(head!).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['Ab hier abspielen', 'In Schleife abspielen']);
+    expect(within(head!).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
+      'Ab hier abspielen',
+      'In Schleife abspielen',
+      'zum Groove',
+    ]);
     expect(within(patterns!).getAllByRole('group').map((g) => g.getAttribute('aria-label'))).toEqual(['Groove', 'Fill', 'Länge']);
     expect(within(accentSection!).getByRole('group', { name: 'Akzente' })).toBeInTheDocument();
     expect(within(actions!).getAllByRole('button').map((b) => b.textContent)).toEqual(['Takt davor', 'Takt danach', 'Löschen']);

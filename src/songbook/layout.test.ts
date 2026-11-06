@@ -3,7 +3,7 @@ import { createPattern } from '../domain/pattern';
 import type { Bar, Pattern, Song } from '../domain/types';
 import { barOf, songWith } from '../test/songs';
 import { patternOf } from '../test/patterns';
-import { layoutStructure, songPatternOrder, type FillItem, type Item } from './layout';
+import { layoutStructure, selectedPatterns, songPatternOrder, type FillItem, type Item } from './layout';
 
 const groove = (beats: number, name: string, existing: Pattern[] = []) =>
   createPattern(existing, { kind: 'groove', name, length: beats });
@@ -319,5 +319,44 @@ describe('Spec songbook-view › Fill-Kurzschrift (Layout)', () => {
       [2.125, 'k'],
       [3.125, 'c'],
     ]);
+  });
+});
+
+describe('Spec songbook-view › Patterns ausgewählter Takte', () => {
+  const a = groove(4, 'A');
+  const b = groove(4, 'B', [a]);
+
+  it('Takt mit Groove und Fill', () => {
+    const f = fill(1, 'f1', [a, b]);
+    const bars = [barOf({ grooveId: a.id, fillId: f.id })];
+    expect(selectedPatterns(song([a, f], [bars]), [bars[0]!.id])).toEqual({ grooveId: a.id, fillId: f.id, patternIds: new Set([a.id, f.id]) });
+  });
+
+  it('Takt ohne Groove und Fill', () => {
+    const bars = [barOf()];
+    expect(selectedPatterns(song([], [bars]), [bars[0]!.id])).toEqual({ grooveId: null, fillId: null, patternIds: new Set() });
+  });
+
+  it('Von einem Fill überdeckter Takt', () => {
+    const f = fill(8, 'f1', [a, b]);
+    const bars = [barOf({ grooveId: a.id }), barOf({ grooveId: a.id, fillId: f.id })];
+    expect(selectedPatterns(song([a, f], [bars]), [bars[0]!.id])).toEqual({ grooveId: a.id, fillId: f.id, patternIds: new Set([a.id, f.id]) });
+  });
+
+  it('Nur teilweise überdeckter Takt hat den Fill nicht', () => {
+    const f = fill(6, 'f1', [a, b]);
+    const bars = [barOf({ grooveId: a.id }), barOf({ grooveId: a.id, fillId: f.id })];
+    expect(selectedPatterns(song([a, f], [bars]), [bars[0]!.id]).fillId).toBeNull();
+  });
+
+  it('Mehrere Takte mit gleichem Groove und verschiedenen Fills', () => {
+    const f = fill(1, 'f1', [a, b]);
+    const bars = [barOf({ grooveId: a.id }), barOf({ grooveId: a.id, fillId: f.id })];
+    expect(selectedPatterns(song([a, f], [bars]), bars.map((x) => x.id))).toEqual({ grooveId: a.id, fillId: null, patternIds: new Set([a.id, f.id]) });
+  });
+
+  it('Mehrere Takte mit verschiedenen Grooves', () => {
+    const bars = [barOf({ grooveId: a.id }), barOf({ grooveId: b.id })];
+    expect(selectedPatterns(song([a, b], [bars]), bars.map((x) => x.id))).toEqual({ grooveId: null, fillId: null, patternIds: new Set([a.id, b.id]) });
   });
 });

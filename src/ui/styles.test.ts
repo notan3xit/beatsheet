@@ -436,3 +436,10 @@ describe('Spec color-theme › Farben ausschließlich aus der Palette: Mischfarb
     expect(css.match(/var\(--ctp-red\)/g)).toHaveLength(1);
   });
 });
+
+describe('Links im Takt-Popover', () => {
+  it('sehen aus wie der Pfad', () => {
+    expect(css).toMatch(/\.breadcrumbs button,\s*\.popover-link\s*\{[^}]*\bcolor:\s*var\(--muted\);/);
+    expect(css).toMatch(/\.breadcrumbs button:hover,\s*\.popover-link:hover\s*\{[^}]*text-decoration:\s*underline;/);
+  });
+});

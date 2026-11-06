@@ -11,7 +11,7 @@ import { useNotebook, useOpenSong, useStore } from './useLibrary';
 const CARD_EDGE = { groove: 3 + 8, fill: 2 * (1 + 8) };
 
 /** Umbruchbreite der Noten: Breite der Patternseite, nicht der Karte, die sich nach den Noten richtet (design.md D3). */
-function PatternCard({ pattern, flowWidth }: { pattern: Pattern; flowWidth: number | undefined }) {
+function PatternCard({ pattern, flowWidth, highlighted }: { pattern: Pattern; flowWidth: number | undefined; highlighted: boolean }) {
   const store = useStore();
   const { locked } = useNotebook();
   const song = useOpenSong();
@@ -20,7 +20,7 @@ function PatternCard({ pattern, flowWidth }: { pattern: Pattern; flowWidth: numb
   const drag = useDragSource({ kind: 'pattern', patternId: pattern.id });
   return (
     <article
-      className={`pattern-card ${pattern.kind}`}
+      className={`pattern-card ${pattern.kind}${highlighted ? ' highlighted' : ''}`}
       aria-labelledby={headingId} style={patternStyle(pattern.color)}>
       <header className="pattern-card-header" {...(locked ? {} : drag)}>
         <h3 id={headingId}>
@@ -47,7 +47,7 @@ function PatternCard({ pattern, flowWidth }: { pattern: Pattern; flowWidth: numb
 }
 
 /** Rechte Buchseite: jedes Pattern des Songs genau einmal, in Leserichtung der Struktur. */
-export function PatternPage() {
+export function PatternPage({ highlighted }: { highlighted: ReadonlySet<string> }) {
   const store = useStore();
   const song = useOpenSong();
   const { locked } = useNotebook();
@@ -70,7 +70,7 @@ export function PatternPage() {
       {!locked && song.patterns.length === 0 && <p className="hint">Noch keine Patterns. Lege Grooves und Fills hier oder beim Aufbau der Struktur an.</p>}
       <div ref={grid} className="pattern-grid">
         {songPatternOrder(song).map((p) => (
-          <PatternCard key={p.id} pattern={p} flowWidth={flowWidth} />
+          <PatternCard key={p.id} pattern={p} flowWidth={flowWidth} highlighted={highlighted.has(p.id)} />
         ))}
       </div>
     </section>

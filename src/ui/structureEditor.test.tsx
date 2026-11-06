@@ -388,3 +388,66 @@ describe('Spec songbook-view › Abspielen in den Popovers', () => {
   });
 });
 
+
+describe('Spec songbook-view › Links zu Groove und Fill im Takt-Popover', () => {
+  const link = (name: string) => within(barPopover()).queryByRole('button', { name });
+  const withFill = (bars: number, fillBar: number, ...specs: Parameters<typeof seed>) => {
+    const patterns = seed(...specs);
+    const [groove, fill] = patterns;
+    return setup(patterns, (s) => {
+      const song = appendSegment(s, { name: 'V', bars, grooveId: groove!.id });
+      return setBarProps(song, [song.segments[0]!.blocks[0]!.bars[fillBar - 1]!.id], { fillId: fill!.id });
+    });
+  };
+  const A = { kind: 'groove', name: 'A' } as const;
+
+  it('Takt mit Groove und Fill', async () => {
+    const { user, store, currentSong } = withFill(1, 1, A, { kind: 'fill', name: 'f1', length: 1 });
+    await selectBars(user, 1);
+    expect(link('zum Groove')).toBeInTheDocument();
+    await user.click(link('zum Fill')!);
+    expect(store.getState().view).toEqual({ kind: 'pattern', patternId: currentSong().patterns.find((p) => p.name === 'f1')!.id });
+  });
+
+  it('Takt mit Groove ohne Fill', async () => {
+    const [a] = seed(A);
+    const { user, store } = setup([a!], (s) => appendSegment(s, { name: 'V', bars: 1, grooveId: a!.id }));
+    await selectBars(user, 1);
+    expect(link('zum Fill')).not.toBeInTheDocument();
+    await user.click(link('zum Groove')!);
+    expect(store.getState().view).toEqual({ kind: 'pattern', patternId: a!.id });
+  });
+
+  it('Takt ohne Groove und Fill', async () => {
+    const { user } = setup([], (s) => appendSegment(s, { name: 'V', bars: 1 }));
+    await selectBars(user, 1);
+    expect(link('zum Groove')).not.toBeInTheDocument();
+    expect(link('zum Fill')).not.toBeInTheDocument();
+  });
+
+  it('Von einem Fill überdeckter Takt', async () => {
+    const { user, store, currentSong } = withFill(2, 2, A, { kind: 'fill', name: 'f1', length: 8 });
+    await selectBars(user, 1);
+    await user.click(link('zum Fill')!);
+    expect(store.getState().view).toEqual({ kind: 'pattern', patternId: currentSong().patterns.find((p) => p.name === 'f1')!.id });
+  });
+
+  it('Mehrere Takte mit gleichem Groove und verschiedenen Fills', async () => {
+    const { user } = withFill(2, 2, A, { kind: 'fill', name: 'f1', length: 1 });
+    await selectBars(user, 1, 2);
+    expect(link('zum Groove')).toBeInTheDocument();
+    expect(link('zum Fill')).not.toBeInTheDocument();
+  });
+
+  it('Links neben den Abspiel-Knöpfen', async () => {
+    const { user } = withFill(1, 1, A, { kind: 'fill', name: 'f1', length: 1 });
+    await selectBars(user, 1);
+    const head = within(barPopover()).getByRole('heading', { name: 'Takt 1' }).parentElement!;
+    expect(within(head).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual([
+      'Ab hier abspielen',
+      'In Schleife abspielen',
+      'zum Groove',
+      'zum Fill',
+    ]);
+  });
+});

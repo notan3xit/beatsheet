@@ -1,3 +1,4 @@
+import { allBars } from '../domain/songPatterns';
 import { resolveSong, type ResolvedBar } from '../domain/timeline';
 import { shorthand } from '../notation/shorthand';
 import type { Instrument, Pattern, PatternColor, Song } from '../domain/types';
@@ -129,7 +130,27 @@ function fillInstances(resolved: ResolvedBar[]): FillInstance[] {
       }
     }
   }
+  // Fill gehört zum Takt, an dessen Ende er endet; dazu alle Takte, die er ganz überdeckt
+  for (const fill of instances) {
+    fill.barIds = resolved
+      .filter((b) => (b.start >= fill.start && b.start + b.beats <= fill.end) || b.start + b.beats === fill.end)
+      .map((b) => b.barId);
+  }
   return instances;
+}
+
+/** Patterns ausgewählter Takte; `grooveId` und `fillId` nur, wenn alle Takte dasselbe Pattern haben. */
+export function selectedPatterns(song: Song, barIds: readonly string[]) {
+  const bars = allBars(song).filter((bar) => barIds.includes(bar.id));
+  const fills = fillInstances(resolveSong(song));
+  const fillsOfBars = bars.map((bar) => [...new Set(fills.filter((f) => f.barIds.includes(bar.id)).map((f) => f.patternId))]);
+  const grooves = bars.map((bar) => bar.grooveId);
+  const common = (ids: (string | null | undefined)[]) => (ids.every((id) => id === ids[0]) ? (ids[0] ?? null) : null);
+  return {
+    grooveId: common(grooves),
+    fillId: common(fillsOfBars.map((ids) => (ids.length === 1 ? ids[0] : null))),
+    patternIds: new Set([...grooves, ...fillsOfBars.flat()].filter((id) => id !== null)),
+  };
 }
 
 /** Layout der linken Buchseite: Zeilen zu höchstens 16 Beats, jeder Block beginnt eine neue Zeile. */
@@ -137,12 +158,6 @@ export function layoutStructure(song: Song): SegmentLayout[] {
   const resolved = resolveSong(song);
   const patterns = new Map(song.patterns.map((p) => [p.id, p]));
   const fills = fillInstances(resolved);
-  // Fill gehört zum Takt, an dessen Ende er endet; dazu alle Takte, die er ganz überdeckt
-  for (const fill of fills) {
-    fill.barIds = resolved
-      .filter((b) => (b.start >= fill.start && b.start + b.beats <= fill.end) || b.start + b.beats === fill.end)
-      .map((b) => b.barId);
-  }
 
   return song.segments.map((segment) => {
     const rows: Row[] = [];

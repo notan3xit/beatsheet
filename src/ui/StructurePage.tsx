@@ -9,7 +9,7 @@ import { PlayheadLine, useSongPlayback } from './playback';
 import { BarPopover, Popover, SegmentPopover } from './StructurePopovers';
 import { openSongOf } from '../state/notebookStore';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
-import { useStructureSelection, type StructureSelection } from './useStructureSelection';
+import type { StructureSelection, StructureSelectionState } from './useStructureSelection';
 
 /** Position und Breite in Beats als CSS (Einheit --beat). */
 const place = (x: number, width?: number): CSSProperties => ({
@@ -356,12 +356,12 @@ function useDismiss(active: boolean, inside: React.RefObject<HTMLElement | null>
 }
 
 /** Linke Buchseite: die Song-Struktur kompakt und maßstabsgetreu; bearbeitet wird über die Auswahl. */
-export function StructurePage() {
+export function StructurePage({ selectionState }: { selectionState: StructureSelectionState }) {
   const store = useStore();
   const song = useOpenSong();
   const { locked } = useNotebook();
   const layout = layoutStructure(song);
-  const { selection, selectBar, selectSegment, clear } = useStructureSelection(song);
+  const { selection, selectBar, selectSegment, clear } = selectionState;
   const [hover, setHover] = useState<Hover>({ segmentId: null, rowKey: null });
   const dropTargets = useDropTargets((barId) =>
     selection.kind === 'bars' && selection.barIds.includes(barId) ? selection.barIds : [barId],
