@@ -110,11 +110,11 @@ Solange ein Song gesperrt ist, MUST jeder Knopf auf der Doppelseite und im Patte
 - **THEN** zeigt die App die Song-Liste
 
 ### Requirement: Gesperrte Doppelseite
-Auf der Doppelseite eines gesperrten Songs MUST Songtitel und Tempo als Text erscheinen. „Song löschen“, die Einfüge-Knöpfe beim Überfahren, „+ Groove“, „+ Fill“ und das Ziehen von Patterns MUST entfallen. „Song abspielen“ und das Öffnen eines Patterns aus der rechten Seite MUST verfügbar bleiben.
+Auf der Doppelseite eines gesperrten Songs MUST Songtitel, Tempo und Standard-Takt als Text erscheinen. „Song löschen“, die Einfüge-Knöpfe beim Überfahren, „+ Groove“, „+ Fill“ und das Ziehen von Patterns MUST entfallen. „Song abspielen“ und das Öffnen eines Patterns aus der rechten Seite MUST verfügbar bleiben.
 
 #### Scenario: Kopf der Doppelseite
 - **WHEN** der Nutzer einen gesperrten Song auf der Doppelseite ansieht
-- **THEN** zeigt der Kopf Titel und Tempo als Text sowie „Song abspielen“
+- **THEN** zeigt der Kopf Titel, Tempo und Standard-Takt als Text sowie „Song abspielen“
 - **AND** gibt es keinen Knopf „Song löschen“
 
 #### Scenario: Klick auf den Titel
@@ -154,7 +154,7 @@ Takte und Segmente eines gesperrten Songs MUST auswählbar bleiben wie im entspe
 - **THEN** spielt die App die Takte 5 bis 8 in Schleife
 
 ### Requirement: Gesperrter Pattern-Editor
-Der Pattern-Editor eines gesperrten Songs MUST Name, Typ, Länge, Tempo, Sequencer, Noten und die Abspiel-Taste zeigen. Name, Länge, Tempo und die Unterteilung der Beats MUST als Text erscheinen. Die Zellen des Sequencers MUST gesetzte Schläge und ihre Spielweise gut lesbar zeigen, aber auf keine Bedienung reagieren. Rückgängig, Wiederherstellen, Duplizieren und Löschen MUST entfallen.
+Der Pattern-Editor eines gesperrten Songs MUST Name, Typ, Länge, Taktart, Tempo, Sequencer, Noten und die Abspiel-Taste zeigen. Name, Länge, Taktart, Tempo und die Unterteilung der Beats MUST als Text erscheinen. Das Taktart-Symbol MUST immer vor der Taktart stehen, gedämpft und ohne Bedienung. Eine eigene Taktart MUST sich durch ungedämpften Text von einer Taktart unterscheiden, die dem Song folgt. Die Zellen des Sequencers MUST gesetzte Schläge und ihre Spielweise gut lesbar zeigen, aber auf keine Bedienung reagieren. Rückgängig, Wiederherstellen, Duplizieren und Löschen MUST entfallen.
 
 #### Scenario: Klick im Sequencer
 - **WHEN** der Nutzer bei gesperrtem Song auf eine Zelle des Sequencers klickt
@@ -169,8 +169,16 @@ Der Pattern-Editor eines gesperrten Songs MUST Name, Typ, Länge, Tempo, Sequenc
 - **THEN** zeigt der Sequencer den Schlag als gesetzt und mit seiner Spielweise, in denselben Farben wie im entsperrten Song
 
 #### Scenario: Werte als Text
-- **WHEN** der Nutzer bei gesperrtem Song einen Groove mit 4 Beats in Sechzehnteln und dem Song-Tempo 120 öffnet
-- **THEN** zeigt der Pattern-Editor Name, „4 Beats“, je Beat „16tel“ und „♩ = 120 (Song-Tempo)“ als Text
+- **WHEN** der Nutzer bei gesperrtem Song einen Groove mit 4 Beats in Sechzehnteln und dem Song-Tempo 120 in einem Song in 4/4 öffnet
+- **THEN** zeigt der Pattern-Editor Name, „4 Beats“, „4/4“, je Beat „16tel“ und „♩ = 120 (Song-Tempo)“ als Text
+
+#### Scenario: Eigene Taktart gekennzeichnet
+- **WHEN** der Nutzer bei gesperrtem Song ein Pattern mit der eigenen Taktart 7/4 öffnet
+- **THEN** steht dort das gedämpfte Taktart-Symbol, das „Eigene Taktart“ heißt und auf keine Bedienung reagiert, und dahinter „7/4“ als ungedämpfter Text
+
+#### Scenario: Taktart, die dem Song folgt
+- **WHEN** der Nutzer bei gesperrtem Song ein Pattern ohne eigene Taktart öffnet
+- **THEN** steht dort das gedämpfte Taktart-Symbol und dahinter die Taktart des Songs als gedämpfter Text
 
 #### Scenario: Aktionen entfallen
 - **WHEN** der Nutzer bei gesperrtem Song den Pattern-Editor ansieht
@@ -181,7 +189,7 @@ Der Pattern-Editor eines gesperrten Songs MUST Name, Typ, Länge, Tempo, Sequenc
 - **THEN** hebt der Sequencer die gerade erklingende Position hervor
 
 ### Requirement: Gleiche Anordnung beim Entsperren
-Ein Wert MUST gesperrt und entsperrt denselben Text und denselben Platz haben, entsperrt nur als Bedienelement. Das MUST für Songtitel, Song-Tempo, Patternname, Länge und die Unterteilung der Beats gelten. Das Schloss MUST beim Wechsel des Zustands an seiner Stelle bleiben, solange die Kopfzeile nicht umbricht. Die Kopfzeile MUST dabei gleich hoch bleiben.
+Ein Wert MUST gesperrt und entsperrt denselben Text und denselben Platz haben, entsperrt nur als Bedienelement. Das MUST für Songtitel, Song-Tempo, Standard-Takt, Patternname, Länge, Taktart des Patterns und die Unterteilung der Beats gelten. Das Taktart-Symbol MUST seinen Platz in beiden Zuständen und mit und ohne eigene Taktart behalten; entsperrt ist es im Pattern-Editor der Umschalter „Eigene Taktart“. Das Schloss MUST beim Wechsel des Zustands an seiner Stelle bleiben, solange die Kopfzeile nicht umbricht. Die Kopfzeile MUST dabei gleich hoch bleiben.
 
 #### Scenario: Länge
 - **WHEN** der Nutzer einen Groove mit 4 Beats gesperrt ansieht und den Song entsperrt
@@ -194,6 +202,22 @@ Ein Wert MUST gesperrt und entsperrt denselben Text und denselben Platz haben, e
 #### Scenario: Tempo im Pattern-Editor
 - **WHEN** das Song-Tempo 120 beträgt und der Nutzer den Pattern-Editor gesperrt ansieht und den Song entsperrt
 - **THEN** steht zuerst „♩ = 120 (Song-Tempo)“ als Text und danach derselbe Text mit einer anklickbaren Tempoangabe
+
+#### Scenario: Standard-Takt
+- **WHEN** der Song in 3/4 steht und der Nutzer die Doppelseite gesperrt ansieht und den Song entsperrt
+- **THEN** steht neben dem Song-Tempo zuerst „3/4“ als Text und danach eine Auswahl mit dem Wert „3/4“ am selben Platz
+
+#### Scenario: Taktart eines Patterns, das dem Song folgt
+- **WHEN** der Song in 4/4 steht und der Nutzer einen Groove ohne eigene Taktart gesperrt ansieht und den Song entsperrt
+- **THEN** steht in beiden Zuständen „4/4“ als gedämpfter Text am selben Platz
+
+#### Scenario: Eigene Taktart
+- **WHEN** der Nutzer ein Pattern mit der eigenen Taktart 7/4 gesperrt ansieht und den Song entsperrt
+- **THEN** steht zuerst „7/4“ als Text und danach eine Auswahl mit dem Wert „7/4“ am selben Platz
+
+#### Scenario: Umschalten verschiebt nichts
+- **WHEN** der Nutzer im entsperrten Song den Umschalter „Eigene Taktart“ ein- oder ausschaltet
+- **THEN** bleiben alle Elemente der Kopfzeile an ihrem Platz
 
 #### Scenario: Unterteilung
 - **WHEN** Beat 1 in Sechzehnteln steht und der Nutzer den Pattern-Editor gesperrt ansieht und den Song entsperrt
