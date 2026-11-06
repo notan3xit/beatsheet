@@ -87,7 +87,7 @@ Solange ein Song gesperrt ist, MUST der Nutzer ihn in der Oberfläche nicht änd
 - **THEN** bleibt der Schlag gesetzt
 
 ### Requirement: Knöpfe nur mit Freigabe
-Solange ein Song gesperrt ist, MUST jeder Knopf auf der Doppelseite und im Pattern-Editor wirkungslos sein, außer er ist als lesend freigegeben. Freigegeben MUST nur sein, was den Song nicht ändert: Schloss, Pfad, Abspiel-Tasten, Abspiel-Aktionen der Popover, Takte, Segmentnamen und die Namen der Pattern-Karten. Song-Liste, App-Kopfzeile und Bestätigungsdialoge MUST davon unberührt bleiben.
+Solange ein Song gesperrt ist, MUST jeder Knopf auf der Doppelseite und im Pattern-Editor wirkungslos sein, außer er ist als lesend freigegeben. Freigegeben MUST nur sein, was den Song nicht ändert: Schloss, Pfad, Abspiel-Tasten, Abspiel-Aktionen der Popover, Links zu Groove und Fill im Takt-Popover, Takte, Segmentnamen und die Namen der Pattern-Karten. Song-Liste, App-Kopfzeile und Bestätigungsdialoge MUST davon unberührt bleiben.
 
 #### Scenario: Knopf ohne Freigabe per Maus
 - **WHEN** der Song gesperrt ist und der Nutzer auf einen Knopf ohne Freigabe klickt
@@ -138,12 +138,12 @@ Auf der Doppelseite eines gesperrten Songs MUST Songtitel, Tempo und Standard-Ta
 - **THEN** zeigt die App den Pattern-Editor von „Verse“
 
 ### Requirement: Auswahl im gesperrten Song
-Takte und Segmente eines gesperrten Songs MUST auswählbar bleiben wie im entsperrten Song. Ihr Popover MUST nur die Aktionen „Ab hier abspielen“ und „In Schleife abspielen“ anbieten.
+Takte und Segmente eines gesperrten Songs MUST auswählbar bleiben wie im entsperrten Song. Ihr Popover MUST nur die Aktionen „Ab hier abspielen“ und „In Schleife abspielen“ anbieten, das Popover von Takten zusätzlich die Links zu Groove und Fill. Die Patternseite MUST die Karten ausgewählter Takte hervorheben wie im entsperrten Song.
 
 #### Scenario: Takte auswählen
 - **WHEN** der Nutzer bei gesperrtem Song Takt 5 anklickt und mit Shift Takt 8 anklickt
 - **THEN** sind die Takte 5 bis 8 ausgewählt und hervorgehoben
-- **AND** bietet das Popover nur „Ab hier abspielen“ und „In Schleife abspielen“
+- **AND** bietet das Popover außer den Links zu Groove und Fill nur „Ab hier abspielen“ und „In Schleife abspielen“
 
 #### Scenario: Segment auswählen
 - **WHEN** der Nutzer bei gesperrtem Song den Segmentnamen „Verse“ anklickt
@@ -152,6 +152,14 @@ Takte und Segmente eines gesperrten Songs MUST auswählbar bleiben wie im entspe
 #### Scenario: Schleife im gesperrten Song
 - **WHEN** der Nutzer bei gesperrtem Song die Takte 5 bis 8 auswählt und „In Schleife abspielen“ wählt
 - **THEN** spielt die App die Takte 5 bis 8 in Schleife
+
+#### Scenario: Link im gesperrten Song
+- **WHEN** der Nutzer bei gesperrtem Song einen Takt mit Groove A auswählt und „zum Groove“ anklickt
+- **THEN** öffnet die App den Pattern-Editor von A gesperrt
+
+#### Scenario: Karten im gesperrten Song
+- **WHEN** der Nutzer bei gesperrtem Song einen Takt mit Groove A auswählt
+- **THEN** ist die Karte von A hervorgehoben
 
 ### Requirement: Gesperrter Pattern-Editor
 Der Pattern-Editor eines gesperrten Songs MUST Name, Typ, Länge, Taktart, Tempo, Sequencer, Noten und die Abspiel-Taste zeigen. Name, Länge, Taktart, Tempo und die Unterteilung der Beats MUST als Text erscheinen. Das Taktart-Symbol MUST immer vor der Taktart stehen, gedämpft und ohne Bedienung. Eine eigene Taktart MUST sich durch ungedämpften Text von einer Taktart unterscheiden, die dem Song folgt. Die Zellen des Sequencers MUST gesetzte Schläge und ihre Spielweise gut lesbar zeigen, aber auf keine Bedienung reagieren. Rückgängig, Wiederherstellen, Duplizieren und Löschen MUST entfallen.
