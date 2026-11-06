@@ -1,3 +1,4 @@
+import { songMeter } from './meter';
 import { createPattern, type Deps } from './pattern';
 import type { Bar, Pattern, PatternKind, Song } from './types';
 
@@ -22,7 +23,8 @@ export function addPattern(
   input: { kind: PatternKind; name?: string; length?: number },
   deps?: Deps,
 ): { song: Song; pattern: Pattern } {
-  const pattern = createPattern(song.patterns, input, deps);
+  const length = input.length ?? (input.kind === 'groove' ? songMeter(song) : undefined);
+  const pattern = createPattern(song.patterns, { ...input, length }, deps);
   return { song: { ...song, patterns: [...song.patterns, pattern] }, pattern };
 }
 

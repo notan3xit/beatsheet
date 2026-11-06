@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { setSongMeter } from '../domain/meter';
 import { createPattern } from '../domain/pattern';
 import { allBars } from '../domain/songPatterns';
 import { appendSegment, setBarProps } from '../domain/structure';
@@ -108,5 +109,22 @@ describe('Spec songbook-view › Kompakte Pattern-Karten (UI)', () => {
     fireEvent.click(name);
     expect(screen.queryByRole('region', { name: 'Pattern bearbeiten' })).not.toBeInTheDocument();
     expect(currentSong().patterns).toHaveLength(1);
+  });
+});
+
+describe('Spec drum-notation › Notensystem (Taktart im Notenbild)', () => {
+  const staves = (name: string) => cardOf(name).querySelectorAll('.vf-stave').length;
+
+  it('Taktart des Songs ändern', () => {
+    const { store } = setup(seed({ kind: 'groove', name: 'Verse', length: 4 }));
+    expect(staves('Verse')).toBe(1);
+    act(() => store.updateSong((s) => setSongMeter(s, 3)));
+    expect(staves('Verse')).toBe(2);
+  });
+
+  it('Eigene Taktart bestimmt die Taktstriche', () => {
+    const [groove] = seed({ kind: 'groove', name: 'Refrain', length: 6 });
+    setup([{ ...groove!, meter: 6 }]);
+    expect(staves('Refrain')).toBe(1);
   });
 });

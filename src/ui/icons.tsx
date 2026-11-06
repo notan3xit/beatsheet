@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
 
-function Icon({ filled, children }: { filled?: boolean; children: ReactNode }) {
+function Icon({ filled, viewBox = '0 0 16 16', children }: { filled?: boolean; viewBox?: string; children: ReactNode }) {
   return (
-    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" className={filled ? 'icon filled' : 'icon'}>
+    <svg viewBox={viewBox} aria-hidden="true" focusable="false" className={filled ? 'icon filled' : 'icon'}>
       {children}
     </svg>
   );
@@ -14,6 +14,16 @@ export function PersonIcon({ filled }: { filled?: boolean }) {
       <circle cx="8" cy="8" r="6.5" fill="none" />
       <circle cx="8" cy="6" r="2.25" />
       <path d="M3.31 12.5c.9-1.8 2.6-2.6 4.69-2.6s3.79.8 4.69 2.6A6.5 6.5 0 0 1 3.31 12.5z" />
+    </Icon>
+  );
+}
+
+/** Fünf Notenlinien mit dickem Balken links und Percussion-Schlüssel; 15 hoch, damit die Linien mittig auf Bildpunkten liegen. */
+export function MeterIcon() {
+  return (
+    <Icon viewBox="0 0 16 15">
+      <path d="M3 1.5h12M3 4.5h12M3 7.5h12M3 10.5h12M3 13.5h12" className="icon-staff" shapeRendering="crispEdges" />
+      <path d="M1 1h2v13H1zM6 4h2v7H6zM10 4h2v7h-2z" fill="currentColor" stroke="none" shapeRendering="crispEdges" />
     </Icon>
   );
 }

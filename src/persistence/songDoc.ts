@@ -3,6 +3,7 @@ import { automergeWasmBase64 } from '@automerge/automerge/automerge.wasm.base64'
 import { normalizeSong } from '../domain/normalize';
 import {
   ARTICULATED,
+  DEFAULT_METER,
   INSTRUMENTS,
   type Accent,
   type Articulation,
@@ -33,6 +34,8 @@ export interface SongDocShape {
   id: string;
   title: string;
   tempo: number;
+  /** Fehlt bei 4/4 (design.md D2 von song-meter), damit ältere Dokumente unverändert bleiben. */
+  meter?: number;
   patterns: PatternDocShape[];
   segments: { id: string; name: string; blocks: { id: string; bars: BarDocShape[] }[] }[];
   createdAt: string;
@@ -46,6 +49,7 @@ interface PatternDocShape {
   name: string;
   color: PatternColor;
   beats: BeatDocShape[];
+  meter?: number;
   createdAt: string;
   updatedAt: string;
   revision: number;
@@ -87,12 +91,14 @@ export function toDocShape(song: Song): SongDocShape {
     id: song.id,
     title: song.title,
     tempo: song.tempo,
+    ...(song.meter !== undefined && song.meter !== DEFAULT_METER ? { meter: song.meter } : {}),
     patterns: song.patterns.map((p) => ({
       id: p.id,
       kind: p.kind,
       name: p.name,
       color: p.color,
       beats: p.beats.map(beatToDoc),
+      ...(p.meter !== undefined ? { meter: p.meter } : {}),
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       revision: p.revision,
@@ -145,12 +151,14 @@ export function fromDocShape(doc: SongDocShape): Song {
     id: doc.id,
     title: doc.title,
     tempo: doc.tempo,
+    ...(doc.meter !== undefined ? { meter: doc.meter } : {}),
     patterns: doc.patterns.map((p) => ({
       id: p.id,
       kind: p.kind,
       name: p.name,
       color: p.color,
       beats: p.beats.map(beatFromDoc),
+      ...(p.meter !== undefined ? { meter: p.meter } : {}),
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,
       revision: p.revision,

@@ -1,4 +1,5 @@
 import { newId as randomId } from './id';
+import { songMeter } from './meter';
 import { ValidationError, type Deps } from './pattern';
 import { addPattern, allBars, mapBars } from './songPatterns';
 import {
@@ -57,7 +58,7 @@ export interface BlockInput {
 
 export function appendSegment(song: Song, input: BlockInput & { name: string }, deps?: Deps): Song {
   assertPattern(song, input.grooveId, 'groove');
-  const bars = makeBars(input.bars, input.beats ?? 4, input.grooveId ?? null, deps);
+  const bars = makeBars(input.bars, input.beats ?? songMeter(song), input.grooveId ?? null, deps);
   const segment: Segment = {
     id: newId(deps),
     name: input.name.trim() || `Segment ${song.segments.length + 1}`,
@@ -68,12 +69,12 @@ export function appendSegment(song: Song, input: BlockInput & { name: string }, 
 
 const DEFAULT_SEGMENT_BARS = 4;
 
-/** Neues Segment „Segment N“ (1 Block, 4 Takte 4/4, ohne Groove) hinter `afterSegmentId`, bei null an den Anfang. */
+/** Neues Segment „Segment N“ (1 Block, 4 Takte im Standard-Takt, ohne Groove) hinter `afterSegmentId`, bei null an den Anfang. */
 export function insertSegmentAfter(song: Song, afterSegmentId: string | null, deps?: Deps): Song {
   const segment: Segment = {
     id: newId(deps),
     name: `Segment ${song.segments.length + 1}`,
-    blocks: [{ id: newId(deps), bars: makeBars(DEFAULT_SEGMENT_BARS, 4, null, deps) }],
+    blocks: [{ id: newId(deps), bars: makeBars(DEFAULT_SEGMENT_BARS, songMeter(song), null, deps) }],
   };
   const index = afterSegmentId === null ? 0 : song.segments.findIndex((s) => s.id === afterSegmentId) + 1;
   if (index === 0 && afterSegmentId !== null) return song;
@@ -122,20 +123,20 @@ export function duplicateSegment(song: Song, segmentId: string, deps?: Deps): So
 // --- Blöcke und Takte -----------------------------------------------------------
 
 /** Neuer Takt mit Länge und Groove des Vorbilds, ohne Fill und Akzente. */
-const barLike = (model: Bar | undefined, deps?: Deps): Bar => ({
+const barLike = (model: Pick<Bar, 'beats' | 'grooveId'>, deps?: Deps): Bar => ({
   id: newId(deps),
-  beats: model?.beats ?? 4,
-  grooveId: model?.grooveId ?? null,
+  beats: model.beats,
+  grooveId: model.grooveId,
   fillId: null,
   accents: [],
 });
 
-/** Block unten anfügen: Taktzahl des letzten Blocks, Länge und Groove von dessen letztem Takt; ohne Blöcke 4 × 4/4. */
+/** Block unten anfügen: Taktzahl des letzten Blocks, Länge und Groove von dessen letztem Takt; ohne Blöcke 4 Takte im Standard-Takt. */
 export function appendBlockLike(song: Song, segmentId: string, deps?: Deps): Song {
   return mapSegments(song, (segment) => {
     if (segment.id !== segmentId) return segment;
     const last = segment.blocks.at(-1);
-    const model = last?.bars.at(-1);
+    const model = last?.bars.at(-1) ?? { beats: songMeter(song), grooveId: null };
     const count = last?.bars.length ?? DEFAULT_SEGMENT_BARS;
     const block: Block = { id: newId(deps), bars: Array.from({ length: count }, () => barLike(model, deps)) };
     return { ...segment, blocks: [...segment.blocks, block] };
@@ -147,7 +148,7 @@ export function insertBarBefore(song: Song, barId: string, deps?: Deps): Song {
     const index = block.bars.findIndex((bar) => bar.id === barId);
     if (index < 0) return block;
     const bars = [...block.bars];
-    bars.splice(index, 0, barLike(block.bars[index], deps));
+    bars.splice(index, 0, barLike(block.bars[index]!, deps));
     return { ...block, bars };
   });
 }
@@ -157,7 +158,7 @@ export function insertBarAfter(song: Song, barId: string, deps?: Deps): Song {
     const index = block.bars.findIndex((bar) => bar.id === barId);
     if (index < 0) return block;
     const bars = [...block.bars];
-    bars.splice(index + 1, 0, barLike(block.bars[index], deps));
+    bars.splice(index + 1, 0, barLike(block.bars[index]!, deps));
     return { ...block, bars };
   });
 }
@@ -209,7 +210,7 @@ export function changeBarLength(song: Song, barIds: readonly string[], delta: -1
 
 // --- Platzhalter und Akzente --------------------------------------------------------
 
-/** Neues, leeres Pattern aus der Struktur heraus: Groove mit 4 Beats, Fill mit angegebener Länge. */
+/** Neues, leeres Pattern aus der Struktur heraus: Groove so lang wie der Standard-Takt, Fill mit angegebener Länge. */
 export function addPlaceholder(
   song: Song,
   input: { kind: PatternKind; name: string; length?: number },
@@ -218,7 +219,7 @@ export function addPlaceholder(
   if (input.kind === 'fill' && input.length === undefined) {
     throw new ValidationError('Für einen neuen Fill muss die Länge angegeben werden.');
   }
-  return addPattern(song, { kind: input.kind, name: input.name, length: input.kind === 'groove' ? 4 : input.length }, deps);
+  return addPattern(song, { kind: input.kind, name: input.name, length: input.kind === 'groove' ? undefined : input.length }, deps);
 }
 
 /** Neues leeres Pattern (automatischer Name, nächste freie Farbe; Fill 1 Beat) und den Takten zuweisen. */

@@ -10,6 +10,7 @@ import { PatternPage } from './PatternPage';
 import { PlayButton } from './PlayButton';
 import { StructurePage } from './StructurePage';
 import { NoAudioNote, usePlayer, useSongPlayback } from './playback';
+import { MeterMark } from './meter';
 import { TempoMark } from './TempoMark';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
 import { syncMessage, useSync } from './useWorkbooks';
@@ -55,6 +56,7 @@ function SongHeader() {
       <div className="page-title">
         <EditableHeading key={song.id} label="Songtitel" value={song.title} readOnly={locked} onCommit={(draft) => store.renameSong(song.id, draft)} />
         <TempoMark />
+        <MeterMark />
         <SongTransport />
         {!locked && (
           <button type="button" className="danger" onClick={() => void remove()}>

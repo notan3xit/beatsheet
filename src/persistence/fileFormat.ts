@@ -9,6 +9,7 @@ import {
   MAX_BAR_BEATS,
   MAX_LENGTH,
   MAX_TEMPO,
+  METERS,
   MIN_LENGTH,
   MIN_TEMPO,
   PATTERN_COLORS,
@@ -60,7 +61,9 @@ const patternFields = {
   revision: z.number().int().positive(),
 };
 
-const patternSchema = z.object({ ...patternFields, color: z.enum(PATTERN_COLORS) });
+const meterSchema = z.union(METERS.map((m) => z.literal(m))).optional();
+
+const patternSchema = z.object({ ...patternFields, color: z.enum(PATTERN_COLORS), meter: meterSchema });
 /** Schemaversion 1: Patterns ohne Farbe. */
 const patternV1Schema = z.object(patternFields);
 
@@ -88,6 +91,7 @@ const songSchema = z
     title: nonEmpty('Titel'),
     /** Fehlt das Tempo (ältere Dateien), gilt die Vorgabe. */
     tempo: z.number().int().min(MIN_TEMPO).max(MAX_TEMPO).default(DEFAULT_TEMPO),
+    meter: meterSchema,
     patterns: z.array(patternSchema),
     segments: z.array(
       z

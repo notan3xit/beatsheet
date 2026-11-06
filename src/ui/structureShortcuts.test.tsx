@@ -181,6 +181,12 @@ describe('Spec songbook-view › Neues Pattern ziehen', () => {
     expect(structure()).toBeInTheDocument();
   });
 
+  it('Neuen Groove im Standard-Takt ziehen', () => {
+    const { currentSong } = setup([], (s) => ({ ...appendSegment(s, { name: 'V', bars: 2 }), meter: 3 }));
+    drag(newButton('Groove'), bar(1));
+    expect(currentSong().patterns[0]!.beats).toHaveLength(3);
+  });
+
   it('Klick auf „Neuer Groove“', async () => {
     const { user, currentSong } = setup([], (s) => appendSegment(s, { name: 'V', bars: 2 }));
     await user.click(newButton('Groove'));

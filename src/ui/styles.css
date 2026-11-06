@@ -1172,6 +1172,41 @@ button.tempo-mark:hover {
   margin: 0;
 }
 
+/* Standard-Takt neben dem Tempo: Symbol und Wert, gesperrt Text, entsperrt eine Auswahl gleichen Aussehens */
+.song-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+}
+
+.meter-mark {
+  display: inline-block;
+  width: 3ch;
+  /* Feste Höhe: Auswahl und Text hätten sonst verschiedene Zeilenhöhen */
+  height: 1.375rem;
+  box-sizing: content-box;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+  border: none;
+  border-bottom: 1px dashed transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+}
+
+select.meter-mark {
+  appearance: none;
+  cursor: pointer;
+}
+
+select.meter-mark:hover {
+  border-bottom-color: var(--muted);
+}
+
 /* Doppelseite: untereinander in voller Breite, nebeneinander ab der Summe der Basisbreiten (unten) */
 .pages {
   display: flex;
@@ -1928,6 +1963,61 @@ span.value-control {
 
 .value-length {
   width: 5.5rem;
+}
+
+/* Taktart im Pattern-Editor: Umschalter und Wert auf festem Platz */
+.pattern-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.value-meter {
+  width: 3.75rem;
+}
+
+.value-meter.follows {
+  color: var(--muted);
+}
+
+.meter-own {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  background: none;
+  color: var(--muted);
+}
+
+/* Maße wie die viewBox des Symbols: Linien liegen genau auf Bildpunkten */
+.song-meter .icon,
+.meter-own .icon {
+  width: 1rem;
+  height: 0.9375rem;
+}
+
+.icon-staff {
+  stroke-width: 1;
+  stroke-linecap: butt;
+}
+
+button.meter-own {
+  background: var(--control);
+  color: var(--text);
+}
+
+button.meter-own:hover:not(.on) {
+  background: var(--control-hover);
+}
+
+/* Eingeschaltet gefüllt wie eine gesetzte Zelle im Sequencer */
+button.meter-own.on {
+  background: color-mix(in srgb, var(--accent) var(--step-on-mix), var(--bg));
+  color: var(--on-accent-fill);
 }
 
 .kind-badge {

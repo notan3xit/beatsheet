@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
+import { patternMeter } from '../domain/meter';
 import { resizeWouldRemoveHits } from '../domain/pattern';
 import { MAX_LENGTH, MIN_LENGTH, type Pattern } from '../domain/types';
 import { Breadcrumbs } from './Breadcrumbs';
 import { useConfirm } from './ConfirmDialog';
 import { EditableHeading } from './EditableHeading';
 import { LockToggle } from './lock';
+import { PatternMeter } from './meter';
 import { NotationView } from './NotationView';
 import { beatsLabel } from './patternStyle';
 import { Transport, usePlayback } from './playback';
@@ -43,7 +45,8 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
   const store = useStore();
   const { canUndo, canRedo, locked } = useNotebook();
   const confirm = useConfirm();
-  const playback = usePlayback(pattern, useOpenSong().tempo);
+  const song = useOpenSong();
+  const playback = usePlayback(pattern, song.tempo);
   useUndoShortcuts(!locked);
 
   const changeLength = async (length: number) => {
@@ -88,6 +91,7 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
             ))}
           </select>
         )}
+        <PatternMeter pattern={pattern} />
         <span className="kind-badge">{pattern.kind === 'groove' ? 'Groove' : 'Fill'}</span>
         <Transport playback={playback} />
         <span className="tempo-field">
@@ -114,7 +118,7 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
       <div className="sequencer-scroll">
         <Sequencer pattern={pattern} playhead={playback.step} readOnly={locked} />
       </div>
-      <NotationView pattern={pattern} />
+      <NotationView pattern={pattern} meter={patternMeter(pattern, song)} />
     </section>
   );
 }

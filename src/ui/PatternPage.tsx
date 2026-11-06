@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useDragSource } from './dragPattern';
+import { meterLabel, patternMeter, songMeter } from '../domain/meter';
 import type { Pattern } from '../domain/types';
 import { songPatternOrder } from '../songbook/layout';
 import { beatsLabel, patternStyle } from './patternStyle';
@@ -13,6 +14,8 @@ const CARD_EDGE = { groove: 3 + 8, fill: 2 * (1 + 8) };
 function PatternCard({ pattern, flowWidth }: { pattern: Pattern; flowWidth: number | undefined }) {
   const store = useStore();
   const { locked } = useNotebook();
+  const song = useOpenSong();
+  const deviates = pattern.meter !== undefined && pattern.meter !== songMeter(song);
   const headingId = `pattern-${pattern.id}`;
   const drag = useDragSource({ kind: 'pattern', patternId: pattern.id });
   return (
@@ -33,9 +36,12 @@ function PatternCard({ pattern, flowWidth }: { pattern: Pattern; flowWidth: numb
             {pattern.name}
           </button>
         </h3>
-        <span className="pattern-meta">{beatsLabel(pattern.beats.length)}</span>
+        <span className="pattern-meta">
+          {beatsLabel(pattern.beats.length)}
+          {deviates && ` · ${meterLabel(pattern.meter!)}`}
+        </span>
       </header>
-      <NotationView pattern={pattern} size="card" maxWidth={flowWidth && flowWidth - CARD_EDGE[pattern.kind]} />
+      <NotationView pattern={pattern} meter={patternMeter(pattern, song)} size="card" maxWidth={flowWidth && flowWidth - CARD_EDGE[pattern.kind]} />
     </article>
   );
 }

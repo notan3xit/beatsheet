@@ -1,4 +1,4 @@
-import { INSTRUMENTS, type Articulation, type Beat, type Instrument, type Pattern, type Subdivision } from '../domain/types';
+import { DEFAULT_METER, INSTRUMENTS, type Articulation, type Beat, type Instrument, type Pattern, type Subdivision } from '../domain/types';
 
 /** Systemschritt: 0 = Linie 1 (unten), 1 = Zwischenraum 1, ... 8 = Linie 5; negativ = unter dem System. */
 export interface NoteKey {
@@ -39,8 +39,6 @@ export interface NotationModel {
   clef: 'percussion';
   measures: Measure[];
 }
-
-export const BEATS_PER_MEASURE = 4;
 
 const STAFF: Record<Instrument, { staffStep: number; notehead: NoteKey['notehead']; voice: VoiceName }> = {
   hihatPedal: { staffStep: -2, notehead: 'x', voice: 'down' },
@@ -128,12 +126,11 @@ const rest = (duration: Duration): NotationEvent => ({ kind: 'rest', duration, k
 const isEmpty = (group: BeatGroup) => group.events.length === 0;
 
 /**
- * Pausen für leere Beats einer Stimme, die im Takt spielt: im vollen Takt Halbe auf 1+2 bzw. 3+4,
+ * Pausen für leere Beats einer Stimme, die im Takt spielt: im vollen 4/4-Takt Halbe auf 1+2 bzw. 3+4,
  * sonst eine Viertel je leerem Beat.
  */
-function fillEmptyBeats(groups: BeatGroup[]): BeatGroup[] {
+function fillEmptyBeats(groups: BeatGroup[], full: boolean): BeatGroup[] {
   const result = groups.map((g) => ({ ...g }));
-  const full = groups.length === BEATS_PER_MEASURE;
   for (let i = 0; i < result.length; i++) {
     if (!isEmpty(groups[i]!)) continue;
     if (full && i % 2 === 0 && isEmpty(groups[i + 1]!)) {
@@ -147,31 +144,36 @@ function fillEmptyBeats(groups: BeatGroup[]): BeatGroup[] {
 }
 
 /** Leere Beats pro Takt auflösen (Spec drum-notation: Notenwerte und Pausen, Leeres Pattern). */
-function resolveEmptyBeats(voices: Record<VoiceName, BeatGroup[]>): Record<VoiceName, BeatGroup[]> {
+function resolveEmptyBeats(voices: Record<VoiceName, BeatGroup[]>, meter: number): Record<VoiceName, BeatGroup[]> {
+  const full = meter === 4 && voices.up.length === 4;
   const silent = (name: VoiceName) => voices[name].every(isEmpty);
   if (silent('up') && silent('down')) {
-    // Takt ohne Schläge: nur oben Pausen, im vollen Takt eine Ganze
+    // Takt ohne Schläge: nur oben Pausen, im vollen 4/4-Takt eine Ganze
     const up = voices.up.map((g) => ({ ...g }));
-    if (up.length === BEATS_PER_MEASURE) up[0]!.events = [rest('w')];
+    if (full) up[0]!.events = [rest('w')];
     else for (const g of up) g.events = [rest('q')];
     return { up, down: voices.down };
   }
   return {
-    up: silent('up') ? voices.up : fillEmptyBeats(voices.up),
-    down: silent('down') ? voices.down : fillEmptyBeats(voices.down),
+    up: silent('up') ? voices.up : fillEmptyBeats(voices.up, full),
+    down: silent('down') ? voices.down : fillEmptyBeats(voices.down, full),
   };
 }
 
-export function toNotation(pattern: Pattern): NotationModel {
+/** `meter`: Beats pro Takt; bestimmt die Taktstriche. */
+export function toNotation(pattern: Pattern, meter: number = DEFAULT_METER): NotationModel {
   const measures: Measure[] = [];
-  for (let start = 0; start < pattern.beats.length; start += BEATS_PER_MEASURE) {
-    const beats = pattern.beats.slice(start, start + BEATS_PER_MEASURE);
+  for (let start = 0; start < pattern.beats.length; start += meter) {
+    const beats = pattern.beats.slice(start, start + meter);
     measures.push({
       beatCount: beats.length,
-      voices: resolveEmptyBeats({
-        up: beats.map((beat, i) => beatGroup(beat, start + i, 'up')),
-        down: beats.map((beat, i) => beatGroup(beat, start + i, 'down')),
-      }),
+      voices: resolveEmptyBeats(
+        {
+          up: beats.map((beat, i) => beatGroup(beat, start + i, 'up')),
+          down: beats.map((beat, i) => beatGroup(beat, start + i, 'down')),
+        },
+        meter,
+      ),
     });
   }
   return { clef: 'percussion', measures };

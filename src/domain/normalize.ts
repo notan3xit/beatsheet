@@ -1,3 +1,4 @@
+import { isValidMeter } from './meter';
 import { emptyBeat } from './pattern';
 import {
   ARTICULATED,
@@ -49,7 +50,15 @@ function normalizePattern(pattern: Pattern): Pattern {
   let beats = mapSame(pattern.beats, normalizeBeat);
   if (beats.length > MAX_LENGTH) beats = beats.slice(0, MAX_LENGTH);
   if (beats.length === 0) beats = [emptyBeat()];
-  return beats === pattern.beats ? pattern : { ...pattern, beats };
+  const valid = withValidMeter(pattern);
+  return beats === pattern.beats ? valid : { ...valid, beats };
+}
+
+/** Entfernt eine Taktart außerhalb von METERS; sonst dasselbe Objekt. */
+function withValidMeter<T extends { meter?: number }>(owner: T): T {
+  if (owner.meter === undefined || isValidMeter(owner.meter)) return owner;
+  const { meter: _invalid, ...rest } = owner;
+  return rest as T;
 }
 
 function normalizeBar(bar: Bar, kinds: ReadonlyMap<string, PatternKind>): Bar {
@@ -76,5 +85,6 @@ export function normalizeSong(song: Song): Song {
     const blocks = mapped.some((b) => b.bars.length === 0) ? mapped.filter((b) => b.bars.length > 0) : mapped;
     return blocks === segment.blocks ? segment : { ...segment, blocks };
   });
-  return patterns === song.patterns && segments === song.segments ? song : { ...song, patterns, segments };
+  const valid = withValidMeter(song);
+  return patterns === song.patterns && segments === song.segments ? valid : { ...valid, patterns, segments };
 }

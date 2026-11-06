@@ -27,6 +27,50 @@ describe('Spec drum-notation › Notensystem', () => {
   });
 });
 
+describe('Spec drum-notation › Notensystem (Taktart)', () => {
+  it('Ein Takt mit 6 Beats', () => {
+    expect(toNotation(patternOf(emptyBeats(6)), 6).measures.map((m) => m.beatCount)).toEqual([6]);
+  });
+
+  it('Taktart kürzer als das Pattern', () => {
+    expect(toNotation(patternOf(emptyBeats(7)), 3).measures.map((m) => m.beatCount)).toEqual([3, 3, 1]);
+  });
+
+  it('Taktart länger als das Pattern', () => {
+    expect(toNotation(patternOf(emptyBeats(4)), 5).measures.map((m) => m.beatCount)).toEqual([4]);
+  });
+});
+
+describe('Spec drum-notation › Pausen in anderen Taktarten', () => {
+  const kickOnFirst = (length: number) => patternOf([{ hits: { kick: [1] } }, ...emptyBeats(length - 1)]);
+  const downEmptyBeats = (length: number, meter: number) =>
+    toNotation(kickOnFirst(length), meter).measures[0]!.voices.down.slice(1).map((g) => summary(g.events));
+
+  it('Viertelpausen in anderen Taktarten', () => {
+    expect(downEmptyBeats(6, 6)).toEqual(Array.from({ length: 5 }, () => ['qr']));
+  });
+
+  it('Unvollständiger Takt mit 4 Beats', () => {
+    expect(downEmptyBeats(4, 5)).toEqual(Array.from({ length: 3 }, () => ['qr']));
+  });
+
+  it('Halbe Pause bleibt dem vollen 4/4-Takt vorbehalten', () => {
+    const groups = toNotation(patternOf([{ hits: { kick: [1] } }, { hits: { kick: [1] } }, ...emptyBeats(2)]), 4).measures[0]!.voices.down;
+    expect(summary(groups[2]!.events)).toEqual(['hr']);
+  });
+
+  it('Neuer Groove in 3/4', () => {
+    const { up, down } = toNotation(patternOf(emptyBeats(3)), 3).measures[0]!.voices;
+    expect(up.map((g) => summary(g.events))).toEqual([['qr'], ['qr'], ['qr']]);
+    expect(down.every((g) => g.events.length === 0)).toBe(true);
+  });
+
+  it('Leerer Takt mit 4 Beats in 5/4', () => {
+    const { up } = toNotation(patternOf(emptyBeats(4)), 5).measures[0]!.voices;
+    expect(up.map((g) => summary(g.events))).toEqual([['qr'], ['qr'], ['qr'], ['qr']]);
+  });
+});
+
 describe('Spec drum-notation › Systemposition je Instrument', () => {
   it('Snare und Bassdrum', () => {
     const model = toNotation(patternOf([{ hits: { snare: [1], kick: [1] } }]));

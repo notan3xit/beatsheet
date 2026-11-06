@@ -26,15 +26,18 @@ export function NotationView({
   compact = false,
   size = compact ? 'compact' : 'normal',
   maxWidth,
+  meter,
 }: {
   pattern: Pattern;
   compact?: boolean;
   size?: NotationSize;
   /** Umbruchbreite in px; ohne Angabe die Breite des eigenen Containers. */
   maxWidth?: number;
+  /** Beats pro Takt; bestimmt die Taktstriche. */
+  meter: number;
 }) {
   const container = useRef<HTMLDivElement>(null);
-  const model = useMemo(() => toNotation(pattern), [pattern]);
+  const model = useMemo(() => toNotation(pattern, meter), [pattern, meter]);
   const measured = useWidth(container);
   const width = maxWidth ?? measured;
 

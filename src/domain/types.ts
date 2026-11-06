@@ -92,6 +92,8 @@ export interface Pattern {
   color: PatternColor;
   /** Länge in Beats = beats.length (1..16). */
   beats: Beat[];
+  /** Eigene Taktart in Beats pro Takt, ein Wert aus METERS; fehlt sie, folgt das Pattern dem Song. */
+  meter?: number;
   createdAt: string;
   updatedAt: string;
   revision: number;
@@ -133,6 +135,8 @@ export interface Song {
   title: string;
   /** Tempo in BPM, ganzzahlig von MIN_TEMPO bis MAX_TEMPO. */
   tempo: number;
+  /** Standard-Takt in Beats pro Takt, ein Wert aus METERS; fehlt er, gilt DEFAULT_METER. */
+  meter?: number;
   patterns: Pattern[];
   segments: Segment[];
   createdAt: string;
@@ -150,6 +154,10 @@ export const DEFAULT_SUBDIVISION: Subdivision = 4;
 export const DEFAULT_TEMPO = 120;
 export const MIN_TEMPO = 30;
 export const MAX_TEMPO = 300;
+
+/** Erlaubte Taktarten als Beats pro Takt; ein Beat ist eine Viertel. */
+export const METERS = [3, 4, 5, 6, 7] as const;
+export const DEFAULT_METER = 4;
 
 /** Name und Farbe eines Accounts, unter denen ihn andere Mitglieder sehen (member-profiles). */
 export interface MemberProfile {
