@@ -22,6 +22,14 @@ Zwei Fassungen desselben Songs, die ausgehend von einem gemeinsamen Stand unabh�
 - **WHEN** in der einen Fassung im ersten Beat eines Grooves eine Snare und in der anderen eine Hi-Hat gesetzt wird, und beide zusammengeführt werden
 - **THEN** enthält der erste Beat die Snare und die Hi-Hat
 
+#### Scenario: Verschiedene Betonungen im selben Beat
+- **WHEN** in der einen Fassung im ersten Beat eines Grooves die Bassdrum und in der anderen die Snare betont wird, und beide zusammengeführt werden
+- **THEN** sind im ersten Beat beide Schläge betont
+
+#### Scenario: Verschiedene Spielweisen im selben Beat
+- **WHEN** in der einen Fassung im ersten Beat eines Grooves die Ride zur Glocke und in der anderen die Crash zum Choke wird, und beide zusammengeführt werden
+- **THEN** enthält der erste Beat die Glocke und den Choke
+
 #### Scenario: Reihenfolge des Zusammenführens
 - **WHEN** zwei unabhängig geänderte Fassungen einmal A in B und einmal B in A zusammengeführt werden
 - **THEN** sind beide Ergebnisse gleich
@@ -52,6 +60,14 @@ Ein zusammengeführter Song MUST die Strukturregeln des Dateiformats erfüllen u
 #### Scenario: Spielweise ohne Schlag
 - **WHEN** die eine Fassung eine Snare entfernt und die andere derselben Snare einen Flam gibt, und beide zusammengeführt werden
 - **THEN** liegt an dieser Position weder eine Snare noch ein Flam
+
+#### Scenario: Betonung ohne Schlag
+- **WHEN** die eine Fassung eine Snare entfernt und die andere dieselbe Snare betont, und beide zusammengeführt werden
+- **THEN** liegt an dieser Position weder eine Snare noch eine Betonung
+
+#### Scenario: Betonung und Ghost Note
+- **WHEN** die eine Fassung eine Snare betont und die andere dieselbe Snare zur Ghost Note macht, und beide zusammengeführt werden
+- **THEN** ist der Schlag eine unbetonte Ghost Note
 
 #### Scenario: Offene und geschlossene Hi-Hat an derselben Position
 - **WHEN** die eine Fassung an einer Position die geschlossene Hi-Hat setzt und die andere an derselben Position die offene, und beide zusammengeführt werden
