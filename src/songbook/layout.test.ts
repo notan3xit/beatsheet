@@ -317,7 +317,7 @@ describe('Spec songbook-view › Fill-Kurzschrift (Layout)', () => {
       [0.125, 't'],
       [1.125, 'f'],
       [2.125, 'k'],
-      [3.125, "'"],
+      [3.125, 'c'],
     ]);
   });
 });

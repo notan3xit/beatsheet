@@ -28,30 +28,71 @@ describe('Spec songbook-view › Fill-Kurzschrift', () => {
 
   it('Gleichzeitige Schläge', () => {
     expect(marks(patternOf([{ hits: { kick: [1], crash: [1] } }], 'fill'))).toEqual([
-      [0, 0, "'"],
+      [0, 0, 'c'],
       [0, 2, 'k'],
     ]);
   });
 
   it('Flam und Ghost Note', () => {
     const fill = withArticulations(patternOf([{ hits: { snare: [1, 2] } }], 'fill'), { snare: { 0: 'flam', 1: 'ghost' } });
-    expect(marks(fill)).toEqual([[0, 1, 'v']]);
-  });
-
-  it('Hi-Hat entfällt', () => {
-    expect(marks(patternOf([{ hits: { hihat: [1, 2, 3, 4], hihatOpen: [], ride: [], hihatPedal: [1] } }], 'fill'))).toEqual([]);
-  });
-
-  it('Vorrang f vor k und Crash vor Tom', () => {
-    expect(marks(patternOf([{ hits: { kick: [1], floorTom: [1], crash: [1], tom2: [1] } }], 'fill'))).toEqual([
-      [0, 0, "'"],
-      [0, 2, 'f'],
+    expect(marks(fill)).toEqual([
+      [0, 1, 'v'],
+      [0.25, 1, '·'],
     ]);
   });
 
-  it('Tom-Flam bleibt t, Ghost-Tom entfällt', () => {
-    const fill = withArticulations(patternOf([{ hits: { tom1: [1, 3] } }], 'fill'), { tom1: { 0: 'flam', 2: 'ghost' } });
+  it('Ghost Note auf den Toms', () => {
+    const fill = withArticulations(patternOf([{ hits: { tom1: [1], floorTom: [2] } }], 'fill'), {
+      tom1: { 0: 'ghost' },
+      floorTom: { 1: 'ghost' },
+    });
+    expect(marks(fill)).toEqual([
+      [0, 0, '·'],
+      [0.25, 2, '·'],
+    ]);
+  });
+
+  it('Flam auf einem Tom', () => {
+    const fill = withArticulations(patternOf([{ hits: { tom1: [1] } }], 'fill'), { tom1: { 0: 'flam' } });
     expect(marks(fill)).toEqual([[0, 0, 't']]);
+  });
+
+  it('Hi-Hat und Pedal', () => {
+    expect(marks(patternOf([{ hits: { hihat: [1], hihatOpen: [2], hihatPedal: [3] } }], 'fill'))).toEqual([
+      [0, 0, 'x'],
+      [0.25, 0, 'o'],
+      [0.5, 2, 'x'],
+    ]);
+  });
+
+  it('Crash verdrängt die übrigen Becken', () => {
+    expect(marks(patternOf([{ hits: { crash: [1], hihat: [1], ride: [1] } }], 'fill'))).toEqual([[0, 0, 'c']]);
+  });
+
+  it('Hi-Hat entfällt', () => {
+    expect(marks(patternOf([{ hits: { tom1: [1], hihat: [1] } }], 'fill'))).toEqual([[0, 0, 't']]);
+  });
+
+  it('Floor Tom vor Kick vor Pedal', () => {
+    expect(marks(patternOf([{ hits: { floorTom: [1], kick: [1, 2], hihatPedal: [2] } }], 'fill'))).toEqual([
+      [0, 2, 'f'],
+      [0.25, 2, 'k'],
+    ]);
+  });
+
+  it('Normaler Schlag vor Ghost Note', () => {
+    const fill = withArticulations(patternOf([{ hits: { floorTom: [1], kick: [1], tom1: [2], hihat: [2] } }], 'fill'), {
+      floorTom: { 0: 'ghost' },
+      tom1: { 1: 'ghost' },
+    });
+    expect(marks(fill)).toEqual([
+      [0, 2, 'k'],
+      [0.25, 0, 'x'],
+    ]);
+  });
+
+  it('Vorrang Crash vor Tom', () => {
+    expect(marks(patternOf([{ hits: { crash: [1], tom2: [1] } }], 'fill'))).toEqual([[0, 0, 'c']]);
   });
 
   it('Rasterbreite bei Triolen', () => {
@@ -86,7 +127,7 @@ describe('Spec songbook-view › Fill-Kurzschrift (neue Spielweisen)', () => {
 
   it('Choke und Betonung', () => {
     expect(withBeat({ crash: [1], snare: [1] }, { articulations: { crash: { 0: 'choke' } }, emphasis: { snare: [0] } })).toEqual([
-      [0, "'"],
+      [0, 'c'],
       [1, 's'],
     ]);
   });
@@ -95,8 +136,11 @@ describe('Spec songbook-view › Fill-Kurzschrift (neue Spielweisen)', () => {
     expect(withBeat({ snare: [1] }, { articulations: { snare: { 0: 'flam' } }, emphasis: { snare: [0] } })).toEqual([[1, 'v']]);
   });
 
-  it('Ride-Glocke entfällt', () => {
-    expect(withBeat({ ride: [1] }, { articulations: { ride: { 0: 'bell' } } })).toEqual([]);
+  it('Ride und Glocke', () => {
+    expect(withBeat({ ride: [1, 2] }, { articulations: { ride: { 1: 'bell' } } })).toEqual([
+      [0, 'r'],
+      [0, 'b'],
+    ]);
   });
 });
 

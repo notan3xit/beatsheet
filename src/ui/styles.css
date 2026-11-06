@@ -1434,7 +1434,7 @@ select.meter-mark:hover {
 }
 
 .shorthand .level-0 {
-  top: -6px;
+  top: -4px;
 }
 
 .shorthand .level-1 {
@@ -1442,7 +1442,7 @@ select.meter-mark:hover {
 }
 
 .shorthand .level-2 {
-  top: 14px;
+  top: 12px;
 }
 
 /* Hervorhebung von Auswahl und Ablegeziel: voller Rahmen in der Patternfarbe, kräftigere Füllung */
