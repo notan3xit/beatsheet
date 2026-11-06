@@ -364,7 +364,7 @@ Ausgewählte Takte und Ablegeziele beim Ziehen MUST über ihre Balken hervorgeho
 - **THEN** ist der Groove-Balken von Takt 6 hervorgehoben wie bei einer Auswahl
 
 ### Requirement: Fill-Kurzschrift
-Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Buchstabe in einer von drei Höhenstufen zeigen: oben `'` Crash und `t` Tom 1/2, Mitte `v` Snare mit Flam und `s` Snare einschließlich Drag, Rim Shot und Cross-Stick, unten `f` Floor Tom und `k` Kick. Hi-Hat, Ride, Hi-Hat-Pedal und Ghost Notes MUST entfallen. Choke und Betonung MUST den Buchstaben nicht ändern. Pro Zeitpunkt und Stufe MUST höchstens ein Buchstabe stehen, mit Vorrang `'` vor `t`, `v` vor `s`, `f` vor `k`.
+Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Zeichen in einer von drei Höhenstufen zeigen: oben `c` Crash, `t` Tom 1/2, `o` offene Hi-Hat, `x` geschlossene Hi-Hat, `r` Ride und `b` Ride-Glocke; Mitte `v` Snare mit Flam und `s` Snare einschließlich Drag, Rim Shot und Cross-Stick; unten `f` Floor Tom, `k` Kick und `x` Hi-Hat-Pedal. Eine Ghost Note MUST als `·` auf der Stufe ihres Instruments stehen. Choke und Betonung MUST das Zeichen nicht ändern. Pro Zeitpunkt und Stufe MUST höchstens ein Zeichen stehen: Normale Schläge haben Vorrang vor Ghost Notes, untereinander gilt die genannte Reihenfolge.
 
 #### Scenario: Tom-Run
 - **WHEN** ein Fill in Sechzehnteln Snare auf 1 und 2, Tom 1 auf 3 und 4 und im zweiten Beat Floor Tom auf allen vier Positionen hat
@@ -372,23 +372,51 @@ Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Buchstabe in einer von
 
 #### Scenario: Gleichzeitige Schläge
 - **WHEN** auf derselben Position Kick und Crash liegen
-- **THEN** stehen dort `'` oben und `k` unten
+- **THEN** stehen dort `c` oben und `k` unten
 
 #### Scenario: Flam und Ghost Note
 - **WHEN** ein Fill einen Snare-Flam auf Position 1 und eine Snare-Ghost-Note auf Position 2 hat
-- **THEN** zeigt die Kurzschrift `v` auf Position 1 und auf Position 2 nichts
+- **THEN** zeigt die Kurzschrift `v` auf Position 1 und `·` in der Mitte auf Position 2
+
+#### Scenario: Ghost Note auf den Toms
+- **WHEN** ein Fill auf Position 1 eine Ghost Note auf Tom 1 und auf Position 2 eine Ghost Note auf dem Floor Tom hat
+- **THEN** steht auf Position 1 `·` oben und auf Position 2 `·` unten
 
 #### Scenario: Neue Spielweisen der Snare
 - **WHEN** ein Fill auf den Positionen 1, 2 und 3 einen Snare-Drag, einen Rim Shot und einen Cross-Stick hat
 - **THEN** zeigt die Kurzschrift `s s s` in der Mitte
 
+#### Scenario: Flam auf einem Tom
+- **WHEN** ein Fill einen Flam auf Tom 1 hat
+- **THEN** zeigt die Kurzschrift `t` oben
+
 #### Scenario: Choke und Betonung
 - **WHEN** ein Fill einen Crash mit Choke und auf derselben Position eine betonte Snare hat
-- **THEN** stehen dort `'` oben und `s` in der Mitte
+- **THEN** stehen dort `c` oben und `s` in der Mitte
+
+#### Scenario: Hi-Hat und Pedal
+- **WHEN** ein Fill auf Position 1 eine geschlossene Hi-Hat, auf Position 2 eine offene Hi-Hat und auf Position 3 das Hi-Hat-Pedal hat
+- **THEN** zeigt die Kurzschrift `x` und `o` oben und `x` unten, jeweils an ihren Zeitpunkten
+
+#### Scenario: Ride und Glocke
+- **WHEN** ein Fill auf Position 1 einen Ride und auf Position 2 eine Ride-Glocke hat
+- **THEN** zeigt die Kurzschrift oben `r` und `b`
+
+#### Scenario: Crash verdrängt die übrigen Becken
+- **WHEN** auf derselben Position Crash, Hi-Hat und Ride liegen
+- **THEN** steht dort oben nur `c`
 
 #### Scenario: Hi-Hat entfällt
-- **WHEN** ein Fill nur Hi-Hat-Schläge hat
-- **THEN** zeigt die Kurzschrift keinen Buchstaben
+- **WHEN** auf derselben Position Tom 1 und Hi-Hat liegen
+- **THEN** steht dort oben nur `t`
+
+#### Scenario: Floor Tom vor Kick vor Pedal
+- **WHEN** auf einer Position Floor Tom und Kick liegen und auf einer zweiten Kick und Hi-Hat-Pedal
+- **THEN** steht unten auf der ersten `f` und auf der zweiten `k`
+
+#### Scenario: Normaler Schlag vor Ghost Note
+- **WHEN** auf einer Position eine Ghost Note auf dem Floor Tom und Kick liegen und auf einer zweiten eine Ghost Note auf Tom 1 und Hi-Hat
+- **THEN** steht auf der ersten unten `k` und auf der zweiten oben `x`
 
 ### Requirement: Aufbau des Takt-Popovers
 Das Takt-Popover MUST in sichtbar getrennte Abschnitte gegliedert sein, von oben nach unten: Titel und Abspiel-Knöpfe; Groove, Fill und Länge; Akzente, sofern genau ein Takt ausgewählt ist; „Takt davor“, „Takt danach“ und „Löschen“. „Löschen“ MUST rechts abgesetzt stehen.
