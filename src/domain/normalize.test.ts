@@ -80,6 +80,39 @@ describe('normalizeSong (design.md D6)', () => {
     expect(firstBeat(normalizeSong(withBeat(grooveAndFill(), beat)))).toEqual({ subdivision: 4, hits: {} });
   });
 
+  it('entfernt Spielweisen, die das Instrument nicht zulässt', () => {
+    const beat: Beat = {
+      subdivision: 4,
+      hits: { tom1: [0], ride: [1], crash: [2], snare: [3] },
+      articulations: { tom1: { 0: 'rim' }, ride: { 1: 'flam' }, crash: { 2: 'choke' }, snare: { 3: 'cross' } },
+    };
+    const result = normalizeSong(withBeat(grooveAndFill(), beat));
+    expect(firstBeat(result).articulations).toEqual({ crash: { 2: 'choke' }, snare: { 3: 'cross' } });
+    expectValidFile(result);
+  });
+
+  it('entfernt Betonungen ohne Schlag und auf Ghost Notes', () => {
+    const beat: Beat = {
+      subdivision: 4,
+      hits: { snare: [0, 1], hihat: [2] },
+      articulations: { snare: { 1: 'ghost' } },
+      emphasis: { snare: [0, 1], hihat: [2, 3], kick: [0] },
+    };
+    const result = normalizeSong(withBeat(grooveAndFill(), beat));
+    expect(firstBeat(result).emphasis).toEqual({ snare: [0], hihat: [2] });
+    expectValidFile(result);
+  });
+
+  it('entfernt das Feld der Betonungen, wenn keine übrig bleibt', () => {
+    const beat: Beat = { subdivision: 4, hits: {}, emphasis: { snare: [1] } };
+    expect(firstBeat(normalizeSong(withBeat(grooveAndFill(), beat)))).toEqual({ subdivision: 4, hits: {} });
+  });
+
+  it('lässt einen gültigen Beat mit Betonung unverändert', () => {
+    const song = withBeat(grooveAndFill(), { subdivision: 4, hits: { snare: [0] }, articulations: { snare: { 0: 'rim' } }, emphasis: { snare: [0] } });
+    expect(normalizeSong(song)).toBe(song);
+  });
+
   it('kürzt Patterns mit mehr als 16 Beats am Ende', () => {
     const song = grooveAndFill();
     const marked: Beat = { subdivision: 4, hits: { kick: [0] } };

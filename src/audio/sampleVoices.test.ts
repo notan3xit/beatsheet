@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLAM_GRACE_GAIN, GHOST_GAIN } from '../domain/playback';
+import { GRACE_GAIN, GHOST_GAIN } from '../domain/playback';
 import { FakeAudioContext, type FakeGain, type FakeNode, type FakeSource } from '../test/fakeAudio';
 import { SAMPLE_KEYS, type SampleBuffers } from './sampleLoader';
 import { createSampleVoices } from './sampleVoices';
@@ -35,7 +35,7 @@ describe('Spec playback-sound › Klang der Aufnahmen', () => {
 
   it('Flam: Vorschlag mit dem leisen, Hauptschlag mit dem normalen Tom-1-Schlag', () => {
     const { ctx, voices } = setup();
-    voices.trigger('tom1', 0.97, FLAM_GRACE_GAIN);
+    voices.trigger('tom1', 0.97, GRACE_GAIN);
     voices.trigger('tom1', 1, 1);
     expect(played(ctx, 0.97)).toEqual(['tom1-soft']);
     expect(played(ctx, 1)).toEqual(['tom1-normal']);
@@ -88,5 +88,46 @@ describe('Spec pattern-playback › Wiedergabe stoppen', () => {
     expect(ctx.sourcesAt(2).some(reaches)).toBe(false);
     voices.trigger('kick', 3, 1);
     expect(ctx.sourcesAt(3).every(reaches)).toBe(true);
+  });
+});
+
+describe('Spec playback-sound › Klang der Aufnahmen (eigene Aufnahmen der Spielweisen)', () => {
+  it.each([
+    ['snare', 'rim', 'snare-rim'],
+    ['snare', 'cross', 'snare-cross'],
+    ['ride', 'bell', 'ride-bell'],
+  ] as const)('%s mit %s spielt %s', (instrument, technique, key) => {
+    const { ctx, voices } = setup();
+    voices.trigger(instrument, 1, 1, technique);
+    expect(played(ctx, 1)).toEqual([key]);
+    expect(level(ctx, 1)).toBe(1);
+  });
+
+  it('Betonte Spielweise behält die Aufnahme und wird lauter', () => {
+    const { ctx, voices } = setup();
+    voices.trigger('snare', 1, 1.6, 'rim');
+    expect(played(ctx, 1)).toEqual(['snare-rim']);
+    expect(level(ctx, 1)).toBe(1.6);
+  });
+
+  it('Choke: Aufnahme des normalen Crash-Schlags, endet kurz nach dem Einsatz', () => {
+    const { ctx, voices } = setup();
+    voices.trigger('crash', 1, 1, 'choke');
+    expect(played(ctx, 1)).toEqual(['crash-normal']);
+    const fade = envelopeOf(ctx.sourcesAt(1)[0]!).gain.events.find((e) => e.type === 'target')!;
+    expect(fade).toMatchObject({ value: 0, time: expect.closeTo(1.12, 9) });
+  });
+
+  it('Normaler Crash wird nicht abgeschnitten', () => {
+    const { ctx, voices } = setup();
+    voices.trigger('crash', 1, 1);
+    expect(envelopeOf(ctx.sourcesAt(1)[0]!).gain.events.some((e) => e.type === 'target')).toBe(false);
+  });
+
+  it('Betonter normaler Schlag spielt die normale Aufnahme lauter', () => {
+    const { ctx, voices } = setup();
+    voices.trigger('hihat', 1, 1.6);
+    expect(played(ctx, 1)).toEqual(['hihat-normal']);
+    expect(level(ctx, 1)).toBe(1.6);
   });
 });

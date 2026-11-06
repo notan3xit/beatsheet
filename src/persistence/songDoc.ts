@@ -2,7 +2,6 @@ import * as A from '@automerge/automerge/slim';
 import { automergeWasmBase64 } from '@automerge/automerge/automerge.wasm.base64';
 import { normalizeSong } from '../domain/normalize';
 import {
-  ARTICULATED,
   DEFAULT_METER,
   INSTRUMENTS,
   type Accent,
@@ -55,12 +54,21 @@ interface PatternDocShape {
   revision: number;
 }
 
-/** Feste Container: ein Eintrag je Instrument bzw. artikulierbarem Instrument, Positionen als Schlüssel. */
-interface BeatDocShape {
+/** Instrumente mit festem Container für Spielweisen. */
+const ARTICULATION_CONTAINERS: readonly Instrument[] = ['snare', 'tom1', 'tom2', 'floorTom'];
+const EMPHASIS_PREFIX = 'emphasis:';
+
+/**
+ * Feste Container: ein Eintrag je Instrument, Positionen als Schlüssel. Was vorhandene Dokumente noch nicht
+ * enthalten, liegt flach, denn gleichzeitig neu angelegte Container verdrängten sich beim Zusammenführen
+ * (hit-types, design.md D3): Spielweisen von Ride und Crash als `<instrument>:<position>` in `articulations`,
+ * Betonungen als `emphasis:<instrument>:<position>` im Beat.
+ */
+type BeatDocShape = {
   subdivision: Subdivision;
   hits: Record<Instrument, Record<string, true>>;
-  articulations: Record<string, Record<string, Articulation>>;
-}
+  articulations: Record<string, Record<string, Articulation> | Articulation>;
+} & { [key: `${typeof EMPHASIS_PREFIX}${string}`]: true };
 
 interface BarDocShape {
   id: string;
@@ -79,10 +87,17 @@ const asKeys = (positions: readonly number[] = []) => Object.fromEntries(positio
 
 function beatToDoc(beat: Beat): BeatDocShape {
   const hits = Object.fromEntries(INSTRUMENTS.map((i) => [i, asKeys(beat.hits[i])])) as BeatDocShape['hits'];
-  const articulations = Object.fromEntries(
-    ARTICULATED.map((i) => [i, Object.fromEntries(Object.entries(beat.articulations?.[i] ?? {}))]),
-  ) as BeatDocShape['articulations'];
-  return { subdivision: beat.subdivision, hits, articulations };
+  const articulations: BeatDocShape['articulations'] = Object.fromEntries(
+    ARTICULATION_CONTAINERS.map((i) => [i, Object.fromEntries(Object.entries(beat.articulations?.[i] ?? {}))]),
+  );
+  for (const [instrument, byPosition] of Object.entries(beat.articulations ?? {})) {
+    if (ARTICULATION_CONTAINERS.includes(instrument as Instrument)) continue;
+    for (const [position, articulation] of Object.entries(byPosition)) articulations[`${instrument}:${position}`] = articulation;
+  }
+  const emphasis = Object.entries(beat.emphasis ?? {}).flatMap(([instrument, positions]) =>
+    positions.map((position) => [`${EMPHASIS_PREFIX}${instrument}:${position}`, true] as const),
+  );
+  return { subdivision: beat.subdivision, hits, articulations, ...Object.fromEntries(emphasis) };
 }
 
 export function toDocShape(song: Song): SongDocShape {
@@ -132,10 +147,27 @@ function beatFromDoc(beat: BeatDocShape): Beat {
     if (positions.length > 0) hits[instrument] = positions;
   }
   const articulations: NonNullable<Beat['articulations']> = {};
-  for (const [instrument, byPosition] of Object.entries(beat.articulations ?? {})) {
-    if (Object.keys(byPosition).length > 0) articulations[instrument as Instrument] = { ...byPosition };
+  for (const [key, value] of Object.entries(beat.articulations ?? {})) {
+    if (typeof value === 'string') {
+      const [instrument, position] = key.split(':') as [Instrument, string];
+      (articulations[instrument] ??= {})[Number(position)] = value;
+    } else if (Object.keys(value).length > 0) {
+      articulations[key as Instrument] = { ...value };
+    }
   }
-  return Object.keys(articulations).length > 0 ? { subdivision: beat.subdivision, hits, articulations } : { subdivision: beat.subdivision, hits };
+  const emphasis: NonNullable<Beat['emphasis']> = {};
+  for (const key of Object.keys(beat)) {
+    if (!key.startsWith(EMPHASIS_PREFIX)) continue;
+    const [, instrument, position] = key.split(':') as [string, Instrument, string];
+    (emphasis[instrument] ??= []).push(Number(position));
+  }
+  for (const positions of Object.values(emphasis)) positions.sort((a, b) => a - b);
+  return {
+    subdivision: beat.subdivision,
+    hits,
+    ...(Object.keys(articulations).length > 0 ? { articulations } : {}),
+    ...(Object.keys(emphasis).length > 0 ? { emphasis } : {}),
+  };
 }
 
 function accentFromKey(key: string): Accent {

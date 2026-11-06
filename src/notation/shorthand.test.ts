@@ -68,3 +68,35 @@ describe('Fill-Kurzschrift mit Zweiunddreißigsteln (thirty-second-notes)', () =
     expect(roll.every((m) => m.slot === 1 / 8)).toBe(true);
   });
 });
+
+describe('Spec songbook-view › Fill-Kurzschrift (neue Spielweisen)', () => {
+  const withBeat = (hits: Parameters<typeof patternOf>[0][number]['hits'], extra: Partial<Beat>) => {
+    const pattern = patternOf([{ hits }], 'fill');
+    pattern.beats[0] = { ...pattern.beats[0]!, ...extra };
+    return shorthand(pattern).map((m) => [m.level, m.char]);
+  };
+
+  it('Neue Spielweisen der Snare', () => {
+    expect(withBeat({ snare: [1, 2, 3] }, { articulations: { snare: { 0: 'drag', 1: 'rim', 2: 'cross' } } })).toEqual([
+      [1, 's'],
+      [1, 's'],
+      [1, 's'],
+    ]);
+  });
+
+  it('Choke und Betonung', () => {
+    expect(withBeat({ crash: [1], snare: [1] }, { articulations: { crash: { 0: 'choke' } }, emphasis: { snare: [0] } })).toEqual([
+      [0, "'"],
+      [1, 's'],
+    ]);
+  });
+
+  it('Betonter Flam bleibt v', () => {
+    expect(withBeat({ snare: [1] }, { articulations: { snare: { 0: 'flam' } }, emphasis: { snare: [0] } })).toEqual([[1, 'v']]);
+  });
+
+  it('Ride-Glocke entfällt', () => {
+    expect(withBeat({ ride: [1] }, { articulations: { ride: { 0: 'bell' } } })).toEqual([]);
+  });
+});
+

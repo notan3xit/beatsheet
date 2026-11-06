@@ -6,8 +6,9 @@ export interface NoteKey {
   staffStep: number;
   notehead: 'x' | 'normal';
   open?: true;
-  /** Flam oder Ghost Note; fehlt bei normal gespieltem Schlag. */
+  /** Spielweise; fehlt bei normal gespieltem Schlag. */
   articulation?: Articulation;
+  emphasis?: true;
 }
 
 /** 'h' und 'w' kommen nur als Pausen über leere Beats vor (Halbe, Ganze). */
@@ -78,10 +79,10 @@ function split(units: number, subdivision: Subdivision): Duration[] {
   return result;
 }
 
-function keyFor(instrument: Instrument, articulation?: Articulation): NoteKey {
+function keyFor(instrument: Instrument, articulation: Articulation | undefined, emphasized: boolean): NoteKey {
   const { staffStep, notehead } = STAFF[instrument];
   const key: NoteKey = instrument === 'hihatOpen' ? { instrument, staffStep, notehead, open: true } : { instrument, staffStep, notehead };
-  return articulation ? { ...key, articulation } : key;
+  return { ...key, ...(articulation ? { articulation } : {}), ...(emphasized ? { emphasis: true as const } : {}) };
 }
 
 function beatGroup(beat: Beat, index: number, voice: VoiceName): BeatGroup {
@@ -90,7 +91,7 @@ function beatGroup(beat: Beat, index: number, voice: VoiceName): BeatGroup {
     if (STAFF[instrument].voice !== voice) continue;
     for (const position of beat.hits[instrument] ?? []) {
       const keys = byPosition.get(position) ?? [];
-      keys.push(keyFor(instrument, beat.articulations?.[instrument]?.[position]));
+      keys.push(keyFor(instrument, beat.articulations?.[instrument]?.[position], beat.emphasis?.[instrument]?.includes(position) ?? false));
       byPosition.set(position, keys);
     }
   }

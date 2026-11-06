@@ -33,7 +33,7 @@ describe('Spec library-persistence › Export der Bibliothek', () => {
   it('Export herunterladen: Dateiname und Inhalt', () => {
     expect(exportFileName(NOW)).toBe('beatsheet-2026-11-01.json');
     const file = fileOf([richSong(), songWith({ title: 'Leer' })]);
-    expect(file).toMatchObject({ format: 'beatsheet.library', schemaVersion: 3, exportedAt: NOW.toISOString() });
+    expect(file).toMatchObject({ format: 'beatsheet.library', schemaVersion: 4, exportedAt: NOW.toISOString() });
     expect(file.songs.map((s: Song) => s.title)).toEqual(['Hysteria', 'Leer']);
     expect(Object.keys(file.songs[0]).sort()).toEqual(
       ['createdAt', 'id', 'patterns', 'revision', 'segments', 'tempo', 'title', 'updatedAt'].sort(),
@@ -65,7 +65,7 @@ describe('Spec library-persistence › Tempo im Format', () => {
     const song = songWithArticulations();
     const file = fileOf([song]);
     delete file.songs[0].tempo;
-    expect(file.schemaVersion).toBe(3);
+    expect(file.schemaVersion).toBe(4);
     expect(parseNotebookFile(JSON.stringify(file))).toEqual(imported([{ ...song, tempo: 120 }]));
   });
 
@@ -97,12 +97,12 @@ describe('Spec library-persistence › Unbekannte Felder in Importdateien', () =
 describe('Spec library-persistence › Ungültige Importdateien', () => {
   it('Neuere Schemaversion', () => {
     const songs = [richSong()];
-    const result = parseNotebookFile(JSON.stringify({ ...fileOf(songs), schemaVersion: 4 }));
+    const result = parseNotebookFile(JSON.stringify({ ...fileOf(songs), schemaVersion: 5 }));
     expect(result).toEqual({ ok: true, songs, fromNewerVersion: true });
   });
 
   it('Neuere Schemaversion: Strukturregeln gelten weiter', () => {
-    const file = { ...fileOf([richSong()]), schemaVersion: 4 };
+    const file = { ...fileOf([richSong()]), schemaVersion: 5 };
     file.songs[0].patterns[0].beats = [];
     const result = parseNotebookFile(JSON.stringify(file));
     expect(!result.ok && result.error).toMatch(/beschädigt/);
@@ -202,7 +202,7 @@ describe('Spec library-persistence › Formatkennung und Schemaversion beim Impo
   });
 
   it('Export schreibt Formatkennung und Schemaversion', () => {
-    expect(fileOf([])).toMatchObject({ format: 'beatsheet.library', schemaVersion: 3 });
+    expect(fileOf([])).toMatchObject({ format: 'beatsheet.library', schemaVersion: 4 });
   });
 });
 
@@ -267,8 +267,62 @@ describe('Spec library-persistence › Spielweisen (Schemaversion 3)', () => {
 
   it('Unbekannte Spielweise', () => {
     const file = fileOf([songWithArticulations()]);
-    file.songs[0].patterns[0].beats[0].articulations = { snare: { 0: 'drag' } };
+    file.songs[0].patterns[0].beats[0].articulations = { snare: { 0: 'buzz' } };
     expect(parseNotebookFile(JSON.stringify(file)).ok).toBe(false);
+  });
+});
+
+/** Song mit allen neuen Spielweisen und Betonungen im ersten Beat des Grooves. */
+function songWithHitTypes(): Song {
+  const groove = patternOf([{ hits: { snare: [1, 2], ride: [1], crash: [2], hihat: [3], tom1: [4] } }, ...emptyBeats(3)]);
+  groove.beats[0] = {
+    ...groove.beats[0]!,
+    articulations: { snare: { 0: 'rim', 1: 'drag' }, ride: { 0: 'bell' }, crash: { 1: 'choke' }, tom1: { 3: 'drag' } },
+    emphasis: { snare: [0], hihat: [2] },
+  };
+  return songWith({ title: 'Neue Schläge', patterns: [groove] });
+}
+
+describe('Spec library-persistence › Spielweisen und Betonung (Schemaversion 4)', () => {
+  it('Neue Spielweisen und Betonung im Export', () => {
+    const songs = [songWithHitTypes()];
+    const result = parseNotebookFile(serializeNotebook(songs, NOW));
+    expect(result).toEqual(imported(songs));
+    const beat = result.ok ? result.songs[0]!.patterns[0]!.beats[0]! : null;
+    expect(beat?.articulations).toEqual({ snare: { 0: 'rim', 1: 'drag' }, ride: { 0: 'bell' }, crash: { 1: 'choke' }, tom1: { 3: 'drag' } });
+    expect(beat?.emphasis).toEqual({ snare: [0], hihat: [2] });
+  });
+
+  it.each([
+    ['Rim Shot auf Tom 1', { tom1: { 3: 'rim' } }],
+    ['Flam auf der Ride', { ride: { 0: 'flam' } }],
+    ['Glocke auf der Snare', { snare: { 0: 'bell' } }],
+    ['Choke auf der Ride', { ride: { 0: 'choke' } }],
+  ])('Spielweise auf einem unpassenden Instrument: %s', (_name, articulations) => {
+    const file = fileOf([songWithHitTypes()]);
+    file.songs[0].patterns[0].beats[0].articulations = articulations;
+    expect(parseNotebookFile(JSON.stringify(file)).ok).toBe(false);
+  });
+
+  it('Betonung ohne Schlag', () => {
+    const file = fileOf([songWithHitTypes()]);
+    file.songs[0].patterns[0].beats[0].emphasis = { kick: [0] };
+    expect(parseNotebookFile(JSON.stringify(file)).ok).toBe(false);
+  });
+
+  it('Betonte Ghost Note', () => {
+    const file = fileOf([songWithArticulations()]);
+    file.songs[0].patterns[0].beats[0].emphasis = { snare: [1] };
+    expect(parseNotebookFile(JSON.stringify(file)).ok).toBe(false);
+  });
+});
+
+describe('Spec library-persistence › Import von Dateien der Schemaversion 3', () => {
+  it('Datei der Schemaversion 3', () => {
+    const songs = [songWithArticulations()];
+    const result = parseNotebookFile(JSON.stringify({ ...fileOf(songs), schemaVersion: 3 }));
+    expect(result).toEqual(imported(songs));
+    expect(result.ok && result.songs[0]!.patterns[0]!.beats[0]!.emphasis).toBeUndefined();
   });
 });
 
@@ -286,7 +340,7 @@ describe('Dateiformat mit Zweiunddreißigsteln (thirty-second-notes)', () => {
   it('Rundlauf mit Unterteilung 8 bei Schemaversion 3', () => {
     const songs = [rollSong()];
     const file = serializeNotebook(songs, NOW);
-    expect(JSON.parse(file).schemaVersion).toBe(3);
+    expect(JSON.parse(file).schemaVersion).toBe(4);
     expect(parseNotebookFile(file)).toEqual(imported(songs));
   });
 

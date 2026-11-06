@@ -1,3 +1,4 @@
+import { CHOKE_AFTER, CHOKE_FADE, type Technique } from '../domain/playback';
 import type { Instrument } from '../domain/types';
 import type { Voices } from './scheduler';
 
@@ -44,6 +45,23 @@ export const RECIPES: Record<Instrument, Layer[]> = {
   crash: [
     { wave: 'noise', filter: { type: 'highpass', frequency: 4000 }, level: 0.55, decay: 1.5 },
     { wave: 'square', frequency: 540, filter: { type: 'highpass', frequency: 6000 }, level: 0.08, decay: 1 },
+  ],
+};
+
+/** Rezepturen der Spielweisen mit eigenem Klang; ein Choke nutzt die Rezeptur des Instruments. */
+export const TECHNIQUE_RECIPES: Record<Exclude<Technique, 'choke'>, Layer[]> = {
+  rim: [
+    { wave: 'triangle', frequency: 200, endFrequency: 160, level: 0.5, decay: 0.12 },
+    { wave: 'noise', filter: { type: 'bandpass', frequency: 1800, q: 0.8 }, level: 0.9, decay: 0.18 },
+    { wave: 'noise', filter: { type: 'highpass', frequency: 3500 }, level: 0.5, decay: 0.05 },
+  ],
+  cross: [
+    { wave: 'square', frequency: 1100, filter: { type: 'bandpass', frequency: 2000, q: 2 }, level: 0.3, decay: 0.04 },
+    { wave: 'noise', filter: { type: 'bandpass', frequency: 3500, q: 1 }, level: 0.25, decay: 0.03 },
+  ],
+  bell: [
+    { wave: 'square', frequency: 800, filter: { type: 'bandpass', frequency: 3000, q: 1.5 }, level: 0.22, decay: 0.7 },
+    { wave: 'square', frequency: 1190, filter: { type: 'bandpass', frequency: 3000, q: 1.5 }, level: 0.16, decay: 0.6 },
   ],
 };
 
@@ -102,7 +120,7 @@ export function createVoices(ctx: BaseAudioContext): Voices {
   };
 
   return {
-    trigger(instrument, time, gain) {
+    trigger(instrument, time, gain, technique) {
       if (openHat && CHOKERS.includes(instrument) && time > openHat.time) {
         for (const envelope of openHat.envelopes) {
           envelope.gain.cancelScheduledValues(time);
@@ -110,7 +128,9 @@ export function createVoices(ctx: BaseAudioContext): Voices {
         }
         openHat = null;
       }
-      const envelopes = RECIPES[instrument].map((layer) => playLayer(layer, time, gain));
+      const recipe = technique && technique !== 'choke' ? TECHNIQUE_RECIPES[technique] : RECIPES[instrument];
+      const envelopes = recipe.map((layer) => playLayer(layer, time, gain));
+      if (technique === 'choke') for (const envelope of envelopes) envelope.gain.setTargetAtTime(0, time + CHOKE_AFTER, CHOKE_FADE);
       if (instrument === 'hihatOpen') openHat = { time, envelopes };
     },
     silence() {

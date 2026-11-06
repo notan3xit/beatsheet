@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLAM_GRACE_GAIN, FLAM_GRACE_SECONDS, patternTimeline, type Timeline } from '../domain/playback';
+import { DRAG_GRACES, EMPHASIS_GAIN, FLAM_GRACES, GRACE_GAIN, patternTimeline, type Timeline } from '../domain/playback';
 import type { Instrument, Pattern } from '../domain/types';
 import { patternOf } from '../test/patterns';
 import { createScheduler, START_DELAY } from './scheduler';
@@ -20,7 +20,7 @@ function setup(initial: Pattern, initialTempo = 120, options: { loop?: boolean; 
   const source = { current: initial, tempo: initialTempo };
   const scheduler = createScheduler(
     {
-      trigger: (instrument, time, gain) => triggers.push({ instrument, time, gain }),
+      trigger: (instrument, time, gain, technique) => triggers.push({ instrument, time, gain, ...(technique ? { technique } : {}) }),
       silence: () => silenced++,
     },
     {
@@ -127,9 +127,38 @@ describe('Spec pattern-playback › Zeitliche Lage der Schläge', () => {
     const t = setup(pattern);
     t.start();
     expect(t.triggers.slice(0, 2)).toEqual([
-      { instrument: 'tom1', time: expect.closeTo(S - FLAM_GRACE_SECONDS, 9), gain: FLAM_GRACE_GAIN },
+      { instrument: 'tom1', time: expect.closeTo(S - FLAM_GRACES[0]!, 9), gain: GRACE_GAIN },
       { instrument: 'tom1', time: S, gain: 1 },
     ]);
+  });
+
+  it('Drag auf dem ersten Schlag: beide Vorschläge liegen in der Zukunft', () => {
+    const pattern = patternOf([{ hits: { snare: [1] } }]);
+    pattern.beats[0] = { ...pattern.beats[0]!, articulations: { snare: { 0: 'drag' } } };
+    const t = setup(pattern);
+    t.start();
+    expect(t.triggers.slice(0, 3)).toEqual([
+      { instrument: 'snare', time: expect.closeTo(S - DRAG_GRACES[0]!, 9), gain: GRACE_GAIN },
+      { instrument: 'snare', time: expect.closeTo(S - DRAG_GRACES[1]!, 9), gain: GRACE_GAIN },
+      { instrument: 'snare', time: S, gain: 1 },
+    ]);
+    expect(S - DRAG_GRACES[0]!).toBeGreaterThan(0);
+  });
+
+  it('Betonter Flam: Vorschlag so leise wie sonst', () => {
+    const pattern = patternOf([{ hits: { snare: [1] } }]);
+    pattern.beats[0] = { ...pattern.beats[0]!, articulations: { snare: { 0: 'flam' } }, emphasis: { snare: [0] } };
+    const t = setup(pattern);
+    t.start();
+    expect(t.triggers.slice(0, 2).map((x) => x.gain)).toEqual([GRACE_GAIN, EMPHASIS_GAIN]);
+  });
+
+  it('Klangvariante erreicht die Stimmen', () => {
+    const pattern = patternOf([{ hits: { snare: [1] } }]);
+    pattern.beats[0] = { ...pattern.beats[0]!, articulations: { snare: { 0: 'rim' } } };
+    const t = setup(pattern);
+    t.start();
+    expect(t.triggers[0]).toEqual({ instrument: 'snare', time: S, gain: 1, technique: 'rim' });
   });
 });
 

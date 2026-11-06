@@ -13,5 +13,5 @@ function format(name: string, extension: string): SampleFormat {
   return { name, urls };
 }
 
-/** DRSKit-Aufnahmen in Reihenfolge des Versuchs: Opus, dann AAC. */
+/** DRSKit-Aufnahmen der Instrumente und Spielweisen in Reihenfolge des Versuchs: Opus, dann AAC. */
 export const DRS_FORMATS: readonly SampleFormat[] = [format('opus', 'webm'), format('aac', 'm4a')];

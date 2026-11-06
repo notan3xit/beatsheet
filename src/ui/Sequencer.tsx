@@ -1,5 +1,5 @@
 import type { Step } from '../domain/playback';
-import { articulationAt, changeSubdivision, cycleArticulation, toggleHit } from '../domain/sequencer';
+import { articulationAt, changeSubdivision, cycleArticulation, emphasisAt, toggleEmphasis, toggleHit } from '../domain/sequencer';
 import {
   ARTICULATION_LABELS,
   INSTRUMENT_LABELS,
@@ -83,7 +83,12 @@ export function Sequencer({
               {Array.from({ length: beat.subdivision }, (_, position) => {
                 const active = beat.hits[instrument]?.includes(position) ?? false;
                 const articulation = articulationAt(beat, instrument, position);
-                const label = `${INSTRUMENT_LABELS[instrument]}, Beat ${b + 1}, Position ${position + 1}`;
+                const emphasized = emphasisAt(beat, instrument, position);
+                const label = [
+                  `${INSTRUMENT_LABELS[instrument]}, Beat ${b + 1}, Position ${position + 1}`,
+                  ...(articulation ? [ARTICULATION_LABELS[articulation]] : []),
+                  ...(emphasized ? ['betont'] : []),
+                ].join(', ');
                 return (
                   <button
                     type="button"
@@ -93,14 +98,14 @@ export function Sequencer({
                       playhead?.beat === b && playhead.position === position ? ' playing' : ''
                     }`}
                     aria-pressed={active}
-                    aria-label={articulation ? `${label}, ${ARTICULATION_LABELS[articulation]}` : label}
+                    aria-label={label}
                     data-articulation={articulation}
-                    // Klick: Schlag an/aus; Shift-Klick: Spielweise durchschalten (nur Snare und Toms)
-                    onClick={(e) =>
-                      store.update(pattern.id, (p) =>
-                        e.shiftKey ? cycleArticulation(p, b, instrument, position) : toggleHit(p, b, instrument, position),
-                      )
-                    }
+                    data-emphasis={emphasized || undefined}
+                    // Klick: Schlag an/aus; Shift-Klick: Spielweise durchschalten; Strg-/Cmd-Klick: Betonung an/aus
+                    onClick={(e) => {
+                      const change = e.ctrlKey || e.metaKey ? toggleEmphasis : e.shiftKey ? cycleArticulation : toggleHit;
+                      store.update(pattern.id, (p) => change(p, b, instrument, position));
+                    }}
                   />
                 );
               })}

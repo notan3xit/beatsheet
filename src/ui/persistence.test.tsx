@@ -19,7 +19,7 @@ function setup(songs: Song[] = [], storagePersisted = true) {
 
 const fileOf = (content: string) => new File([content], 'backup.drumbook.json', { type: 'application/json' });
 
-const exportOf = (songs: Song[], schemaVersion = 3) =>
+const exportOf = (songs: Song[], schemaVersion = 4) =>
   JSON.stringify({ ...JSON.parse(serializeNotebook(songs, new Date())), schemaVersion });
 
 const version = (song: Song, revision: number, title = song.title): Song => ({ ...song, revision, title });
@@ -115,7 +115,7 @@ describe('Spec library-persistence › Import einer Bibliothek (UI)', () => {
 describe('Spec library-persistence › Import aus einer neueren Version (UI)', () => {
   it('Warnung vor der Übernahme', async () => {
     const { store, user } = setup();
-    const dialog = await openImport(user, exportOf([songWith({ title: 'Zukunft' })], 4));
+    const dialog = await openImport(user, exportOf([songWith({ title: 'Zukunft' })], 5));
     expect(dialog).toHaveTextContent(/neueren Version/);
     expect(store.getState().songs).toEqual([]);
     await confirm(user, dialog);
@@ -125,14 +125,14 @@ describe('Spec library-persistence › Import aus einer neueren Version (UI)', (
   it('Vorhandener Song aus neuerer Version', async () => {
     const base = songWith({ title: 'Hysteria' });
     const { user } = setup([version(base, 2)]);
-    const dialog = await openImport(user, exportOf([version(base, 5)], 4));
+    const dialog = await openImport(user, exportOf([version(base, 5)], 5));
     expect(option(dialog, 'Hysteria', 'Als Kopie')).toBeChecked();
   });
 
   it('Abbrechen nach der Warnung', async () => {
     const local = [songWith({ title: 'Lokal' })];
     const { store, user } = setup(local);
-    const dialog = await openImport(user, exportOf([songWith({ title: 'Zukunft' }), version(local[0]!, 9)], 4));
+    const dialog = await openImport(user, exportOf([songWith({ title: 'Zukunft' }), version(local[0]!, 9)], 5));
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(store.getState().songs).toEqual(local);
@@ -173,7 +173,7 @@ describe('Spec library-persistence › Auswahl im Import-Dialog (UI)', () => {
   it('Import abbrechen', async () => {
     const local = [songWith({ title: 'A' })];
     const { store, user } = setup(local);
-    const dialog = await openImport(user, exportOf([version(local[0]!, 4), songWith({ title: 'Neu' })]));
+    const dialog = await openImport(user, exportOf([version(local[0]!, 5), songWith({ title: 'Neu' })]));
     await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(store.getState().songs).toEqual(local);
@@ -227,7 +227,7 @@ describe('Spec library-persistence › Import von Dateien der Schemaversion 1 (U
 describe('Spec library-persistence › Ungültige Importdateien (UI)', () => {
   it('Neuere Schemaversion', async () => {
     const { user } = setup();
-    const dialog = await openImport(user, exportOf([songWith({ title: 'Zukunft' })], 4));
+    const dialog = await openImport(user, exportOf([songWith({ title: 'Zukunft' })], 5));
     expect(dialog).toHaveTextContent(/neueren Version/);
     expect(screen.queryByText(/Import fehlgeschlagen/)).not.toBeInTheDocument();
   });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { INSTRUMENTS, type Instrument } from '../domain/types';
 import { FakeAudioContext, FakeSource, type FakeGain, type FakeNode } from '../test/fakeAudio';
-import { createVoices, RECIPES } from './voices';
+import { createVoices, RECIPES, TECHNIQUE_RECIPES } from './voices';
 
 function setup() {
   const ctx = new FakeAudioContext();
@@ -104,5 +104,42 @@ describe('Spec pattern-playback › Wiedergabe stoppen', () => {
       node === ctx.destination || (node.outputs as FakeNode[]).some(reachesDestination);
     expect(ctx.sourcesAt(1).every(reachesDestination)).toBe(true);
     expect(ctx.sourcesAt(0.05).some(reachesDestination)).toBe(false);
+  });
+});
+
+describe('Spec pattern-playback › Klang der Spielweisen (Synth)', () => {
+  const key = (layers: unknown) => JSON.stringify(layers);
+
+  it('Rim Shot, Cross-Stick und Glocke haben eigene Rezepturen', () => {
+    expect(key(TECHNIQUE_RECIPES.rim)).not.toBe(key(RECIPES.snare));
+    expect(key(TECHNIQUE_RECIPES.cross)).not.toBe(key(RECIPES.snare));
+    expect(key(TECHNIQUE_RECIPES.cross)).not.toBe(key(TECHNIQUE_RECIPES.rim));
+    expect(key(TECHNIQUE_RECIPES.bell)).not.toBe(key(RECIPES.ride));
+  });
+
+  it('Rim Shot ist lauter, Cross-Stick leiser und kürzer als die Snare', () => {
+    const total = (layers: { level: number }[]) => layers.reduce((sum, l) => sum + l.level, 0);
+    const longest = (layers: { decay: number }[]) => Math.max(...layers.map((l) => l.decay));
+    expect(total(TECHNIQUE_RECIPES.rim)).toBeGreaterThan(total(RECIPES.snare));
+    expect(total(TECHNIQUE_RECIPES.cross)).toBeLessThan(total(RECIPES.snare));
+    expect(longest(TECHNIQUE_RECIPES.cross)).toBeLessThan(longest(RECIPES.snare));
+  });
+
+  it.each([
+    ['snare', 'rim'],
+    ['snare', 'cross'],
+    ['ride', 'bell'],
+  ] as const)('%s mit %s spielt die eigene Rezeptur', (instrument, technique) => {
+    const { ctx, voices } = setup();
+    voices.trigger(instrument, 1, 1, technique);
+    expect(ctx.sourcesAt(1)).toHaveLength(TECHNIQUE_RECIPES[technique].length);
+  });
+
+  it('Choke: jede Schicht der Crash endet kurz nach dem Einsatz', () => {
+    const { ctx, voices } = setup();
+    voices.trigger('crash', 1, 1, 'choke');
+    for (const envelope of envelopesAt(ctx, 1)) {
+      expect(envelope.gain.events.at(-1)).toMatchObject({ type: 'target', value: 0, time: expect.closeTo(1.12, 9) });
+    }
   });
 });

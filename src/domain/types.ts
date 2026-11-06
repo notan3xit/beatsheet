@@ -44,23 +44,42 @@ export const SUBDIVISION_LABELS: Record<Subdivision, string> = {
 };
 
 /** Spielweise eines Schlags; fehlt sie, wird normal gespielt. */
-export const ARTICULATIONS = ['flam', 'ghost'] as const;
+export const ARTICULATIONS = ['flam', 'drag', 'ghost', 'rim', 'cross', 'bell', 'choke'] as const;
 export type Articulation = (typeof ARTICULATIONS)[number];
 
-export const ARTICULATION_LABELS: Record<Articulation, string> = { flam: 'Flam', ghost: 'Ghost Note' };
+export const ARTICULATION_LABELS: Record<Articulation, string> = {
+  flam: 'Flam',
+  drag: 'Drag',
+  ghost: 'Ghost Note',
+  rim: 'Rim Shot',
+  cross: 'Cross-Stick',
+  bell: 'Glocke',
+  choke: 'Choke',
+};
 
-/** Instrumente, deren Schläge eine Spielweise haben können. */
-export const ARTICULATED: readonly Instrument[] = ['snare', 'tom1', 'tom2', 'floorTom'];
+const DRUM_ARTICULATIONS = ['flam', 'drag', 'ghost'] as const;
+
+/** Zulässige Spielweisen je Instrument in der Reihenfolge des Durchschaltens; fehlende Instrumente haben keine. */
+export const ARTICULATIONS_BY_INSTRUMENT: Partial<Record<Instrument, readonly Articulation[]>> = {
+  snare: [...DRUM_ARTICULATIONS, 'rim', 'cross'],
+  tom1: DRUM_ARTICULATIONS,
+  tom2: DRUM_ARTICULATIONS,
+  floorTom: DRUM_ARTICULATIONS,
+  ride: ['bell'],
+  crash: ['choke'],
+};
 
 export interface Beat {
   subdivision: Subdivision;
   /** 0-basierte Positionen je Instrument, sortiert und eindeutig. */
   hits: Partial<Record<Instrument, number[]>>;
   /**
-   * Spielweise je Instrument und Position (nur für gesetzte Schläge aus ARTICULATED).
+   * Spielweise je Instrument und Position (nur für gesetzte Schläge, nur zulässige Werte).
    * Fehlt das Feld oder ein Eintrag, wird normal gespielt; leere Einträge werden entfernt.
    */
   articulations?: Partial<Record<Instrument, Record<number, Articulation>>>;
+  /** Betonte Positionen je Instrument, sortiert (nur gesetzte Schläge, keine Ghost Notes); leere Einträge werden entfernt. */
+  emphasis?: Partial<Record<Instrument, number[]>>;
 }
 
 export type PatternKind = 'groove' | 'fill';

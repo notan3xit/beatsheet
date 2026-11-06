@@ -85,7 +85,8 @@ export class FakeAudioContext {
     return this.track(Object.assign(new FakeNode('biquad'), { type: 'lowpass', frequency: new FakeParam(350), Q: new FakeParam(1) }));
   }
   createDynamicsCompressor() {
-    return this.track(new FakeNode('compressor'));
+    const params = { threshold: new FakeParam(), knee: new FakeParam(), ratio: new FakeParam(), attack: new FakeParam(), release: new FakeParam() };
+    return this.track(Object.assign(new FakeNode('compressor'), params));
   }
   createBuffer(channels: number, length: number, sampleRate: number) {
     const data = Array.from({ length: channels }, () => new Float32Array(length));

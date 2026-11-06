@@ -183,14 +183,17 @@ describe('Spec pattern-sequencer › Spielweise eines Schlags (UI)', () => {
   it('Spielweise durchschalten', async () => {
     const { user, current } = setup(patternOf([{ hits: { snare: [1] } }]));
     const seen: [string | null, string][] = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 6; i++) {
       await shiftClick(user, cellAt('Snare', 1, 1));
       const el = cellAt('Snare', 1, 1);
       seen.push([el.getAttribute('data-articulation'), el.getAttribute('aria-label')!]);
     }
     expect(seen).toEqual([
       ['flam', 'Snare, Beat 1, Position 1, Flam'],
+      ['drag', 'Snare, Beat 1, Position 1, Drag'],
       ['ghost', 'Snare, Beat 1, Position 1, Ghost Note'],
+      ['rim', 'Snare, Beat 1, Position 1, Rim Shot'],
+      ['cross', 'Snare, Beat 1, Position 1, Cross-Stick'],
       [null, 'Snare, Beat 1, Position 1'],
     ]);
     expect(current().beats[0]!.hits.snare).toEqual([0]);
@@ -214,10 +217,25 @@ describe('Spec pattern-sequencer › Spielweise eines Schlags (UI)', () => {
 
   it('Anzeige in der Zelle', async () => {
     const { user } = setup(patternOf([{ hits: { snare: [1] } }]));
-    await shiftClick(user, cellAt('Snare', 1, 1));
-    await shiftClick(user, cellAt('Snare', 1, 1));
+    for (let i = 0; i < 3; i++) await shiftClick(user, cellAt('Snare', 1, 1));
     expect(cellAt('Snare', 1, 1)).toHaveAccessibleName(/Ghost Note$/);
     expect(cellAt('Snare', 1, 1)).toHaveAttribute('data-articulation', 'ghost');
+  });
+
+  it('Glocke auf der Ride', async () => {
+    const { user } = setup(patternOf([{ hits: { ride: [1] } }]));
+    await shiftClick(user, cellAt('Ride', 1, 1));
+    expect(cellAt('Ride', 1, 1)).toHaveAttribute('data-articulation', 'bell');
+    expect(cellAt('Ride', 1, 1)).toHaveAccessibleName(/Glocke$/);
+    await shiftClick(user, cellAt('Ride', 1, 1));
+    expect(cellAt('Ride', 1, 1)).not.toHaveAttribute('data-articulation');
+  });
+
+  it('Choke auf leerer Crash-Zelle', async () => {
+    const { user, current } = setup(patternOf(emptyBeats(1)));
+    await shiftClick(user, cellAt('Crash', 1, 2));
+    expect(current().beats[0]).toEqual({ subdivision: 4, hits: { crash: [1] }, articulations: { crash: { 1: 'choke' } } });
+    expect(cellAt('Crash', 1, 2)).toHaveAttribute('data-articulation', 'choke');
   });
 
   it('Rückgängig nach Shift-Klick', async () => {
@@ -226,5 +244,64 @@ describe('Spec pattern-sequencer › Spielweise eines Schlags (UI)', () => {
     await user.click(screen.getByRole('button', { name: 'Rückgängig' }));
     expect(current().beats[0]).toEqual({ subdivision: 4, hits: { snare: [0] } });
     expect(cellAt('Snare', 1, 1)).not.toHaveAttribute('data-articulation');
+  });
+});
+
+describe('Spec pattern-sequencer › Betonung eines Schlags (UI)', () => {
+  const cellAt = (instrument: string, beat: number, position: number) =>
+    within(grid()).getByRole('button', { name: new RegExp(`^${instrument}, Beat ${beat}, Position ${position}(,|$)`) });
+  const clickWith = async (user: ReturnType<typeof userEvent.setup>, key: string, el: HTMLElement) => {
+    await user.keyboard(`{${key}>}`);
+    await user.click(el);
+    await user.keyboard(`{/${key}}`);
+  };
+
+  it('Betonung umschalten', async () => {
+    const { user, current } = setup(patternOf([{ hits: { hihat: [1] } }]));
+    await clickWith(user, 'Control', cellAt('Hi-Hat \\(geschlossen\\)', 1, 1));
+    expect(current().beats[0]!.emphasis).toEqual({ hihat: [0] });
+    expect(cellAt('Hi-Hat \\(geschlossen\\)', 1, 1)).toHaveAttribute('data-emphasis', 'true');
+    await clickWith(user, 'Control', cellAt('Hi-Hat \\(geschlossen\\)', 1, 1));
+    expect(current().beats[0]!.emphasis).toBeUndefined();
+    expect(cellAt('Hi-Hat \\(geschlossen\\)', 1, 1)).not.toHaveAttribute('data-emphasis');
+  });
+
+  it('Mit Cmd auf dem Mac', async () => {
+    const { user, current } = setup(patternOf([{ hits: { hihat: [1] } }]));
+    await clickWith(user, 'Meta', cellAt('Hi-Hat \\(geschlossen\\)', 1, 1));
+    expect(current().beats[0]!.emphasis).toEqual({ hihat: [0] });
+  });
+
+  it('Leere Zelle', async () => {
+    const { user, current } = setup(patternOf(emptyBeats(1)));
+    await clickWith(user, 'Control', cellAt('Bassdrum', 1, 1));
+    expect(current().beats[0]).toEqual({ subdivision: 4, hits: { kick: [0] }, emphasis: { kick: [0] } });
+    expect(cellAt('Bassdrum', 1, 1)).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Anzeige in der Zelle', async () => {
+    const { user } = setup(patternOf([{ hits: { snare: [1] } }]));
+    for (let i = 0; i < 4; i++) {
+      await user.keyboard('{Shift>}');
+      await user.click(cellAt('Snare', 1, 1));
+      await user.keyboard('{/Shift}');
+    }
+    await clickWith(user, 'Control', cellAt('Snare', 1, 1));
+    expect(cellAt('Snare', 1, 1)).toHaveAttribute('data-articulation', 'rim');
+    expect(cellAt('Snare', 1, 1)).toHaveAttribute('data-emphasis', 'true');
+    expect(cellAt('Snare', 1, 1)).toHaveAccessibleName('Snare, Beat 1, Position 1, Rim Shot, betont');
+  });
+
+  it('Betonung ohne Spielweise im zugänglichen Namen', async () => {
+    const { user } = setup(patternOf([{ hits: { kick: [1] } }]));
+    await clickWith(user, 'Control', cellAt('Bassdrum', 1, 1));
+    expect(cellAt('Bassdrum', 1, 1)).toHaveAccessibleName('Bassdrum, Beat 1, Position 1, betont');
+  });
+
+  it('Rückgängig nach Strg-Klick', async () => {
+    const { user, current } = setup(patternOf([{ hits: { kick: [1] } }]));
+    await clickWith(user, 'Control', cellAt('Bassdrum', 1, 1));
+    await user.click(screen.getByRole('button', { name: 'Rückgängig' }));
+    expect(current().beats[0]).toEqual({ subdivision: 4, hits: { kick: [0] } });
   });
 });

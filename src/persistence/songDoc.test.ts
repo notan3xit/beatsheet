@@ -1,7 +1,7 @@
 import * as A from '@automerge/automerge/slim';
 import { describe, expect, it } from 'vitest';
 import { createPattern, resizePattern, touch } from '../domain/pattern';
-import { cycleArticulation, toggleHit } from '../domain/sequencer';
+import { cycleArticulation, toggleEmphasis, toggleHit } from '../domain/sequencer';
 import { removePattern } from '../domain/songPatterns';
 import { addAccent, appendSegment, changeBarLength, setBarProps } from '../domain/structure';
 import type { Instrument, Pattern, Song } from '../domain/types';
@@ -78,6 +78,25 @@ describe('Spec song-merge › Änderungen an verschiedenen Stellen zusammenführ
     expect(firstBeat(song).hits).toEqual({ snare: [0], hihat: [0] });
   });
 
+  it('Verschiedene Betonungen im selben Beat', () => {
+    const withHits = editPattern(editPattern(createSongDoc(baseSong()), 'Verse', hit('kick', 0)), 'Verse', hit('snare', 2));
+    const [a, b] = [A.clone(withHits), A.clone(withHits)];
+    const changedA = editPattern(a, 'Verse', (p) => toggleEmphasis(p, 0, 'kick', 0));
+    const changedB = editPattern(b, 'Verse', (p) => toggleEmphasis(p, 0, 'snare', 2));
+    expect(firstBeat(merged(changedA, changedB)).emphasis).toEqual({ kick: [0], snare: [2] });
+    expect(songOf(mergeSongDocs(changedA, changedB))).toEqual(songOf(mergeSongDocs(changedB, changedA)));
+  });
+
+  it('Verschiedene Spielweisen im selben Beat', () => {
+    const withHits = editPattern(editPattern(createSongDoc(baseSong()), 'Verse', hit('ride', 0)), 'Verse', hit('crash', 0));
+    const [a, b] = [A.clone(withHits), A.clone(withHits)];
+    const song = merged(
+      editPattern(a, 'Verse', (p) => cycleArticulation(p, 0, 'ride', 0)),
+      editPattern(b, 'Verse', (p) => cycleArticulation(p, 0, 'crash', 0)),
+    );
+    expect(firstBeat(song).articulations).toEqual({ ride: { 0: 'bell' }, crash: { 0: 'choke' } });
+  });
+
   it('Reihenfolge des Zusammenführens', () => {
     const [a, b] = forks();
     const changedA = edit(editPattern(a, 'Verse', hit('snare', 2)), (s) => ({ ...s, tempo: 96 }));
@@ -130,6 +149,28 @@ describe('Spec song-merge › Fachliche Gültigkeit nach dem Zusammenführen', (
       editPattern(b, 'Verse', (p) => cycleArticulation(p, 0, 'snare', 1)),
     );
     expect(firstBeat(song)).toEqual({ subdivision: 4, hits: {} });
+  });
+
+  it('Betonung ohne Schlag', () => {
+    const withSnare = editPattern(createSongDoc(baseSong()), 'Verse', hit('snare', 1));
+    const [a, b] = [A.clone(withSnare), A.clone(withSnare)];
+    const song = merged(
+      editPattern(a, 'Verse', hit('snare', 1)),
+      editPattern(b, 'Verse', (p) => toggleEmphasis(p, 0, 'snare', 1)),
+    );
+    expect(firstBeat(song)).toEqual({ subdivision: 4, hits: {} });
+  });
+
+  it('Betonung und Ghost Note', () => {
+    const withSnare = editPattern(createSongDoc(baseSong()), 'Verse', hit('snare', 1));
+    const [a, b] = [A.clone(withSnare), A.clone(withSnare)];
+    const toGhost = (p: Pattern) => [0, 1, 2].reduce((next) => cycleArticulation(next, 0, 'snare', 1), p);
+    const song = merged(
+      editPattern(a, 'Verse', (p) => toggleEmphasis(p, 0, 'snare', 1)),
+      editPattern(b, 'Verse', toGhost),
+    );
+    expect(firstBeat(song)).toEqual({ subdivision: 4, hits: { snare: [1] }, articulations: { snare: { 1: 'ghost' } } });
+    expect(parseNotebookFile(serializeNotebook([song], NOW)).ok).toBe(true);
   });
 
   it('Offene und geschlossene Hi-Hat an derselben Position', () => {
@@ -212,6 +253,26 @@ describe('Dokumentform und Brücke (design.md D3, D4)', () => {
   it('übersteht Speichern und Laden', () => {
     const song = richSong();
     expect(songOf(A.load(A.save(createSongDoc(song))))).toEqual(song);
+  });
+
+  it('ein Song ohne neue Felder hat die Dokumentform der Vorversion', () => {
+    const beat = toDocShape(baseSong()).patterns[0]!.beats[0]!;
+    expect(Object.keys(beat).sort()).toEqual(['articulations', 'hits', 'subdivision']);
+    expect(Object.keys(beat.articulations).sort()).toEqual(['floorTom', 'snare', 'tom1', 'tom2']);
+  });
+
+  it('Betonungen und Spielweisen von Ride und Crash überstehen das Dokument', () => {
+    const song = baseSong();
+    const beat = {
+      subdivision: 4 as const,
+      hits: { snare: [0], ride: [1], crash: [2] },
+      articulations: { snare: { 0: 'rim' as const }, ride: { 1: 'bell' as const }, crash: { 2: 'choke' as const } },
+      emphasis: { snare: [0], ride: [1] },
+    };
+    const changed = { ...song, patterns: song.patterns.map((p, i) => (i === 0 ? { ...p, beats: [beat, ...p.beats.slice(1)] } : p)) };
+    const doc = createSongDoc(changed);
+    expect(firstBeat(songOf(doc))).toEqual(beat);
+    expect(A.getHeads(applySong(doc, songOf(doc)))).toEqual(A.getHeads(doc));
   });
 
   it('ein unveränderter Song erzeugt keine Änderung', () => {

@@ -1,12 +1,12 @@
-import { FLAM_GRACE_GAIN, type Timeline } from '../domain/playback';
+import { GRACE_GAIN, type Technique, type Timeline } from '../domain/playback';
 import type { Instrument } from '../domain/types';
 
 /** Wie weit im Voraus Schläge an die Audio-Uhr übergeben werden (pattern-playback, design.md D4). */
-export const LOOKAHEAD = 0.1;
+export const LOOKAHEAD = 0.12;
 /** Abstand der Planungsschritte in Millisekunden. */
 export const TICK_MS = 25;
-/** Abstand zwischen Start und erstem Schlag, damit auch ein Flam-Vorschlag noch in der Zukunft liegt. */
-export const START_DELAY = 0.05;
+/** Abstand zwischen Start und erstem Schlag, damit auch die Vorschläge noch in der Zukunft liegen. */
+export const START_DELAY = 0.1;
 
 /**
  * Liefert bei jedem Planungsschritt den aktuellen Stand; so sind Änderungen ohne Neustart hörbar
@@ -27,8 +27,8 @@ export interface PlaybackState {
 }
 
 export interface Voices {
-  /** Schlag eines Instruments zur Audiozeit `time` mit Pegel `gain` (normal 1). */
-  trigger(instrument: Instrument, time: number, gain: number): void;
+  /** Schlag eines Instruments zur Audiozeit `time` mit Pegel `gain` (normal 1) und optionaler Klangvariante. */
+  trigger(instrument: Instrument, time: number, gain: number, technique?: Technique): void;
   /** Bereits geplante Klänge sofort verstummen lassen. */
   silence(): void;
 }
@@ -102,8 +102,8 @@ export function createScheduler(voices: Voices, deps: SchedulerDeps): Scheduler 
       for (const hit of timeline.hits) {
         if (!inWindow(hit.at)) continue;
         const time = timeOf(hit.at);
-        if (hit.graceBefore) voices.trigger(hit.instrument, time - hit.graceBefore, hit.gain * FLAM_GRACE_GAIN);
-        voices.trigger(hit.instrument, time, hit.gain);
+        for (const grace of hit.graces ?? []) voices.trigger(hit.instrument, time - grace, GRACE_GAIN);
+        voices.trigger(hit.instrument, time, hit.gain, hit.technique);
       }
       for (const { at, mark } of timeline.marks) {
         if (inWindow(at)) marks.push({ time: timeOf(at), mark });

@@ -1,8 +1,9 @@
 import { isValidMeter } from './meter';
 import { emptyBeat } from './pattern';
 import {
-  ARTICULATED,
+  ARTICULATIONS_BY_INSTRUMENT,
   MAX_LENGTH,
+  type Articulation,
   type Bar,
   type Beat,
   type Instrument,
@@ -33,17 +34,32 @@ function normalizeBeat(beat: Beat): Beat {
   }
 
   const articulations: NonNullable<Beat['articulations']> = {};
-  for (const [instrument, byPosition] of Object.entries(beat.articulations ?? {}) as [Instrument, Record<number, string>][]) {
-    const set = ARTICULATED.includes(instrument) ? (hits[instrument] ?? []) : [];
-    const kept = Object.fromEntries(Object.entries(byPosition).filter(([p]) => set.includes(Number(p))));
+  for (const [instrument, byPosition] of Object.entries(beat.articulations ?? {}) as [Instrument, Record<number, Articulation>][]) {
+    const set = hits[instrument] ?? [];
+    const allowed = ARTICULATIONS_BY_INSTRUMENT[instrument] ?? [];
+    const kept = Object.fromEntries(Object.entries(byPosition).filter(([p, value]) => set.includes(Number(p)) && allowed.includes(value)));
     if (Object.keys(kept).length !== Object.keys(byPosition).length) changed = true;
-    if (Object.keys(kept).length > 0) articulations[instrument] = kept as NonNullable<Beat['articulations']>[Instrument];
+    if (Object.keys(kept).length > 0) articulations[instrument] = kept;
   }
   if (beat.articulations && Object.keys(articulations).length === 0) changed = true;
 
+  // Betonung nur auf gesetzten Schlägen; bei Widerspruch gewinnt die Ghost Note
+  const emphasis: NonNullable<Beat['emphasis']> = {};
+  for (const [instrument, positions] of Object.entries(beat.emphasis ?? {}) as [Instrument, number[]][]) {
+    const kept = positions.filter((p) => (hits[instrument] ?? []).includes(p) && articulations[instrument]?.[p] !== 'ghost');
+    if (kept.length !== positions.length) changed = true;
+    if (kept.length > 0) emphasis[instrument] = kept;
+  }
+  if (beat.emphasis && Object.keys(emphasis).length === 0) changed = true;
+
   if (!changed) return beat;
-  const { articulations: _old, ...rest } = beat;
-  return Object.keys(articulations).length > 0 ? { ...rest, hits, articulations } : { ...rest, hits };
+  const { articulations: _articulations, emphasis: _emphasis, ...rest } = beat;
+  return {
+    ...rest,
+    hits,
+    ...(Object.keys(articulations).length > 0 ? { articulations } : {}),
+    ...(Object.keys(emphasis).length > 0 ? { emphasis } : {}),
+  };
 }
 
 function normalizePattern(pattern: Pattern): Pattern {

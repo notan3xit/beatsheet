@@ -1,10 +1,13 @@
 import { INSTRUMENTS, type Instrument } from '../domain/types';
 
 export type SampleLevel = 'normal' | 'soft';
-export type SampleKey = `${Instrument}-${SampleLevel}`;
-export const SAMPLE_KEYS: readonly SampleKey[] = INSTRUMENTS.flatMap((instrument) =>
-  (['normal', 'soft'] as const).map((level): SampleKey => `${instrument}-${level}`),
-);
+/** Aufnahmen der Spielweisen mit eigenem Klang. */
+export const TECHNIQUE_SAMPLES = { rim: 'snare-rim', cross: 'snare-cross', bell: 'ride-bell' } as const;
+export type SampleKey = `${Instrument}-${SampleLevel}` | (typeof TECHNIQUE_SAMPLES)[keyof typeof TECHNIQUE_SAMPLES];
+export const SAMPLE_KEYS: readonly SampleKey[] = [
+  ...INSTRUMENTS.flatMap((instrument) => (['normal', 'soft'] as const).map((level): SampleKey => `${instrument}-${level}`)),
+  ...Object.values(TECHNIQUE_SAMPLES),
+];
 
 /** Ein Satz Aufnahmen in einem Format: URL je Aufnahme. */
 export interface SampleFormat {

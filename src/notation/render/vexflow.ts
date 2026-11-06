@@ -9,11 +9,13 @@ import {
   ModifierPosition,
   Parenthesis,
   Renderer,
+  type RenderContext,
   Stave,
   StaveNote,
   Tuplet,
   Voice,
 } from 'vexflow';
+import type { Articulation } from '../../domain/types';
 import type { BeatGroup, Measure, NotationEvent, NotationModel, NoteKey, VoiceName } from '../model';
 
 // Systemschritt 0 = Linie 1 = e/4 (Percussion-Schlüssel wie Violinschlüssel)
@@ -52,7 +54,13 @@ export const CARD_SCALE = 0.55;
 /** Rand um das zugeschnittene Notenbild der Karten, in SVG-Einheiten. */
 const CARD_TRIM_MARGIN = 4;
 
-const vexKey = (k: NoteKey) => `${pitchOf(k.staffStep)}${k.notehead === 'x' ? '/x2' : ''}`;
+/** Notenköpfe, die eine Spielweise vorgibt. */
+const ARTICULATION_HEADS: Partial<Record<Articulation, string>> = { rim: 'sf', cross: 'x2', bell: 'd2' };
+
+const vexKey = (k: NoteKey) => {
+  const head = (k.articulation && ARTICULATION_HEADS[k.articulation]) ?? (k.notehead === 'x' ? 'x2' : '');
+  return `${pitchOf(k.staffStep)}${head ? `/${head}` : ''}`;
+};
 
 /** Exportiert für Tests der Spielweisen (Modifier lassen sich im SVG nicht stabil prüfen). */
 export function noteFor(event: NotationEvent, voice: VoiceName): StaveNote {
@@ -91,7 +99,10 @@ function tightenGraceNotes(voice: Voice): void {
   }
 }
 
-/** Flam als durchgestrichener Vorschlag, Ghost Note als Notenkopf in Klammern, jeweils nur für die betroffenen Köpfe. */
+/**
+ * Ghost Note als Notenkopf in Klammern, Flam als durchgestrichener Vorschlag, Drag als zwei Vorschläge,
+ * jeweils nur für die betroffenen Köpfe. Am selben Hals trägt der zweite Vorschlag eines Drags auch die Flams.
+ */
 function addArticulations(note: StaveNote, event: NotationEvent, voice: VoiceName): void {
   event.keys.forEach((k, index) => {
     if (k.articulation !== 'ghost') return;
@@ -99,25 +110,40 @@ function addArticulations(note: StaveNote, event: NotationEvent, voice: VoiceNam
     note.addModifier(new Parenthesis(ModifierPosition.RIGHT), index);
   });
   const flams = event.keys.filter((k) => k.articulation === 'flam');
-  if (flams.length === 0) return;
-  const grace = new GraceNote({ keys: flams.map(vexKey), duration: '8', slash: true, clef: 'percussion', stemDirection: STEM[voice] });
-  grace.setStyle({ fillStyle: INK, strokeStyle: INK });
-  grace.setStemStyle({ strokeStyle: INK });
-  note.addModifier(new GraceNoteGroup([grace], true), 0); // mit Bogen unter beiden Köpfen
+  const drags = event.keys.filter((k) => k.articulation === 'drag');
+  if (flams.length + drags.length === 0) return;
+  const graceNote = (keys: NoteKey[], duration: string, slash: boolean) => {
+    const grace = new GraceNote({ keys: keys.map(vexKey), duration, slash, clef: 'percussion', stemDirection: STEM[voice] });
+    grace.setStyle({ fillStyle: INK, strokeStyle: INK });
+    grace.setStemStyle({ strokeStyle: INK });
+    return grace;
+  };
+  if (drags.length === 0) {
+    note.addModifier(new GraceNoteGroup([graceNote(flams, '8', true)], true), 0); // mit Bogen unter beiden Köpfen
+    return;
+  }
+  const last = event.keys.filter((k) => k.articulation === 'flam' || k.articulation === 'drag');
+  note.addModifier(new GraceNoteGroup([graceNote(drags, '16', false), graceNote(last, '16', false)], true).beamNotes(), 0);
 }
 
 interface BuiltVoice {
   voice: Voice;
   beams: Beam[];
   tuplets: Tuplet[];
+  /** Noten mit ihren Ereignissen, für Betonung und Choke. */
+  placed: { note: StaveNote; keys: NoteKey[] }[];
 }
 
 function buildVoice(groups: BeatGroup[], name: VoiceName, beatCount: number): BuiltVoice {
   const notes: StaveNote[] = [];
   const beams: Beam[] = [];
   const tuplets: Tuplet[] = [];
+  const placed: BuiltVoice['placed'] = [];
   for (const group of groups) {
     const groupNotes = group.events.map((e) => noteFor(e, name));
+    group.events.forEach((e, i) => {
+      if (e.kind === 'note') placed.push({ note: groupNotes[i]!, keys: e.keys });
+    });
     if (group.tuplet) {
       tuplets.push(
         new Tuplet(groupNotes, {
@@ -138,7 +164,61 @@ function buildVoice(groups: BeatGroup[], name: VoiceName, beatCount: number): Bu
   // Stimme ohne sichtbare Events im Takt: unsichtbar auffüllen, VexFlow verlangt volle Stimmen (rest-voices D2)
   const tickables = notes.length > 0 ? notes : Array.from({ length: beatCount }, () => new GhostNote({ duration: 'q' }));
   const voice = new Voice({ numBeats: beatCount, beatValue: 4 }).addTickables(tickables);
-  return { voice, beams, tuplets };
+  return { voice, beams, tuplets, placed };
+}
+
+/** Abstand des `>` über dem höchsten Punkt der Zeile; Platz für „o“ und Triolenklammern; Rand des Bildes über dem `>`. */
+const EMPHASIS_GAP = 10;
+const OPEN_MARK_SPACE = 16;
+const TUPLET_SPACE = 18;
+const EMPHASIS_MARGIN = 6;
+const CHOKE_GAP = 9;
+
+const headCenter = (note: StaveNote) => (note.getNoteHeadBeginX() + note.getNoteHeadEndX()) / 2;
+
+/**
+ * Betonung und Choke einer Notenzeile (hit-types, design.md D7): nach dem Zeichnen, denn erst dann stehen
+ * die Halsenden unter den Balken fest. Ein `>` je Spalte, alle auf derselben Höhe. `minY` begrenzt die Höhe.
+ * Liefert die oberste Kante der Zeichen, falls es welche gibt.
+ */
+function drawMarks(context: RenderContext, row: readonly BuiltMeasure[], staveTop: number, minY: number): number | undefined {
+  const up = row.flatMap((m) => m.up.placed);
+  const down = row.flatMap((m) => m.down.placed);
+  let top = staveTop;
+  for (const { note } of up) top = Math.min(top, note.getStemExtents().topY);
+  if (up.some(({ keys }) => keys.some((k) => k.open))) top -= OPEN_MARK_SPACE;
+  if (row.some((m) => m.up.tuplets.length > 0)) top -= TUPLET_SPACE;
+  const y = Math.max(minY, top - EMPHASIS_GAP);
+
+  context.save();
+  context.setLineWidth(1.4);
+  const columns = new Map<unknown, StaveNote>();
+  for (const { note, keys } of [...up, ...down]) {
+    const column = note.getTickContext();
+    if (keys.some((k) => k.emphasis) && !columns.has(column)) columns.set(column, note);
+  }
+  for (const note of columns.values()) {
+    const x = headCenter(note);
+    context.openGroup('emphasis');
+    context.beginPath();
+    context.moveTo(x - 5, y - 3);
+    context.lineTo(x + 5, y);
+    context.lineTo(x - 5, y + 3);
+    context.stroke();
+    context.closeGroup();
+  }
+  for (const { note, keys } of up) {
+    keys.forEach((k, index) => {
+      if (k.articulation !== 'choke') return;
+      context.openGroup('choke');
+      context.beginPath();
+      context.arc(headCenter(note), note.getYs()[index]! - CHOKE_GAP, 1.8, 0, 2 * Math.PI, false);
+      context.fill();
+      context.closeGroup();
+    });
+  }
+  context.restore();
+  return columns.size > 0 ? y - 3 : undefined;
 }
 
 interface BuiltMeasure {
@@ -229,6 +309,7 @@ export function renderNotation(model: NotationModel, container: HTMLElement, opt
     svg.style.height = '100%';
   }
 
+  let marksTop = Infinity;
   rows.forEach((row, rowIndex) => {
     let x = margin;
     row.forEach((measure, i) => {
@@ -249,7 +330,18 @@ export function renderNotation(model: NotationModel, container: HTMLElement, opt
       }
       x += width;
     });
+    // Die erste Zeile darf über das Bild hinaus, das wächst dann nach oben; spätere bleiben unter ihrer Vorgängerin
+    const minY = compact || rowIndex > 0 ? rowIndex * rowHeight + EMPHASIS_MARGIN : -Infinity;
+    const top = drawMarks(context, row, new Stave(margin, rowIndex * rowHeight + rowTop, 0).getYForLine(0), minY);
+    if (rowIndex === 0 && top !== undefined) marksTop = top;
   });
+
+  if (!compact && !card && svg && marksTop < EMPHASIS_MARGIN) {
+    const extra = EMPHASIS_MARGIN - marksTop;
+    svg.setAttribute('viewBox', `0 ${-extra} ${totalWidth} ${totalHeight + extra}`);
+    svg.setAttribute('height', String(totalHeight + extra));
+    svg.style.height = `${totalHeight + extra}px`;
+  }
 
   if (card && svg) fitCard(svg, totalWidth, totalHeight);
 }
@@ -261,7 +353,7 @@ function fitCard(svg: SVGSVGElement, totalWidth: number, totalHeight: number): v
   if (typeof svg.getBBox === 'function') {
     const box = svg.getBBox();
     if (box.height > 0) {
-      top = Math.max(0, box.y - CARD_TRIM_MARGIN);
+      top = box.y - CARD_TRIM_MARGIN;
       height = Math.min(totalHeight, box.y + box.height + CARD_TRIM_MARGIN) - top;
     }
   }

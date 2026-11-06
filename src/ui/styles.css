@@ -21,6 +21,7 @@
   --accent-fill-hover-mix: 35%;
   --on-accent-fill: var(--text);
   --step-on-mix: 60%;
+  --step-on-hover-mix: 75%;
   /* Kürzel in der Farbe eines Profils: im Hellmodus getönt, im Dunkelmodus voll */
   --avatar-mix: 55%;
   --avatar-text: var(--text);
@@ -62,6 +63,7 @@
   --accent-fill-hover-mix: 85%;
   --on-accent-fill: var(--on-accent);
   --step-on-mix: 100%;
+  --step-on-hover-mix: 85%;
   --avatar-mix: 100%;
   --avatar-text: var(--on-accent);
   --backdrop: color-mix(in srgb, var(--ctp-crust) 60%, transparent);
@@ -2186,13 +2188,18 @@ button.meter-own.on {
   background: color-mix(in srgb, var(--accent) var(--step-on-mix), var(--bg));
 }
 
+.step[aria-pressed='true']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) var(--step-on-hover-mix), var(--bg));
+}
+
 /* Wiedergabeposition: Rahmen statt Füllung, damit gesetzte Schläge erkennbar bleiben */
 .step.playing {
   box-shadow: inset 0 0 0 2px var(--playhead);
 }
 
-/* Spielweisen: Flam als kleiner Vorschlag-Punkt links oben, Ghost Note blass mit Klammern */
-.step[data-articulation] {
+/* Spielweisen: Flam und Drag als kleine Vorschlag-Punkte links oben, Ghost Note blass mit Klammern, andere als Zeichen; Betonung als > rechts oben */
+.step[data-articulation],
+.step[data-emphasis] {
   position: relative;
 }
 
@@ -2204,11 +2211,27 @@ button.meter-own.on {
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 50%;
-  background: var(--text);
+  background: var(--on-accent-fill);
+}
+
+.step[data-articulation='drag']::before {
+  content: '';
+  position: absolute;
+  top: 0.2rem;
+  left: 0.2rem;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 50%;
+  background: var(--on-accent-fill);
+  box-shadow: 0.4rem 0 0 var(--on-accent-fill);
 }
 
 .step[data-articulation='ghost'] {
   background: color-mix(in srgb, var(--accent) 30%, var(--bg));
+}
+
+.step[data-articulation='ghost']:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 45%, var(--bg));
 }
 
 .step[data-articulation='ghost']::before {
@@ -2216,6 +2239,43 @@ button.meter-own.on {
   font-size: 0.75rem;
   line-height: 1.6rem;
   color: var(--text);
+}
+
+.step[data-articulation='rim']::before,
+.step[data-articulation='cross']::before,
+.step[data-articulation='bell']::before,
+.step[data-articulation='choke']::before {
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.6rem;
+  color: var(--on-accent-fill);
+}
+
+.step[data-articulation='rim']::before {
+  content: 'R';
+}
+
+.step[data-articulation='cross']::before {
+  content: '×';
+}
+
+.step[data-articulation='bell']::before {
+  content: '◆';
+}
+
+.step[data-articulation='choke']::before {
+  content: '•';
+}
+
+.step[data-emphasis]::after {
+  content: '>';
+  position: absolute;
+  top: 0;
+  right: 0.15rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--on-accent-fill);
 }
 
 /* Shift-Klick soll keinen Text markieren */

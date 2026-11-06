@@ -85,6 +85,16 @@ describe('Spec color-theme › Akzentflächen je nach Variante tonal oder voll',
     expect(step).toBeLessThan(100);
   });
 
+  it('gesetzte Sequencer-Zellen bleiben beim Überfahren im Akzentton', () => {
+    expect(rule(".step[aria-pressed='true']:hover:not(:disabled)")).toMatch(
+      /background:\s*color-mix\(in srgb, var\(--accent\) var\(--step-on-hover-mix\), var\(--bg\)\)/,
+    );
+    expect(rule(".step[data-articulation='ghost']:hover:not(:disabled)")).toMatch(/background:\s*color-mix\(in srgb, var\(--accent\) \d+%, var\(--bg\)\)/);
+    // Hell dunkler als die gesetzte Zelle, dunkel gedämpft: in beiden Fällen sichtbar, nie grau
+    expect(percent(token('step-on-hover-mix'))).toBeGreaterThan(percent(token('step-on-mix')));
+    expect(percent(dark('step-on-hover-mix'))).toBeLessThan(percent(dark('step-on-mix')));
+  });
+
   it('Standard-Schaltfläche: kein Rahmen, Fläche surface0', () => {
     expect(rule('button')).toMatch(/border:\s*none/);
     expect(rule('button')).toMatch(/background:\s*var\(--control\)/);

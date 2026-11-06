@@ -3,8 +3,8 @@ import { songWith } from '../test/songs';
 import { patternOf } from '../test/patterns';
 import { addAccent, appendSegment, setBarProps } from './structure';
 import { allBars } from './songPatterns';
-import type { Pattern, Song } from './types';
-import { FLAM_GRACE_GAIN, FLAM_GRACE_SECONDS, GHOST_GAIN, patternHits, patternSteps, setTempo, songTimeline } from './playback';
+import type { Beat, Instrument, Pattern, Song } from './types';
+import { DRAG_GRACES, EMPHASIS_GAIN, FLAM_GRACES, GHOST_GAIN, GRACE_GAIN, patternHits, patternSteps, setTempo, songTimeline } from './playback';
 
 describe('Spec song-library › Song-Tempo', () => {
   it('Tempo ändern', () => {
@@ -64,13 +64,13 @@ describe('Spec pattern-playback › Klang der Spielweisen', () => {
     const snare = withArticulations().filter((h) => h.instrument === 'snare');
     expect(snare[0]!.gain).toBe(GHOST_GAIN);
     expect(snare[0]!.gain).toBeLessThan(snare[1]!.gain);
-    expect(snare[0]!.graceBefore).toBeUndefined();
+    expect(snare[0]!.graces).toBeUndefined();
   });
 
   it('Flam: Vorschlag vor der Position, Hauptschlag normal auf der Position', () => {
     const tom = withArticulations().find((h) => h.instrument === 'tom1')!;
-    expect(tom).toMatchObject({ at: 0.25, gain: 1, graceBefore: FLAM_GRACE_SECONDS });
-    expect(FLAM_GRACE_GAIN).toBeLessThan(1);
+    expect(tom).toMatchObject({ at: 0.25, gain: 1, graces: FLAM_GRACES });
+    expect(GRACE_GAIN).toBeLessThan(1);
   });
 });
 
@@ -159,7 +159,7 @@ describe('Spec song-playback › Klang aus der Struktur', () => {
     const song = songOf([groove], [{ name: 'Verse', bars: 1, grooveId: groove.id }]);
     const hits = songTimeline(song, whole(song))!.hits;
     expect(hits[0]).toMatchObject({ at: 0, gain: GHOST_GAIN });
-    expect(hits[1]).toMatchObject({ at: 0.5, gain: 1, graceBefore: FLAM_GRACE_SECONDS });
+    expect(hits[1]).toMatchObject({ at: 0.5, gain: 1, graces: FLAM_GRACES });
   });
 });
 
@@ -202,5 +202,54 @@ describe('Spec song-playback › Ab hier und Schleife (Bereich)', () => {
     const song = fourBars();
     const range = whole(song);
     expect(songTimeline(song, { ...range })).toBe(songTimeline(song, { ...range }));
+  });
+});
+
+describe('Spec pattern-playback › Klang der neuen Spielweisen und der Betonung', () => {
+  const hitOf = (instrument: Instrument, beat: Partial<Beat>) => {
+    const pattern = patternOf([{ hits: { [instrument]: [1] } }]);
+    pattern.beats[0] = { ...pattern.beats[0]!, ...beat };
+    return patternHits(pattern)[0]!;
+  };
+
+  it('Drag: zwei Vorschläge in zeitlicher Reihenfolge, Hauptschlag normal', () => {
+    const hit = hitOf('snare', { articulations: { snare: { 0: 'drag' } } });
+    expect(hit).toMatchObject({ at: 0, gain: 1, graces: DRAG_GRACES });
+    expect(DRAG_GRACES).toHaveLength(2);
+    expect(DRAG_GRACES[0]!).toBeGreaterThan(DRAG_GRACES[1]!);
+    expect(hit.technique).toBeUndefined();
+  });
+
+  it.each([
+    ['snare', 'rim'],
+    ['snare', 'cross'],
+    ['ride', 'bell'],
+    ['crash', 'choke'],
+  ] as const)('%s mit %s nennt die Klangvariante', (instrument, articulation) => {
+    const hit = hitOf(instrument, { articulations: { [instrument]: { 0: articulation } } });
+    expect(hit).toMatchObject({ gain: 1, technique: articulation });
+    expect(hit.graces).toBeUndefined();
+  });
+
+  it('Betonter Schlag ist lauter', () => {
+    expect(EMPHASIS_GAIN).toBeGreaterThan(1);
+    expect(hitOf('hihat', { emphasis: { hihat: [0] } }).gain).toBe(EMPHASIS_GAIN);
+    expect(hitOf('hihat', {}).gain).toBe(1);
+  });
+
+  it('Betonter Flam: Hauptschlag lauter, Vorschläge unverändert', () => {
+    const hit = hitOf('snare', { articulations: { snare: { 0: 'flam' } }, emphasis: { snare: [0] } });
+    expect(hit).toMatchObject({ gain: EMPHASIS_GAIN, graces: FLAM_GRACES });
+  });
+
+  it('Betonte Spielweise behält ihren Klang', () => {
+    expect(hitOf('snare', { articulations: { snare: { 0: 'rim' } }, emphasis: { snare: [0] } })).toMatchObject({ gain: EMPHASIS_GAIN, technique: 'rim' });
+  });
+
+  it('Betonung gilt auch in der Song-Wiedergabe', () => {
+    const groove = patternOf([{ hits: { kick: [1] } }, {}, {}, {}]);
+    groove.beats[0] = { ...groove.beats[0]!, emphasis: { kick: [0] } };
+    const song = songOf([groove], [{ name: 'Verse', bars: 1, grooveId: groove.id }]);
+    expect(songTimeline(song, whole(song))!.hits[0]).toMatchObject({ gain: EMPHASIS_GAIN });
   });
 });

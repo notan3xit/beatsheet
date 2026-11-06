@@ -1,6 +1,6 @@
 # DRSKit-Einzelschläge
 
-Je Instrument ein normaler und ein leiser Schlag (`<instrument>-normal`, `<instrument>-soft`), als Opus in WebM (`.webm`) und AAC in MP4 (`.m4a`).
+Je Instrument ein normaler und ein leiser Schlag (`<instrument>-normal`, `<instrument>-soft`), dazu Rim Shot (`snare-rim`), Cross-Stick (`snare-cross`) und Ride-Glocke (`ride-bell`), als Opus in WebM (`.webm`) und AAC in MP4 (`.m4a`).
 
 ## Herkunft und Lizenz
 
@@ -11,6 +11,8 @@ Je Instrument ein normaler und ein leiser Schlag (`<instrument>-normal`, `<instr
 ## Bearbeitung
 
 Ausgewählte Aufnahmen (Tabelle in `scripts/drs-samples.mjs`) wurden aus den Mikrofonspuren zu Stereo gemischt, gekürzt, ausgeblendet und mit einem gemeinsamen Faktor im Pegel angepasst (`openspec/changes/archive/*-drum-samples/design.md`, D4).
+
+Der Rim Shot ist keine Einzelaufnahme: Er mischt eine laute Snare mit dem Randschlag `Snare_rim`, hebt Mitten und Höhen an und sättigt das Ergebnis. Der Cross-Stick ist die lauteste Aufnahme aus `Snare_rim`. Rezept und Pegel: `openspec/changes/archive/*-hit-types/design.md`, D6.
 
 ## Neu erzeugen
 

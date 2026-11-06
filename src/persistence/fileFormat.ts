@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { newId } from '../domain/id';
 import { nextColor, type Deps } from '../domain/pattern';
 import {
-  ARTICULATED,
   ARTICULATIONS,
+  ARTICULATIONS_BY_INSTRUMENT,
   DEFAULT_TEMPO,
   INSTRUMENTS,
   MAX_BAR_BEATS,
@@ -14,12 +14,13 @@ import {
   MIN_TEMPO,
   PATTERN_COLORS,
   SUBDIVISIONS,
+  type Instrument,
   type Pattern,
   type Song,
 } from '../domain/types';
 
 export const FORMAT_ID = 'beatsheet.library';
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 export const IMPORTED_SONG_TITLE = 'Importierte Patterns';
 
 const nonEmpty = (what: string) => z.string().refine((value) => value.trim().length > 0, `leerer ${what}`);
@@ -30,15 +31,30 @@ const beatSchema = z
     subdivision: z.union(SUBDIVISIONS.map((s) => z.literal(s))),
     hits: z.partialRecord(z.enum(INSTRUMENTS), positions),
     /** Seit Schemaversion 3: Spielweise je Instrument und Position (Schlüssel = Position als Ziffernfolge). */
-    articulations: z
-      .partialRecord(z.enum(ARTICULATED as [string, ...string[]]), z.record(z.string().regex(/^\d+$/), z.enum(ARTICULATIONS)))
-      .optional(),
+    articulations: z.partialRecord(z.enum(INSTRUMENTS), z.record(z.string().regex(/^\d+$/), z.enum(ARTICULATIONS))).optional(),
+    /** Seit Schemaversion 4: betonte Positionen je Instrument. */
+    emphasis: z.partialRecord(z.enum(INSTRUMENTS), positions).optional(),
   })
   .superRefine((beat, ctx) => {
-    for (const [instrument, byPosition] of Object.entries(beat.articulations ?? {})) {
-      const set = beat.hits[instrument as keyof typeof beat.hits] ?? [];
+    for (const [name, byPosition] of Object.entries(beat.articulations ?? {})) {
+      const instrument = name as Instrument;
+      const set = beat.hits[instrument] ?? [];
       if (Object.keys(byPosition ?? {}).some((p) => !set.includes(Number(p)))) {
         ctx.addIssue({ code: 'custom', message: `${instrument}: Spielweise ohne Schlag` });
+      }
+      const allowed = ARTICULATIONS_BY_INSTRUMENT[instrument] ?? [];
+      if (Object.values(byPosition ?? {}).some((value) => !allowed.includes(value))) {
+        ctx.addIssue({ code: 'custom', message: `${instrument}: Spielweise für dieses Instrument nicht zulässig` });
+      }
+    }
+    for (const [name, list] of Object.entries(beat.emphasis ?? {})) {
+      const instrument = name as Instrument;
+      const set = beat.hits[instrument] ?? [];
+      if (list?.some((p) => !set.includes(p))) {
+        ctx.addIssue({ code: 'custom', message: `${instrument}: Betonung ohne Schlag` });
+      }
+      if (list?.some((p) => beat.articulations?.[instrument]?.[p] === 'ghost')) {
+        ctx.addIssue({ code: 'custom', message: `${instrument}: betonte Ghost Note` });
       }
     }
     for (const [instrument, list] of Object.entries(beat.hits)) {

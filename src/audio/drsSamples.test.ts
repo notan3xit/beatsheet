@@ -11,5 +11,6 @@ describe('DRSKit-Aufnahmen', () => {
     }
     expect(DRS_FORMATS[0]!.urls['snare-normal']).toMatch(/snare-normal.*\.webm/);
     expect(DRS_FORMATS[1]!.urls['snare-normal']).toMatch(/snare-normal.*\.m4a/);
+    for (const key of ['snare-rim', 'snare-cross', 'ride-bell'] as const) expect(DRS_FORMATS[0]!.urls[key]).toMatch(new RegExp(`${key}.*\\.webm`));
   });
 });

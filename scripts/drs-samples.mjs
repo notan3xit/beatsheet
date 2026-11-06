@@ -125,9 +125,59 @@ let peak = 0;
 for (const channels of Object.values(sounds)) for (const c of channels) for (const v of c) peak = Math.max(peak, Math.abs(v));
 if (peak * gain > 0.98) gain = 0.98 / peak;
 
+// Spielweisen mit eigener Aufnahme (hit-types, design.md D6); der Pegelfaktor des Sets bleibt davon unberührt
+const stereoTrack = async (folder, number, mic) => {
+  const file = await fetchSample(`${BASE}/${folder}/${number}-${folder}-${mic}.flac`);
+  const raw = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-f', 'f32le', '-ac', '2', '-ar', String(RATE), '-'], { maxBuffer: 1 << 28 });
+  return new Float32Array(raw.buffer, raw.byteOffset, raw.byteLength / 4);
+};
+
+/** Rim Shot: laute Snare und Rand, Kessel und Crack angehoben, gesättigt, normiert auf den abgestimmten Pegel. */
+async function rimShot() {
+  const mics = ['Snare_top', ...SHELL];
+  const tracks = [];
+  for (const mic of mics) {
+    tracks.push(await stereoTrack('Snare', 49, mic));
+    tracks.push((await stereoTrack('Snare_rim', 10, mic)).map((v) => v * 3));
+  }
+  const summed = new Float32Array(Math.max(...tracks.map((t) => t.length)));
+  for (const track of tracks) for (let i = 0; i < track.length; i++) summed[i] += track[i];
+  const filtered = execFileSync('ffmpeg', [
+    '-v', 'error', '-f', 'f32le', '-ar', String(RATE), '-ac', '2', '-i', '-', '-af',
+    'volume=4,equalizer=f=900:t=q:w=1.5:g=6,equalizer=f=3500:t=q:w=1.2:g=8,asoftclip=type=tanh', '-f', 'f32le', '-',
+  ], { input: Buffer.from(summed.buffer), maxBuffer: 1 << 28 });
+  const all = new Float32Array(filtered.buffer, filtered.byteOffset, filtered.byteLength / 4);
+  const left = new Float32Array(all.length / 2);
+  const right = new Float32Array(all.length / 2);
+  for (let i = 0; i < left.length; i++) {
+    left[i] = all[2 * i];
+    right[i] = all[2 * i + 1];
+  }
+  const out = trim([left, right], 1.5);
+  const samples = Math.min(out[0].length, Math.round(0.2 * RATE));
+  let energy = 0;
+  for (let i = 0; i < samples; i++) energy += (out[0][i] ** 2 + out[1][i] ** 2) / 2;
+  return { channels: out, gain: 0.12 / Math.sqrt(energy / samples) };
+}
+
+Object.assign(KIT, {
+  snareCross: { folder: 'Snare_rim', normal: 10, mics: ['Snare_top', ...SHELL] },
+  rideBell: { folder: 'Ride_tip_bell', normal: 7, mics: ['Ride', ...AMBIENT] },
+});
+const rim = await rimShot();
+const techniques = {
+  'snare-rim': rim,
+  'snare-cross': { channels: trim(await mix('snareCross', 'normal'), 1.5), gain: gain * 1.8 },
+  'ride-bell': { channels: trim(await mix('rideBell', 'normal'), 3), gain: gain * 0.8 },
+};
+
 mkdirSync(OUT, { recursive: true });
 for (const [name, channels] of Object.entries(sounds)) {
   encode(channels, gain, join(OUT, `${name}.webm`), 'opus');
   encode(channels, gain, join(OUT, `${name}.m4a`), 'aac');
+}
+for (const [name, { channels, gain: level }] of Object.entries(techniques)) {
+  encode(channels, level, join(OUT, `${name}.webm`), 'opus');
+  encode(channels, level, join(OUT, `${name}.m4a`), 'aac');
 }
 console.log(`Pegelfaktor ${gain.toFixed(4)}, Dateien in ${OUT}`);

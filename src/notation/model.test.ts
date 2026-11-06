@@ -324,3 +324,15 @@ describe('Spec drum-notation › Flam und Ghost Note (Modell)', () => {
     ]);
   });
 });
+
+describe('Spec drum-notation › Neue Spielweisen und Betonung (Modell)', () => {
+  it('Betonung und Spielweise stehen an ihrem Notenkopf', () => {
+    const pattern = patternOf([{ hits: { snare: [1], hihat: [1] } }]);
+    pattern.beats[0] = { ...pattern.beats[0]!, articulations: { snare: { 0: 'rim' } }, emphasis: { hihat: [0] } };
+    const keys = toNotation(pattern).measures[0]!.voices.up[0]!.events[0]!.keys;
+    expect(keys.map((k) => [k.instrument, k.articulation, k.emphasis])).toEqual([
+      ['snare', 'rim', undefined],
+      ['hihat', undefined, true],
+    ]);
+  });
+});

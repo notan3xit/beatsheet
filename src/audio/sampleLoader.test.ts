@@ -37,7 +37,7 @@ describe('Spec playback-sound › Laden im Hintergrund', () => {
     expect(states).toEqual(['loading', 'ready']);
     const buffers = loader.buffers()!;
     expect(Object.keys(buffers).sort()).toEqual([...SAMPLE_KEYS].sort());
-    expect(SAMPLE_KEYS).toHaveLength(INSTRUMENTS.length * 2);
+    expect(SAMPLE_KEYS).toHaveLength(INSTRUMENTS.length * 2 + 3);
     expect((buffers['snare-soft'] as unknown as { url: string }).url).toBe('opus/snare-soft');
   });
 

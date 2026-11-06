@@ -13,8 +13,8 @@ export function samplesPlayable(setting: Pick<SoundSetting, 'get'>, loader: { st
  */
 export function createSwitchingVoices(synth: Voices, samples: Voices, useSamples: () => boolean): Voices {
   return {
-    trigger(instrument, time, gain) {
-      (useSamples() ? samples : synth).trigger(instrument, time, gain);
+    trigger(instrument, time, gain, technique) {
+      (useSamples() ? samples : synth).trigger(instrument, time, gain, technique);
     },
     silence() {
       synth.silence();

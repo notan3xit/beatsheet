@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { emptyBeats, patternOf } from '../../test/patterns';
 import { toNotation } from '../model';
 import type { NotationEvent } from '../model';
+import { GraceNoteGroup } from 'vexflow';
+import type { Beat } from '../../domain/types';
 import { CARD_SCALE, noteFor, renderNotation } from './vexflow';
 
 describe('VexFlow-Adapter (Smoke-Test)', () => {
@@ -241,5 +243,125 @@ describe('VexFlow-Adapter (Smoke-Test)', () => {
     renderNotation(toNotation(patternOf(emptyBeats(4))), container);
     renderNotation(toNotation(patternOf(emptyBeats(4))), container);
     expect(container.querySelectorAll('svg')).toHaveLength(1);
+  });
+});
+
+describe('Spec drum-notation › Neue Spielweisen und Betonung (Renderer)', () => {
+  const single = (keys: Partial<NotationEvent['keys'][number]>[]): NotationEvent =>
+    ({ kind: 'note', duration: '8', keys: keys.map((k) => ({ instrument: 'snare', staffStep: 5, notehead: 'normal', ...k })) }) as NotationEvent;
+  const graces = (event: NotationEvent) => {
+    const groups = noteFor(event, 'up').getModifiersByType(GraceNoteGroup.CATEGORY) as GraceNoteGroup[];
+    return groups.flatMap((g) => g.getGraceNotes().map((n) => n.getKeys()));
+  };
+
+  /** Rendert ein Pattern, dessen erster Beat die Felder `beat` trägt. */
+  function render(hits: Parameters<typeof patternOf>[0], beat: Partial<Beat> = {}, options = {}) {
+    const pattern = patternOf(hits);
+    pattern.beats[0] = { ...pattern.beats[0]!, ...beat };
+    const container = document.createElement('div');
+    renderNotation(toNotation(pattern), container, options);
+    return container;
+  }
+  /** x- und y-Lage jedes `>` aus seinem Pfad. */
+  const marks = (container: HTMLElement) =>
+    [...container.querySelectorAll('.vf-emphasis path')].map((path) => {
+      const numbers = [...(path.getAttribute('d') ?? '').matchAll(/-?[\d.]+/g)].map((m) => Number(m[0]));
+      return { x: numbers[0]!, y: numbers[1]! };
+    });
+
+  it('Rim Shot: durchgestrichener Notenkopf, nur für die Snare', () => {
+    const note = noteFor(single([{ articulation: 'rim' }, { instrument: 'hihat', staffStep: 9, notehead: 'x' }]), 'up');
+    expect(note.getKeys()).toEqual(['c/5/sf', 'g/5/x2']);
+  });
+
+  it('Cross-Stick: x-Notenkopf auf der Snare-Position', () => {
+    expect(noteFor(single([{ articulation: 'cross' }]), 'up').getKeys()).toEqual(['c/5/x2']);
+  });
+
+  it('Ride-Glocke: Raute auf Linie 5', () => {
+    expect(noteFor(single([{ instrument: 'ride', staffStep: 8, notehead: 'x', articulation: 'bell' }]), 'up').getKeys()).toEqual(['f/5/d2']);
+  });
+
+  it('Drag: zwei Vorschläge auf derselben Position', () => {
+    expect(graces(single([{ articulation: 'drag' }]))).toEqual([['c/5'], ['c/5']]);
+  });
+
+  it('Drag im Akkord: Vorschläge nur für die Snare', () => {
+    expect(graces(single([{ articulation: 'drag' }, { instrument: 'hihat', staffStep: 9, notehead: 'x' }]))).toEqual([['c/5'], ['c/5']]);
+  });
+
+  it('Flam und Drag am selben Hals: Flam nur im zweiten Vorschlag', () => {
+    expect(graces(single([{ instrument: 'floorTom', staffStep: 3, articulation: 'flam' }, { articulation: 'drag' }]))).toEqual([['c/5'], ['a/4', 'c/5']]);
+  });
+
+  it('Drag: Bogen unter den Notenköpfen', () => {
+    const container = render([{ hits: { snare: [1] } }], { articulations: { snare: { 0: 'drag' } } });
+    expect(container.querySelectorAll('.vf-stavetie')).toHaveLength(1);
+  });
+
+  it('Choke: Punkt über dem Crash-Notenkopf', () => {
+    const container = render([{ hits: { crash: [1] } }], { articulations: { crash: { 0: 'choke' } } });
+    expect(container.querySelectorAll('.vf-choke')).toHaveLength(1);
+  });
+
+  it('Normaler Crash und unbetonter Schlag haben keine Zeichen', () => {
+    const container = render([{ hits: { crash: [1], snare: [1] } }]);
+    expect(container.querySelectorAll('.vf-choke, .vf-emphasis')).toHaveLength(0);
+  });
+
+  it('Betonte Snare im Akkord: ein > über der Spalte', () => {
+    const container = render([{ hits: { hihat: [1], snare: [1] } }], { emphasis: { snare: [0] } });
+    expect(marks(container)).toHaveLength(1);
+  });
+
+  it('Nur die Bassdrum betont: > oberhalb des Systems', () => {
+    const [mark] = marks(render([{ hits: { kick: [1] } }], { emphasis: { kick: [0] } }));
+    // Oberste Linie: Zeilenanfang 40 plus Rand von 40 über dem System
+    expect(mark!.y).toBeLessThan(80);
+  });
+
+  it('Hände und Füße betont: genau ein > je Spalte', () => {
+    const container = render([{ hits: { hihat: [1], kick: [1] } }], { emphasis: { hihat: [0], kick: [0] } });
+    expect(marks(container)).toHaveLength(1);
+  });
+
+  it('Einheitliche Höhe über Balken und Viertelnote', () => {
+    const pattern = patternOf([{ hits: { hihat: [1, 3] } }, { sub: 2, hits: { snare: [1] } }]);
+    pattern.beats[0] = { ...pattern.beats[0]!, emphasis: { hihat: [0, 2] } };
+    pattern.beats[1] = { ...pattern.beats[1]!, emphasis: { snare: [0] } };
+    const both = document.createElement('div');
+    renderNotation(toNotation(pattern), both);
+    expect(new Set(marks(both).map((m) => m.y)).size).toBe(1);
+    expect(marks(both)).toHaveLength(3);
+  });
+
+  it('Offene Hi-Hat: > liegt höher als ohne „o“', () => {
+    const open = marks(render([{ hits: { hihatOpen: [1] } }], { emphasis: { hihatOpen: [0] } }))[0]!;
+    const closed = marks(render([{ hits: { hihat: [1] } }], { emphasis: { hihat: [0] } }))[0]!;
+    expect(open.y).toBeLessThan(closed.y);
+  });
+
+  it('Das Bild wächst nach oben, wenn das > über den Rand ragt', () => {
+    const pattern = patternOf([{ sub: 3, hits: { crash: [1], hihatOpen: [2] } }]);
+    pattern.beats[0] = { ...pattern.beats[0]!, emphasis: { crash: [0] } };
+    const container = document.createElement('div');
+    renderNotation(toNotation(pattern), container);
+    const [mark] = marks(container);
+    expect(mark!.y).toBeLessThan(6);
+    const [, top, , height] = container.querySelector('svg')!.getAttribute('viewBox')!.split(' ').map(Number);
+    expect(top!).toBeLessThanOrEqual(mark!.y - 3);
+    expect(Number(container.querySelector('svg')!.getAttribute('height'))).toBeCloseTo(height!, 6);
+  });
+
+  it('Mini-Darstellung hält die Betonung im festen Bild, die Karte zeichnet sie', () => {
+    const [compact] = marks(render([{ hits: { hihat: [1], snare: [1] } }], { emphasis: { snare: [0] } }, { compact: true }));
+    expect(compact!.y).toBeGreaterThanOrEqual(0);
+    expect(marks(render([{ hits: { hihat: [1], snare: [1] } }], { emphasis: { snare: [0] } }, { card: true }))).toHaveLength(1);
+  });
+
+  it('Zeichen nur in Textfarbe', () => {
+    const container = render([{ hits: { crash: [1], hihat: [1] } }], { articulations: { crash: { 0: 'choke' } }, emphasis: { hihat: [0] } });
+    const colors = new Set([...container.querySelectorAll('svg, svg *')].flatMap((el) => [el.getAttribute('fill'), el.getAttribute('stroke')]));
+    expect([...colors].filter((c) => c !== null && c !== 'currentColor' && c !== 'none')).toEqual([]);
   });
 });

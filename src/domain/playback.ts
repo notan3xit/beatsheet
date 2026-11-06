@@ -1,6 +1,6 @@
-import { articulationAt } from './sequencer';
+import { articulationAt, emphasisAt } from './sequencer';
 import { resolveSong } from './timeline';
-import { INSTRUMENTS, MAX_TEMPO, MIN_TEMPO, type Beat, type Instrument, type Pattern, type Song } from './types';
+import { INSTRUMENTS, MAX_TEMPO, MIN_TEMPO, type Articulation, type Beat, type Instrument, type Pattern, type Song } from './types';
 
 export function isValidTempo(bpm: number): boolean {
   return Number.isInteger(bpm) && bpm >= MIN_TEMPO && bpm <= MAX_TEMPO;
@@ -14,10 +14,21 @@ export function setTempo(song: Song, bpm: number): Song {
 
 /** Pegel einer Ghost Note relativ zum normalen Schlag. */
 export const GHOST_GAIN = 0.3;
-/** Abstand des Flam-Vorschlags vor dem Hauptschlag, in Sekunden (unabhängig vom Tempo). */
-export const FLAM_GRACE_SECONDS = 0.03;
-/** Pegel des Flam-Vorschlags relativ zum normalen Schlag. */
-export const FLAM_GRACE_GAIN = 0.4;
+/** Pegel eines betonten Schlags relativ zum normalen Schlag. */
+export const EMPHASIS_GAIN = 1.6;
+/** Abstand der Vorschläge vor dem Hauptschlag in Sekunden (unabhängig vom Tempo), frühester zuerst. */
+export const FLAM_GRACES: readonly number[] = [0.03];
+export const DRAG_GRACES: readonly number[] = [0.08, 0.04];
+/** Pegel eines Vorschlags relativ zum normalen Schlag, auch vor betonten Schlägen (hit-types, design.md D5). */
+export const GRACE_GAIN = 0.4;
+
+/** Choke: Der Klang endet so viele Sekunden nach dem Einsatz, mit dieser Zeitkonstante. */
+export const CHOKE_AFTER = 0.12;
+export const CHOKE_FADE = 0.015;
+
+/** Spielweisen mit eigenem Klang. */
+export type Technique = Extract<Articulation, 'rim' | 'cross' | 'bell' | 'choke'>;
+const TECHNIQUES: readonly Articulation[] = ['rim', 'cross', 'bell', 'choke'];
 
 export interface Step {
   /** Beat im Pattern, 0-basiert. */
@@ -38,8 +49,10 @@ export interface PlaybackHit {
   /** Pegel relativ zum normalen Schlag (1). */
   gain: number;
   step: Step;
-  /** Flam: Vorschlag so viele Sekunden vor dem Hauptschlag, mit FLAM_GRACE_GAIN. */
-  graceBefore?: number;
+  /** Flam und Drag: Vorschläge so viele Sekunden vor dem Hauptschlag, mit GRACE_GAIN. */
+  graces?: readonly number[];
+  /** Klangvariante des Schlags. */
+  technique?: Technique;
 }
 
 /** Alle Rasterpositionen des Patterns in zeitlicher Reihenfolge. */
@@ -62,10 +75,12 @@ function beatHits(beat: Beat, beatIndex: number, start: number): PlaybackHit[] {
       const hit: PlaybackHit = {
         at: start + position / beat.subdivision,
         instrument,
-        gain: articulation === 'ghost' ? GHOST_GAIN : 1,
+        gain: articulation === 'ghost' ? GHOST_GAIN : emphasisAt(beat, instrument, position) ? EMPHASIS_GAIN : 1,
         step: { beat: beatIndex, position },
       };
-      if (articulation === 'flam') hit.graceBefore = FLAM_GRACE_SECONDS;
+      if (articulation === 'flam') hit.graces = FLAM_GRACES;
+      if (articulation === 'drag') hit.graces = DRAG_GRACES;
+      if (articulation && TECHNIQUES.includes(articulation)) hit.technique = articulation as Technique;
       hits.push(hit);
     }
   }
