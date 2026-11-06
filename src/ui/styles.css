@@ -34,13 +34,10 @@
   --shadow: color-mix(in srgb, var(--ctp-crust) 35%, transparent);
   /* Fläche eines Ablageziels beim Ziehen */
   --drop-fill: color-mix(in srgb, var(--accent) 12%, var(--bg));
-  /* Logo: Beete (Mischung zweier Palettenfarben nur hier zulässig) und Striche der drei „e“ (oben, Mitte, unten) */
+  /* Logo: Beete (Mischung zweier Palettenfarben nur hier zulässig) und Striche der „e“ von „sheet“ (oben, Mitte, unten) */
   --logo-beet: color-mix(in srgb, var(--ctp-mauve) 55%, var(--ctp-maroon));
   --logo-beet-light: var(--ctp-pink);
   --logo-leaf: var(--ctp-green);
-  --logo-e1-1: var(--ctp-blue);
-  --logo-e1-2: var(--ctp-green);
-  --logo-e1-3: var(--ctp-peach);
   --logo-e2-1: var(--ctp-mauve);
   --logo-e2-2: var(--ctp-teal);
   --logo-e2-3: var(--ctp-yellow);
@@ -440,7 +437,7 @@ input {
   text-decoration: underline;
 }
 
-/* Logo: Beete und Schriftzug; die „e“ sind 1 ex hoch und stehen auf der Grundlinie (app-logo, design.md D2) */
+/* Logo: Beete und Schriftzug; die Strich-„e“ sind 1 ex hoch und stehen auf der Grundlinie (app-logo, design.md D2) */
 .logo {
   display: flex;
   align-items: center;

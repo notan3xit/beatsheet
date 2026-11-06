@@ -77,6 +77,7 @@ describe('Spec app-header › Schrift des Schriftzugs', () => {
     const { word } = setup();
     const parts = [...word!.childNodes].map((n) => (n.nodeType === Node.TEXT_NODE ? n.textContent : 'e'));
     expect(parts.join('')).toBe('beatsheet');
+    expect(parts[0]).toBe('beatsh');
     expect(rule('.logo-word')).toMatch(/font-family:\s*'Comfortaa',/);
     expect(rule('.logo-word')).toMatch(/font-weight:\s*700/);
     expect(css.match(/Comfortaa/g)).toHaveLength(1);
@@ -95,7 +96,7 @@ describe('Spec app-header › Schrift des Schriftzugs', () => {
 describe('Spec app-header › „e“ aus drei Strichen', () => {
   it('Form: drei waagerechte Striche, runde Enden, der mittlere kürzer und links bündig', () => {
     const { word } = setup();
-    expect(es(word)).toHaveLength(3);
+    expect(es(word)).toHaveLength(2);
     for (const e of es(word)) {
       const [top, mid, bottom] = lines(e);
       expect(lines(e)).toHaveLength(3);

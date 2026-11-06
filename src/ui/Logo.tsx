@@ -45,14 +45,13 @@ function Beet() {
   );
 }
 
-/** Logo der Kopfzeile: Rote Beete und Schriftzug „beatsheet“ mit Strich-„e“s; Name für Screenreader „Beatsheet“. */
+/** Logo der Kopfzeile: Rote Beete und Schriftzug „beatsheet“ mit Strich-„e“s in „sheet“; Name für Screenreader „Beatsheet“. */
 export function Logo() {
   return (
     <h1 className="logo" aria-label="Beatsheet">
       <Beet />
       <span className="logo-word" aria-hidden="true">
-        b<LogoE index={1} />
-        atsh<LogoE index={2} />
+        beatsh<LogoE index={2} />
         <LogoE index={3} />t
       </span>
     </h1>
