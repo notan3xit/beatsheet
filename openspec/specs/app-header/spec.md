@@ -164,11 +164,11 @@ Das Symbol MUST eine rundliche Knolle mit nach unten auslaufender Wurzelspitze u
 - **THEN** ist die Knolle eine Mischung aus Mocha „mauve“ und „maroon“ und die Blätter sind Mocha „green“
 
 ### Requirement: Schrift des Schriftzugs
-Der Schriftzug MUST in Kleinbuchstaben in der Schrift Comfortaa (fett) stehen. Die App MUST die Schrift selbst ausliefern, ohne Abruf von einem fremden Server. Die übrige Oberfläche MUST ihre bisherige Schrift behalten.
+Der Schriftzug MUST in Kleinbuchstaben in der Schrift Comfortaa (fett) stehen. Das „e“ von „beat“ MUST ein normaler Buchstabe dieser Schrift sein. Die App MUST die Schrift selbst ausliefern, ohne Abruf von einem fremden Server. Die übrige Oberfläche MUST ihre bisherige Schrift behalten.
 
 #### Scenario: Schrift
 - **WHEN** die Kopfzeile erscheint
-- **THEN** stehen die Buchstaben „b“, „a“, „t“, „s“, „h“ und „t“ des Schriftzugs in Comfortaa
+- **THEN** stehen die Buchstaben von „beatsh“ und das abschließende „t“ des Schriftzugs in Comfortaa
 - **AND** Menüeinträge und Seiteninhalt stehen in der bisherigen Schrift
 
 #### Scenario: Keine fremde Quelle
@@ -176,11 +176,12 @@ Der Schriftzug MUST in Kleinbuchstaben in der Schrift Comfortaa (fett) stehen. D
 - **THEN** lädt sie die Schrift vom eigenen Server und von keinem anderen
 
 ### Requirement: „e“ aus drei Strichen
-Jedes „e“ des Schriftzugs MUST aus drei waagerechten Strichen mit runden Enden bestehen, oberer und unterer gleich lang, der mittlere kürzer und links bündig. Der obere Strich MUST mit der Oberkante der Kleinbuchstaben abschließen, der untere auf der Grundlinie stehen. Jeder Strich MUST eine Akzentfarbe der aktiven Variante ungleich „red“ haben, die Striche eines „e“ MUST verschiedene Farben haben.
+Die beiden „e“ von „sheet“ MUST aus je drei waagerechten Strichen mit runden Enden bestehen, oberer und unterer gleich lang, der mittlere kürzer und links bündig. Der obere Strich MUST mit der Oberkante der Kleinbuchstaben abschließen, der untere auf der Grundlinie stehen. Jeder Strich MUST eine Akzentfarbe der aktiven Variante ungleich „red“ haben, die Striche eines „e“ MUST verschiedene Farben haben.
 
 #### Scenario: Form
 - **WHEN** die Kopfzeile erscheint
-- **THEN** besteht jedes der drei „e“ aus drei waagerechten Strichen, der mittlere kürzer als die beiden anderen
+- **THEN** bestehen die beiden „e“ von „sheet“ aus je drei waagerechten Strichen, der mittlere kürzer als die beiden anderen
+- **AND** das „e“ von „beat“ besteht nicht aus Strichen
 
 #### Scenario: Höhe wie die Kleinbuchstaben
 - **WHEN** die Kopfzeile erscheint
