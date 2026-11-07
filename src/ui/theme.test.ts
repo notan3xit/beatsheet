@@ -1,5 +1,5 @@
 import { flavors, type ColorName } from '@catppuccin/palette';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildThemeCss, connectTheme, createThemeSetting, resolveTheme, THEME_STORAGE_KEY, type ThemeMedia } from './theme';
 
 const COLOR_NAMES = Object.keys(flavors.latte.colors) as ColorName[];
@@ -107,6 +107,45 @@ describe('Spec color-theme › Farbschema folgt der Systemeinstellung', () => {
     expect(app.media.listeners.size).toBe(0);
     app.setting.set('dark');
     expect(app.theme()).toBe('light');
+  });
+});
+
+describe('Spec home-screen-app › Farbe der Systemleiste', () => {
+  const LATTE = flavors.latte.colors.mantle.hex;
+  const MOCHA = flavors.mocha.colors.mantle.hex;
+  const metas = () => [...document.head.querySelectorAll('meta[name="theme-color"]')];
+  const colors = () => metas().map((meta) => meta.getAttribute('content'));
+
+  beforeEach(() => {
+    for (const scheme of ['light', 'dark']) {
+      const meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      meta.media = `(prefers-color-scheme: ${scheme})`;
+      document.head.append(meta);
+    }
+  });
+  afterEach(() => metas().forEach((meta) => meta.remove()));
+
+  it('Wie System', () => {
+    connected('system', true);
+    expect(colors()).toEqual([MOCHA, MOCHA]);
+  });
+
+  it('Wahl weicht von der Systemeinstellung ab', () => {
+    connected('light', true);
+    expect(colors()).toEqual([LATTE, LATTE]);
+  });
+
+  it('Wahl ändern', () => {
+    const app = connected('light', false);
+    app.setting.set('dark');
+    expect(colors()).toEqual([MOCHA, MOCHA]);
+  });
+
+  it('Systemeinstellung ändert sich', () => {
+    const app = connected('system', false);
+    app.media.setDark(true);
+    expect(colors()).toEqual([MOCHA, MOCHA]);
   });
 });
 

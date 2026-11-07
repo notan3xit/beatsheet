@@ -46,9 +46,16 @@ export function resolveTheme(choice: ThemeChoice, systemDark: boolean): Theme {
   return choice;
 }
 
-/** Hält `data-theme` am Wurzelelement passend zu Wahl und Systemeinstellung; liefert die Abmeldung. */
+/** Fläche der Kopfzeile (`--surface`) je Farbschema, für die Systemleiste (home-screen-app, design.md D4). */
+const BAR_COLORS: Record<Theme, string> = { light: flavors.latte.colors.mantle.hex, dark: flavors.mocha.colors.mantle.hex };
+
+/** Hält `data-theme` am Wurzelelement und `theme-color` passend zu Wahl und Systemeinstellung; liefert die Abmeldung. */
 export function connectTheme(setting: ThemeSetting, root: HTMLElement, media: ThemeMedia | null): () => void {
-  const apply = () => root.setAttribute('data-theme', resolveTheme(setting.get(), media?.matches ?? false));
+  const apply = () => {
+    const theme = resolveTheme(setting.get(), media?.matches ?? false);
+    root.setAttribute('data-theme', theme);
+    root.ownerDocument.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute('content', BAR_COLORS[theme]));
+  };
   apply();
   const unsubscribe = setting.subscribe(apply);
   media?.addEventListener('change', apply);
