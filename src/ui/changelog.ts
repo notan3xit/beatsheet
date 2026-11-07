@@ -8,6 +8,11 @@ export interface ChangelogEntry {
 /** Neuerungen je Version in Stichworten für Nutzer, neueste zuerst. Der oberste Eintrag ist die aktuelle Version. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.5.1',
+    date: '2026-11-07',
+    items: ['Ist das DRSKit nicht verfügbar, nennt „Details“ im Menü den Grund'],
+  },
+  {
     version: '0.5.0',
     date: '2026-11-07',
     items: [
