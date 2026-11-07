@@ -36,6 +36,8 @@ export interface LoaderDeps {
   formats: readonly SampleFormat[];
   fetchData(url: string): Promise<ArrayBuffer>;
   decode(data: ArrayBuffer): Promise<AudioBuffer>;
+  /** Wartezeit vor einer Wiederholung; Vorgabe über `setTimeout`. */
+  wait?(ms: number): Promise<void>;
 }
 
 /** Probe je Format, bevor die übrigen Dateien geladen werden. */
@@ -65,18 +67,43 @@ function errorText(error: unknown): string {
   return [name !== 'Error' && name, message].filter(Boolean).join(': ') || String(error);
 }
 
+/** Wartezeiten vor den Wiederholungen eines Abrufs (sample-load-retry, design.md D2). */
+const RETRY_DELAYS = [300, 1000];
+
+/** Höchstzahl gleichzeitig geladener Aufnahmen (sample-load-retry, design.md D3). */
+const MAX_PARALLEL = 4;
+
+/** Wendet `task` auf alle Elemente an, höchstens `limit` gleichzeitig; Ergebnisse in Reihenfolge der Elemente. */
+async function mapLimited<T, R>(items: readonly T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await task(items[index]!);
+    }
+  };
+  await Promise.all(Array.from({ length: limit }, worker));
+  return results;
+}
+
+/** Ein Abruffehler, der beim nächsten Versuch ausbleiben kann (sample-load-retry, design.md D1). */
+function isTransient(error: unknown): boolean {
+  if (!(error instanceof FetchStatusError)) return true;
+  return [408, 429].includes(error.status) || error.status >= 500;
+}
+
 /** 404: Ein offener Tab einer älteren Version fragt nach einer ersetzten Datei (sample-load-reason, design.md D7). */
 function canPassOnReload({ step, error }: Failure): boolean {
   if (step !== 'Abruf') return false;
-  if (!(error instanceof FetchStatusError)) return true;
-  return [404, 408, 429].includes(error.status) || error.status >= 500;
+  return isTransient(error) || (error as FetchStatusError).status === 404;
 }
 
 /**
  * Lädt die Aufnahmen im ersten dekodierbaren Format (drum-samples, design.md D3). Ein Abruffehler
  * beendet das Laden, weil er nichts über den Codec aussagt.
  */
-export function createSampleLoader({ formats, fetchData, decode }: LoaderDeps): SampleLoader {
+export function createSampleLoader({ formats, fetchData, decode, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }: LoaderDeps): SampleLoader {
   let state: LoaderState = 'idle';
   let buffers: SampleBuffers | null = null;
   let failures = NO_FAILURES;
@@ -88,10 +115,22 @@ export function createSampleLoader({ formats, fetchData, decode }: LoaderDeps): 
     listeners.forEach((listener) => listener());
   };
 
+  const fetchRetrying = async (url: string): Promise<ArrayBuffer> => {
+    for (const delay of RETRY_DELAYS) {
+      try {
+        return await fetchData(url);
+      } catch (error) {
+        if (!isTransient(error)) throw error;
+        await wait(delay);
+      }
+    }
+    return fetchData(url);
+  };
+
   const loadSample = async (format: SampleFormat, key: SampleKey): Promise<AudioBuffer | Failure> => {
     let step: Failure['step'] = 'Abruf';
     try {
-      const data = await fetchData(format.urls[key]);
+      const data = await fetchRetrying(format.urls[key]);
       step = 'Dekodieren';
       return await decode(data);
     } catch (error) {
@@ -115,7 +154,7 @@ export function createSampleLoader({ formats, fetchData, decode }: LoaderDeps): 
         continue;
       }
       const others = SAMPLE_KEYS.filter((key) => key !== PROBE);
-      const results = await Promise.all(others.map((key) => loadSample(format, key)));
+      const results = await mapLimited(others, MAX_PARALLEL, (key) => loadSample(format, key));
       const failed = results.filter(isFailure);
       if (failed.length > 0) {
         lines.push(lineOf(failed[0]!, format, failed.length));
