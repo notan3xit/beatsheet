@@ -128,7 +128,7 @@ describe('Spec color-theme › Wahl des Farbschemas pro Gerät', () => {
   });
 });
 
-describe('Spec color-theme › Farben ausschließlich aus der Palette', () => {
+describe('Spec design-system › Farben ausschließlich aus der Palette', () => {
   it('Oberfläche im Hellmodus: alle 26 Latte-Farben als Variablen', () => {
     const { light } = blocks();
     for (const name of COLOR_NAMES) expect(declares(light, name, flavors.latte.colors[name].hex), name).toBe(true);

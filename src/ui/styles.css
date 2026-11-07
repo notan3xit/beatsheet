@@ -7,7 +7,7 @@
   --step-hover: var(--ctp-surface1);
   --border: var(--ctp-surface1);
   --text: var(--ctp-text);
-  --muted: var(--ctp-subtext0);
+  --muted: var(--ctp-subtext1);
   --accent: var(--ctp-peach);
   --accent-soft: color-mix(in srgb, var(--accent) 25%, transparent);
   --on-accent: var(--ctp-base);
@@ -23,11 +23,27 @@
   --step-on-mix: 60%;
   --step-on-hover-mix: 75%;
   /* Kürzel in der Farbe eines Profils: im Hellmodus getönt, im Dunkelmodus voll */
-  --avatar-mix: 55%;
+  --avatar-mix: 30%;
   --avatar-text: var(--text);
+  /* Fill-Kurzschrift: helle Schrift auf dunklem Grund wirkt kräftiger */
+  --mark-weight: 700;
+  /* Anteile der Patternfarbe (--pc), gewählt nach openspec/specs/design-system: Flächen unter Schrift, Schrift, Ränder */
+  --tint-groove: 16%;
+  --tint-fill: 20%;
+  --tint-strong: 26%;
+  --tint-card: 16%;
+  --tint-chip: 12%;
+  --tint-drag: 30%;
+  --tint-motif: 70%;
+  --chip-on-mix: 30%;
+  --name-mix: 30%;
+  --name-tinted-mix: 18%;
+  --name-strong-mix: 0%;
+  --edge-mix: 69%;
   /* Gerade erklingende Spalte im Sequencer */
   --playhead: var(--ctp-blue);
   --danger: var(--ctp-red);
+  --danger-text: color-mix(in srgb, var(--danger) 65%, var(--text));
   --success: var(--ctp-green);
   --warning: var(--ctp-yellow);
   /* Schleier hinter Dialogen: crust ist in Latte hell und würde aufhellen */
@@ -66,6 +82,19 @@
   --step-on-hover-mix: 85%;
   --avatar-mix: 100%;
   --avatar-text: var(--on-accent);
+  --mark-weight: 500;
+  --muted: var(--ctp-subtext0);
+  --danger-text: var(--danger);
+  --tint-groove: 22%;
+  --tint-fill: 28%;
+  --tint-strong: 33%;
+  --tint-chip: 22%;
+  --tint-drag: 31%;
+  --chip-on-mix: 100%;
+  --name-mix: 65%;
+  --name-tinted-mix: 65%;
+  --name-strong-mix: 65%;
+  --edge-mix: 100%;
   --backdrop: color-mix(in srgb, var(--ctp-crust) 60%, transparent);
 }
 
@@ -113,7 +142,7 @@ button.primary:hover:not(:disabled) {
 }
 
 button.danger {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 select,
@@ -287,7 +316,7 @@ input {
 
 .message.alert {
   background: color-mix(in srgb, var(--danger) 15%, transparent);
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .message-close {
@@ -423,7 +452,7 @@ input {
 }
 
 .login-message [role='alert'] {
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .login-form .dialog-actions {
@@ -678,7 +707,7 @@ body.dragging-pattern .tile-add:hover {
   top: 0;
   bottom: 0;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--pc) 70%, var(--bg));
+  background: color-mix(in srgb, var(--pc) var(--tint-motif), var(--bg));
 }
 
 .motif-stroke.fill {
@@ -1404,7 +1433,7 @@ select.meter-mark:hover {
 }
 
 .item.groove {
-  background: color-mix(in srgb, var(--pc) 22%, transparent);
+  background: color-mix(in srgb, var(--pc) var(--tint-groove), transparent);
   border-left: 3px solid var(--pc);
 }
 
@@ -1417,8 +1446,8 @@ select.meter-mark:hover {
 
 .item.fill {
   justify-content: center;
-  background: color-mix(in srgb, var(--pc) 40%, transparent);
-  border: 1px solid var(--pc);
+  background: color-mix(in srgb, var(--pc) var(--tint-fill), transparent);
+  border: 1px solid color-mix(in srgb, var(--pc) var(--edge-mix), var(--text));
 }
 
 /* Fill-Kurzschrift: Buchstaben in drei Höhenstufen, oben und unten über den Block hinaus */
@@ -1438,7 +1467,7 @@ select.meter-mark:hover {
   transform: translateX(-50%);
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: var(--mark-weight);
   line-height: 1;
   color: var(--text);
 }
@@ -1457,13 +1486,13 @@ select.meter-mark:hover {
 
 /* Hervorhebung von Auswahl und Ablegeziel: voller Rahmen in der Patternfarbe, kräftigere Füllung */
 .item.highlighted {
-  border: 2px solid var(--pc);
-  background: color-mix(in srgb, var(--pc) 42%, transparent);
+  border: 2px solid color-mix(in srgb, var(--pc) var(--edge-mix), var(--text));
+  background: color-mix(in srgb, var(--pc) var(--tint-strong), transparent);
   font-weight: 600;
 }
 
 .item.fill.highlighted {
-  background: color-mix(in srgb, var(--pc) 62%, transparent);
+  background: color-mix(in srgb, var(--pc) var(--tint-strong), transparent);
 }
 
 /* Ausgewählter leerer Takt: grauer Schatten-Groove */
@@ -1605,7 +1634,7 @@ body.dragging-pattern * {
   padding: 0.15rem 0.5rem;
   border-left: 3px solid var(--pc);
   border-radius: 4px;
-  background: color-mix(in srgb, var(--pc) 35%, var(--bg));
+  background: color-mix(in srgb, var(--pc) var(--tint-drag), var(--bg));
   box-shadow: 0 4px 12px var(--shadow);
   color: var(--text);
   font-size: 0.75rem;
@@ -1708,20 +1737,23 @@ body.dragging-pattern * {
 
 .chip {
   border-left: 3px solid var(--pc, var(--muted));
-  background: color-mix(in srgb, var(--pc, var(--muted)) 22%, transparent);
+  background: color-mix(in srgb, var(--pc, var(--muted)) var(--tint-chip), transparent);
 }
 
-/* Gewählter Chip: in der eigenen Farbe gefüllt, mit Haken */
+/* Gewählter Chip: mit Haken, im Hellmodus tonal, im Dunkelmodus voll */
 .chip[aria-pressed='true'] {
-  background: var(--pc, var(--text));
-  border-left-color: var(--pc, var(--text));
-  color: var(--on-accent);
+  background: color-mix(in srgb, var(--pc, var(--text)) var(--chip-on-mix), var(--bg));
+  border-left-color: color-mix(in srgb, var(--pc) var(--edge-mix), var(--text));
+  outline: 1px solid color-mix(in srgb, var(--pc) var(--edge-mix), var(--text));
+  outline-offset: -1px;
+  color: var(--on-accent-fill);
   font-weight: 600;
 }
 
 .chip.none[aria-pressed='true'] {
   background: var(--text);
   border-left-color: var(--text);
+  outline: none;
   color: var(--bg);
 }
 
@@ -1802,7 +1834,7 @@ button.link {
   border: none;
   background: transparent;
   padding: 0 0.2rem;
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .inspector-actions {
@@ -1833,20 +1865,37 @@ button.link {
 }
 
 .pattern-card.fill {
-  border: 1px solid var(--pc);
+  border: 1px solid color-mix(in srgb, var(--pc) var(--edge-mix), var(--text));
   border-radius: 3px;
   padding: 0.25rem 0.5rem;
-  background: color-mix(in srgb, var(--pc) 15%, transparent);
+  background: color-mix(in srgb, var(--pc) var(--tint-card), transparent);
+}
+
+.pattern-card.fill .pattern-name {
+  color: color-mix(in srgb, var(--pc) var(--name-tinted-mix), var(--text));
+}
+
+/* Gedämpfte Schrift verfehlt auf Schaltflächen und getönten Flächen den Lesekontrast */
+.item,
+.pattern-card.fill,
+.pattern-card.highlighted,
+.insert-strip,
+.kind-badge {
+  --muted: var(--text);
 }
 
 /* Karte einer ausgewählten Struktur-Stelle: outline nimmt keinen Platz ein, die Karten bleiben stehen */
 .pattern-card.highlighted {
-  outline: 2px solid var(--pc);
-  background: color-mix(in srgb, var(--pc) 15%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--pc) var(--edge-mix), var(--text));
+  background: color-mix(in srgb, var(--pc) var(--tint-card), transparent);
+}
+
+.pattern-card.highlighted .pattern-name {
+  color: color-mix(in srgb, var(--pc) var(--name-strong-mix), var(--text));
 }
 
 .pattern-card.fill.highlighted {
-  background: color-mix(in srgb, var(--pc) 30%, transparent);
+  background: color-mix(in srgb, var(--pc) var(--tint-strong), transparent);
 }
 
 /* contain: Die Kopfzeile trägt nichts zur Kartenbreite bei, ein langer Name wird gekürzt */
@@ -1873,7 +1922,7 @@ button.link {
   padding: 0;
   background: none;
   font-weight: 600;
-  color: color-mix(in srgb, var(--pc) 65%, var(--text));
+  color: color-mix(in srgb, var(--pc) var(--name-mix), var(--text));
   text-align: left;
   overflow: hidden;
   white-space: nowrap;
@@ -2197,7 +2246,7 @@ button.meter-own.on {
   background: var(--step);
 }
 
-.step.downbeat {
+.step.downbeat:not([aria-pressed='true']) {
   box-shadow: inset 0 0 0 1px var(--step-hover);
 }
 

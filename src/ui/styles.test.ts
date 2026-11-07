@@ -8,7 +8,7 @@ const css = readFileSync(resolve(process.cwd(), 'src/ui/styles.css'), 'utf8').re
 /** Wert eines Custom Property in der :root-Regel. */
 const token = (name: string) => css.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1]?.trim();
 
-describe('Spec color-theme › Farben ausschließlich aus der Palette (Stylesheet)', () => {
+describe('Spec design-system › Farben ausschließlich aus der Palette (Stylesheet)', () => {
   it('Oberfläche im Hell- und Dunkelmodus: keine Farbliterale, nur Palette-Variablen', () => {
     const literals = css.match(
       /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(|(?<![-\w])(?:white|black|red|green|blue|gray|grey|orange|yellow)(?![-\w])/gi,
@@ -25,15 +25,15 @@ describe('Spec color-theme › Farben ausschließlich aus der Palette (Styleshee
   });
 });
 
-describe('Spec color-theme › Rot nur für Fehler und destruktive Aktionen', () => {
+describe('Spec design-system › Rot nur für Fehler und destruktive Aktionen', () => {
   it('Löschen und Fehler: --danger ist red, und nur --danger nutzt red', () => {
     expect(token('danger')).toBe('var(--ctp-red)');
     expect(css.match(/var\(--ctp-red\)/g)).toHaveLength(1);
   });
 
-  it('Löschen und Fehler: Löschen-Button und Fehlermeldung nutzen --danger', () => {
-    expect(css).toMatch(/button\.danger\s*\{[^}]*var\(--danger\)/);
-    expect(css).toMatch(/\.message\.alert\s*\{[^}]*var\(--danger\)/);
+  it('Löschen und Fehler: Löschen-Button und Fehlermeldung nutzen den Fehlertext', () => {
+    expect(css).toMatch(/button\.danger\s*\{[^}]*var\(--danger-text\)/);
+    expect(css).toMatch(/\.message\.alert\s*\{[^}]*var\(--danger-text\)/);
   });
 
   it('Gesetzte Sequencer-Zelle: Akzent ist nicht red', () => {
@@ -49,7 +49,7 @@ describe('Spec color-theme › Farbschema folgt der Systemeinstellung (Styleshee
   });
 });
 
-describe('Spec color-theme › Akzentflächen je nach Variante tonal oder voll', () => {
+describe('Spec design-system › Akzentflächen je nach Variante tonal oder voll', () => {
   const darkBlock = css.match(/:root\[data-theme='dark'\]\s*\{([^}]*)\}/)?.[1] ?? '';
   const dark = (name: string) => darkBlock.match(new RegExp(`--${name}:\\s*([^;]+);`))?.[1]?.trim();
   const rule = (selector: string) =>
@@ -269,9 +269,10 @@ describe('Spec songbook-view › Karten im Fluss (Stylesheet)', () => {
 describe('Spec songbook-view › Kompakte Pattern-Karten (Stylesheet): Fill und Groove unterscheiden', () => {
   it('Fill-Karte ringsum gerahmt und getönt, wie die Fill-Blöcke der Struktur', () => {
     const fill = ruleBody('.pattern-card.fill');
-    expect(decl(fill, 'border')).toBe('1px solid var(--pc)');
-    expect(decl(fill, 'background')).toMatch(/^color-mix\(in srgb, var\(--pc\) \d+%, transparent\)$/);
-    expect(decl(ruleBody('.item.fill'), 'border')).toBe('1px solid var(--pc)');
+    const frame = /^1px solid color-mix\(in srgb, var\(--pc\) var\(--edge-mix\), var\(--text\)\)$/;
+    expect(decl(fill, 'border')).toMatch(frame);
+    expect(decl(fill, 'background')).toMatch(/^color-mix\(in srgb, var\(--pc\) var\(--tint-[a-z]+\), transparent\)$/);
+    expect(decl(ruleBody('.item.fill'), 'border')).toMatch(frame);
   });
 
   it('Groove-Karte nur mit Kante links, ohne Tönung', () => {
@@ -416,7 +417,7 @@ describe('Spec song-lock › Gleiche Anordnung beim Entsperren', () => {
   });
 });
 
-describe('Spec color-theme › Farben ausschließlich aus der Palette: Mischfarbe im Logo', () => {
+describe('Spec design-system › Farben ausschließlich aus der Palette: Mischfarbe im Logo', () => {
   const logoTokens = [...css.matchAll(/--(logo-[a-z0-9-]+):\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()] as const);
   const palette = /^var\(--ctp-(?!red\b)[a-z0-9]+\)$/;
   const mixWithBase = /^color-mix\(in srgb, var\(--(?:ctp-(?!red\b)[a-z0-9]+|logo-[a-z0-9-]+)\) \d+%, var\(--bg\)\)$/;
