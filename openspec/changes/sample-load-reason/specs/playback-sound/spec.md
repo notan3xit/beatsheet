@@ -65,3 +65,36 @@ Der Dialog „DRSKit nicht verfügbar“ MUST den Grund nennen: je versuchtem Fo
 - **GIVEN** der Browser bietet keine Möglichkeit, Audiodateien zu dekodieren
 - **WHEN** der Nutzer den Dialog öffnet
 - **THEN** nennt der Grund, dass das Dekodieren in diesem Browser nicht möglich ist
+
+### Requirement: Hinweis auf Neuladen
+Der Dialog „DRSKit nicht verfügbar“ MUST den Hinweis „Neu laden kann das Problem beheben.“ zeigen, wenn mindestens ein Abruf ohne Antwort des Servers oder mit dem Status 404, 408, 429 oder einem Status ab 500 scheiterte. Sonst MUST der Hinweis fehlen.
+
+#### Scenario: Serverfehler beim Abruf
+- **GIVEN** der Abruf einer Aufnahme scheitert mit dem Status 502
+- **WHEN** der Nutzer den Dialog öffnet
+- **THEN** zeigt der Dialog „Neu laden kann das Problem beheben.“
+
+#### Scenario: Keine Antwort des Servers
+- **GIVEN** der Abruf einer Aufnahme scheitert ohne Antwort des Servers
+- **WHEN** der Nutzer den Dialog öffnet
+- **THEN** zeigt der Dialog „Neu laden kann das Problem beheben.“
+
+#### Scenario: Datei auf dem Server nicht gefunden
+- **GIVEN** der Abruf einer Aufnahme scheitert mit dem Status 404
+- **WHEN** der Nutzer den Dialog öffnet
+- **THEN** zeigt der Dialog „Neu laden kann das Problem beheben.“
+
+#### Scenario: Anderer Status beim Abruf
+- **GIVEN** der Abruf einer Aufnahme scheitert mit dem Status 403
+- **WHEN** der Nutzer den Dialog öffnet
+- **THEN** fehlt der Hinweis
+
+#### Scenario: Nicht dekodierbar
+- **GIVEN** der Browser kann die Aufnahmen in keinem Format dekodieren
+- **WHEN** der Nutzer den Dialog öffnet
+- **THEN** fehlt der Hinweis
+
+#### Scenario: Eine von mehreren Ursachen genügt
+- **GIVEN** nach bestandener Probe scheitert eine Aufnahme beim Dekodieren und eine andere beim Abruf mit dem Status 502
+- **WHEN** der Nutzer den Dialog öffnet
+- **THEN** zeigt der Dialog „Neu laden kann das Problem beheben.“

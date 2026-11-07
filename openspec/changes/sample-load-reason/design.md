@@ -46,6 +46,12 @@ Alternative: Meldung im Stapel oben. Verworfen: Der Grund braucht mehrere Zeilen
 
 Der Lader von `createDeviceSound` liefert in diesem Fall die Zeile `Dekodieren: in diesem Browser nicht möglich`.
 
+### D7: Hinweis auf Neuladen
+
+`browserFetch` wirft bei einer Fehlerantwort `FetchStatusError` mit dem Feld `status`; so entscheidet der Lader ohne den Fehlertext zu lesen. Neuladen kann helfen bei einem Abruffehler ohne `status` (keine Antwort), bei `404` (ein offener Tab einer älteren Version fragt nach einer ersetzten Datei), `408`, `429` und ab `500`. Dekodierfehler ändern sich durch Neuladen nicht.
+
+`SampleLoader` erhält `reloadMayHelp(): boolean`. Es ist wahr, wenn das für irgendeinen Fehlschlag gilt, nicht nur für den genannten ersten. Der Dialog zeigt den Hinweis einmal unter der Liste.
+
 ## Risks / Trade-offs
 
 - [Englische Browsertexte in deutscher Oberfläche] → Bewusst unübersetzt, sie dienen der Diagnose.

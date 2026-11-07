@@ -15,6 +15,12 @@
 
 - [x] 3.1 Gesamten Stand prüfen. Prüfen: `npm test` und `npm run build` laufen fehlerfrei durch
 
+## 4. Hinweis auf Neuladen
+
+- [x] 4.1 Tests aus den Szenarien von „Hinweis auf Neuladen“ erfassen (rot), `src/audio/sampleLoader.test.ts`, `src/audio/deviceSound.test.ts` und `src/ui/appMenu.test.tsx`; Nachbauten des Laders um `reloadMayHelp()` ergänzen. Prüfen: `npm test -- sampleLoader deviceSound appMenu` rot
+- [x] 4.2 `FetchStatusError`, `reloadMayHelp()` und den Hinweis im Dialog nach design.md D7 umsetzen. Prüfen: `npm test -- sampleLoader deviceSound appMenu` grün
+- [x] 4.3 Gesamten Stand prüfen. Prüfen: `npm test` und `npm run build` laufen fehlerfrei durch
+
 ## Workflow follow-up
 
 - Paket nach `~/deploy/beatsheet` veröffentlichen und den Grund auf dem iPad im Dialog ablesen.

@@ -18,10 +18,22 @@ import * as download from './download';
 const ME = 'ich@example.com';
 const VERSION_ENTRY = `Version ${CHANGELOG[0]!.version}`;
 
-function fakeSound({ stored, state = 'ready', failures = [] }: { stored?: Record<string, string>; state?: LoaderState; failures?: readonly string[] } = {}) {
+function fakeSound({
+  stored,
+  state = 'ready',
+  failures = [],
+  reloadMayHelp = false,
+}: { stored?: Record<string, string>; state?: LoaderState; failures?: readonly string[]; reloadMayHelp?: boolean } = {}) {
   const data = new Map(Object.entries(stored ?? {}));
   const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => void data.set(key, value) };
-  const loader = { state: () => state, buffers: () => null, failures: () => failures, load: vi.fn(async () => {}), subscribe: () => () => {} };
+  const loader = {
+    state: () => state,
+    buffers: () => null,
+    failures: () => failures,
+    reloadMayHelp: () => reloadMayHelp,
+    load: vi.fn(async () => {}),
+    subscribe: () => () => {},
+  };
   return { setting: createSoundSetting(storage), loader, data } satisfies PlaybackSound & { data: Map<string, string> };
 }
 
@@ -386,6 +398,16 @@ describe('Spec playback-sound › Details zur Nichtverfügbarkeit', () => {
     const { user } = setup(null, fakeSound({ state }));
     await user.click(menuButton());
     expect(within(menu()).queryByRole('menuitem', { name: 'Details' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Spec playback-sound › Hinweis auf Neuladen', () => {
+  it.each([true, false])('Dialog zeigt den Hinweis nur, wenn Neuladen helfen kann (%s)', async (reloadMayHelp) => {
+    const { user } = setup(null, fakeSound({ state: 'unavailable', failures: ['Grund'], reloadMayHelp }));
+    await user.click(menuButton());
+    await user.click(item('Details'));
+    const dialog = screen.getByRole('dialog', { name: 'DRSKit nicht verfügbar' });
+    expect(within(dialog).queryAllByRole('note')).toHaveLength(reloadMayHelp ? 1 : 0);
   });
 });
 

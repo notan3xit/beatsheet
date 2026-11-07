@@ -119,7 +119,7 @@ export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void
       {/* Außerhalb des aufklappbaren Teils: Die Dateiauswahl überdauert das Schließen des Menüs. */}
       <input ref={fileInput} type="file" accept=".json,application/json" aria-label="Importieren" hidden onChange={(e) => void importLibrary(e)} />
       {changelogOpen && <ChangelogDialog entries={CHANGELOG} onClose={() => setChangelogOpen(false)} />}
-      {sampleFailureOpen && <SampleFailureDialog failures={loader.failures()} onClose={() => setSampleFailureOpen(false)} />}
+      {sampleFailureOpen && <SampleFailureDialog failures={loader.failures()} reloadMayHelp={loader.reloadMayHelp()} onClose={() => setSampleFailureOpen(false)} />}
       {pending && (
         <ImportDialog
           plan={pending.plan}

@@ -2375,6 +2375,9 @@ button.meter-own.on {
   padding-left: 1.25rem;
   overflow-wrap: anywhere;
 }
+.sample-failure-dialog p {
+  margin: 0 0 0.75rem;
+}
 .import-warning {
   margin: 0;
   padding: 0.5rem 0.75rem;

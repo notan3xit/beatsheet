@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { INSTRUMENTS } from '../domain/types';
-import { browserFetch, createSampleLoader, SAMPLE_KEYS, type SampleFormat } from './sampleLoader';
+import { browserFetch, createSampleLoader, FetchStatusError, SAMPLE_KEYS, type SampleFormat } from './sampleLoader';
 
 const format = (name: string): SampleFormat => ({
   name,
@@ -122,6 +122,54 @@ describe('Spec playback-sound › Grund der Nichtverfügbarkeit', () => {
     await loader.load();
     expect(seen.at(-1)).toHaveLength(1);
     expect(loader.failures()).toBe(loader.failures());
+  });
+});
+
+describe('Spec playback-sound › Hinweis auf Neuladen', () => {
+  function reloadMayHelp({ fetchFails = {}, decodeFails = [] }: { fetchFails?: Record<string, unknown>; decodeFails?: string[] }) {
+    const loader = createSampleLoader({
+      formats: [OPUS, AAC],
+      fetchData: async (url) => {
+        if (url in fetchFails) throw fetchFails[url];
+        return new TextEncoder().encode(url).buffer as ArrayBuffer;
+      },
+      decode: async (data) => {
+        const url = new TextDecoder().decode(data);
+        if (decodeFails.includes(url)) throw new Error('nicht dekodierbar');
+        return { url } as unknown as AudioBuffer;
+      },
+    });
+    return loader.load().then(() => loader.reloadMayHelp());
+  }
+
+  it.each([
+    [404, true],
+    [408, true],
+    [429, true],
+    [500, true],
+    [502, true],
+    [403, false],
+  ])('Status %i: %s', async (status, expected) => {
+    expect(await reloadMayHelp({ fetchFails: { 'opus/crash-soft': new FetchStatusError(status) } })).toBe(expected);
+  });
+
+  it('Keine Antwort des Servers', async () => {
+    expect(await reloadMayHelp({ fetchFails: { 'opus/crash-soft': new TypeError('Load failed') } })).toBe(true);
+  });
+
+  it('Nicht dekodierbar', async () => {
+    expect(await reloadMayHelp({ decodeFails: ['opus/snare-normal', 'aac/snare-normal'] })).toBe(false);
+  });
+
+  it('Eine von mehreren Ursachen genügt, auch wenn die erste nicht zu ihnen gehört', async () => {
+    const [first, second] = SAMPLE_KEYS.filter((key) => key !== 'snare-normal');
+    expect(await reloadMayHelp({ decodeFails: [`opus/${first}`], fetchFails: { [`opus/${second}`]: new FetchStatusError(502) } })).toBe(true);
+  });
+
+  it('browserFetch trägt den Status der Fehlerantwort', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 502 })));
+    await expect(browserFetch('/assets/x.webm')).rejects.toMatchObject({ status: 502 });
+    vi.unstubAllGlobals();
   });
 });
 

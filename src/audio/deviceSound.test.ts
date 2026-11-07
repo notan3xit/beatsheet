@@ -7,5 +7,6 @@ describe('Spec playback-sound › Grund der Nichtverfügbarkeit', () => {
     await loader.load();
     expect(loader.state()).toBe('unavailable');
     expect(loader.failures()).toEqual(['Dekodieren: in diesem Browser nicht möglich']);
+    expect(loader.reloadMayHelp()).toBe(false);
   });
 });

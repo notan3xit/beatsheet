@@ -9,6 +9,7 @@ Scheitert das Laden der DRSKit-Aufnahmen, zeigt das Menü nur „auf diesem Ger�
 - Das Menü zeigt beim Hinweis den Eintrag „Details“, der einen Dialog mit dem Grund öffnet: Schritt, Aufnahme, Format und Fehlertext.
 - Scheitern mehrere Aufnahmen eines Formats, nennt der Grund die erste und die Anzahl.
 - Wurden mehrere Formate versucht, steht je Format eine Zeile im Dialog.
+- Bei Abruffehlern, die vorübergehend sein können, zeigt der Dialog „Neu laden kann das Problem beheben.“
 
 Das Verhalten beim Laden bleibt gleich: gleiche Formatwahl, gleicher Ersatz durch den Synth.
 

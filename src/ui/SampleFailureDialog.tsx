@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { useEscape } from './useDismiss';
 
 /** Dialog „DRSKit nicht verfügbar“: Grund je versuchtem Format (playback-sound). */
-export function SampleFailureDialog({ failures, onClose }: { failures: readonly string[]; onClose: () => void }) {
+export function SampleFailureDialog({ failures, reloadMayHelp, onClose }: { failures: readonly string[]; reloadMayHelp: boolean; onClose: () => void }) {
   const titleId = useId();
   useEscape(true, onClose);
   return (
@@ -14,6 +14,7 @@ export function SampleFailureDialog({ failures, onClose }: { failures: readonly 
             <li key={line}>{line}</li>
           ))}
         </ul>
+        {reloadMayHelp && <p role="note">Neu laden kann das Problem beheben.</p>}
         <div className="dialog-actions">
           <button type="button" autoFocus onClick={onClose}>
             Schließen

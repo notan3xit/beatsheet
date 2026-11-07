@@ -24,6 +24,8 @@ export interface SampleLoader {
   buffers(): SampleBuffers | null;
   /** Je gescheitertem Format eine Zeile; leer außer im Zustand `unavailable`. */
   failures(): readonly string[];
+  /** Ob ein Fehlschlag vorübergehend sein kann; nur im Zustand `unavailable` wahr. */
+  reloadMayHelp(): boolean;
   /** Lädt einmal; weitere Aufrufe liefern denselben Vorgang. */
   load(): Promise<void>;
   subscribe(listener: () => void): () => void;
@@ -41,6 +43,16 @@ const PROBE: SampleKey = 'snare-normal';
 
 const NO_FAILURES: readonly string[] = [];
 
+/** Fehlerantwort des Servers beim Abruf. */
+export class FetchStatusError extends Error {
+  status: number;
+
+  constructor(status: number) {
+    super(`HTTP ${status}`);
+    this.status = status;
+  }
+}
+
 interface Failure {
   step: 'Abruf' | 'Dekodieren';
   key: SampleKey;
@@ -53,6 +65,13 @@ function errorText(error: unknown): string {
   return [name !== 'Error' && name, message].filter(Boolean).join(': ') || String(error);
 }
 
+/** 404: Ein offener Tab einer älteren Version fragt nach einer ersetzten Datei (sample-load-reason, design.md D7). */
+function canPassOnReload({ step, error }: Failure): boolean {
+  if (step !== 'Abruf') return false;
+  if (!(error instanceof FetchStatusError)) return true;
+  return [404, 408, 429].includes(error.status) || error.status >= 500;
+}
+
 /**
  * Lädt die Aufnahmen im ersten dekodierbaren Format (drum-samples, design.md D3). Ein Abruffehler
  * beendet das Laden, weil er nichts über den Codec aussagt.
@@ -61,6 +80,7 @@ export function createSampleLoader({ formats, fetchData, decode }: LoaderDeps): 
   let state: LoaderState = 'idle';
   let buffers: SampleBuffers | null = null;
   let failures = NO_FAILURES;
+  let reloadMayHelp = false;
   let running: Promise<void> | null = null;
   const listeners = new Set<() => void>();
   const setState = (next: LoaderState) => {
@@ -85,10 +105,12 @@ export function createSampleLoader({ formats, fetchData, decode }: LoaderDeps): 
   const run = async () => {
     setState('loading');
     const lines: string[] = [];
+    let mayPass = false;
     for (const format of formats) {
       const probe = await loadSample(format, PROBE);
       if (isFailure(probe)) {
         lines.push(lineOf(probe, format));
+        mayPass ||= canPassOnReload(probe);
         if (probe.step === 'Abruf') break;
         continue;
       }
@@ -97,6 +119,7 @@ export function createSampleLoader({ formats, fetchData, decode }: LoaderDeps): 
       const failed = results.filter(isFailure);
       if (failed.length > 0) {
         lines.push(lineOf(failed[0]!, format, failed.length));
+        mayPass ||= failed.some(canPassOnReload);
         break;
       }
       buffers = Object.fromEntries([[PROBE, probe], ...others.map((key, i) => [key, results[i]])]) as SampleBuffers;
@@ -104,6 +127,7 @@ export function createSampleLoader({ formats, fetchData, decode }: LoaderDeps): 
       return;
     }
     failures = lines;
+    reloadMayHelp = mayPass;
     setState('unavailable');
   };
 
@@ -111,6 +135,7 @@ export function createSampleLoader({ formats, fetchData, decode }: LoaderDeps): 
     state: () => state,
     buffers: () => buffers,
     failures: () => failures,
+    reloadMayHelp: () => reloadMayHelp,
     load() {
       running ??= run();
       return running;
@@ -137,6 +162,6 @@ export function browserDecode(win: OfflineWindow = globalThis as OfflineWindow):
 
 export async function browserFetch(url: string): Promise<ArrayBuffer> {
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  if (!response.ok) throw new FetchStatusError(response.status);
   return response.arrayBuffer();
 }
