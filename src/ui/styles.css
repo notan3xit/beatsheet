@@ -2246,7 +2246,7 @@ button.meter-own.on {
   background: var(--step);
 }
 
-.step.downbeat:not([aria-pressed='true']) {
+.step.downbeat:not([aria-pressed='true'], .playing) {
   box-shadow: inset 0 0 0 1px var(--step-hover);
 }
 
