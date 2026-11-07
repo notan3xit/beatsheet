@@ -243,7 +243,7 @@ Solange Takte ausgewählt sind, MUST die Patternseite die Karte jedes Grooves un
 - **THEN** ist keine Karte hervorgehoben
 
 ### Requirement: Pattern-Chips
-Groove und Fill MUST im Takt-Popover als Chips in der Farbe des jeweiligen Patterns wählbar sein, ergänzt um „neu“ und „kein“. Die Chips der Patterns MUST in der Reihenfolge der Anforderung „Patternseite“ stehen. Der Chip „neu“ MUST die Farbe zeigen, die ein neues Pattern erhalten würde. Ein Chip MUST als gewählt erscheinen, wenn alle ausgewählten Takte dieses Pattern haben. Ein gewählter Chip MUST in seiner Patternfarbe gefüllt sein und einen Haken zeigen, ohne zusätzlichen Rahmen in einer anderen Farbe.
+Groove und Fill MUST im Takt-Popover als Chips in der Farbe des jeweiligen Patterns wählbar sein, ergänzt um „neu“ und „kein“. Die Chips der Patterns MUST in der Reihenfolge der Anforderung „Patternseite“ stehen. Der Chip „neu“ MUST die Farbe zeigen, die ein neues Pattern erhalten würde. Ein Chip MUST als gewählt erscheinen, wenn alle ausgewählten Takte dieses Pattern haben. Ein gewählter Chip MUST sich durch seine Fläche in Patternfarbe, nach der Anforderung „Flächen in Patternfarbe mit Schrift“ von `design-system`, und durch einen Haken abheben, ohne Rahmen in einer anderen als seiner Patternfarbe.
 
 #### Scenario: Groove-Chips
 - **WHEN** der Song die Grooves A (blau) und B (grün) hat und der Nutzer Takte mit Groove A auswählt
@@ -357,7 +357,7 @@ Die Pattern-Karten der rechten Seite MUST in der Reihenfolge der Anforderung „
 - **THEN** steht die Karte von B unter der Karte von A und die Noten beider Karten sind nicht verkleinert
 
 ### Requirement: Kompakte Pattern-Karten
-Die Noten auf der Patternseite MUST verkleinert und in allen Karten im gleichen Maßstab erscheinen, ohne eigenen Rahmen. Reicht die Breite der Patternseite nicht, MUST die Notation in der Karte umbrechen. Eine Fill-Karte MUST wie die Fill-Blöcke der Struktur ringsum in ihrer Farbe gerahmt und mit ihrer Farbe getönt erscheinen, eine Groove-Karte wie die Groove-Balken mit einer Kante links in ihrer Farbe und ohne Tönung. Die Kopfzeile MUST einzeilig sein und nur den Namen in der Farbe des Patterns und die Länge zeigen, dahinter die Taktart, wenn sie vom Standard-Takt des Songs abweicht. Passt der Name nicht neben die Länge, MUST er mit „…“ gekürzt erscheinen und vollständig als Tooltip verfügbar sein. Ein Klick auf den Namen MUST den Pattern-Editor öffnen. Die Knöpfe zum Anlegen MUST als „+ Groove“ und „+ Fill“ erscheinen.
+Die Noten auf der Patternseite MUST verkleinert und in allen Karten im gleichen Maßstab erscheinen, ohne eigenen Rahmen. Reicht die Breite der Patternseite nicht, MUST die Notation in der Karte umbrechen. Eine Fill-Karte MUST wie die Fill-Blöcke der Struktur ringsum in ihrer Farbe gerahmt und mit ihrer Farbe getönt erscheinen, eine Groove-Karte wie die Groove-Balken mit einer Kante links in ihrer Farbe und ohne Tönung. Die Kopfzeile MUST einzeilig sein und nur den Namen in der mit „text“ gemischten Farbe des Patterns und die Länge zeigen, dahinter die Taktart, wenn sie vom Standard-Takt des Songs abweicht. Passt der Name nicht neben die Länge, MUST er mit „…“ gekürzt erscheinen und vollständig als Tooltip verfügbar sein. Ein Klick auf den Namen MUST den Pattern-Editor öffnen. Die Knöpfe zum Anlegen MUST als „+ Groove“ und „+ Fill“ erscheinen.
 
 #### Scenario: Gleicher Maßstab
 - **WHEN** der Song einen Groove mit 4 Beats und einen Groove mit 8 Beats hat, beide mit Vierteln auf der Snare
