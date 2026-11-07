@@ -18,10 +18,10 @@ import * as download from './download';
 const ME = 'ich@example.com';
 const VERSION_ENTRY = `Version ${CHANGELOG[0]!.version}`;
 
-function fakeSound({ stored, state = 'ready' }: { stored?: Record<string, string>; state?: LoaderState } = {}) {
+function fakeSound({ stored, state = 'ready', failures = [] }: { stored?: Record<string, string>; state?: LoaderState; failures?: readonly string[] } = {}) {
   const data = new Map(Object.entries(stored ?? {}));
   const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => void data.set(key, value) };
-  const loader = { state: () => state, buffers: () => null, load: vi.fn(async () => {}), subscribe: () => () => {} };
+  const loader = { state: () => state, buffers: () => null, failures: () => failures, load: vi.fn(async () => {}), subscribe: () => () => {} };
   return { setting: createSoundSetting(storage), loader, data } satisfies PlaybackSound & { data: Map<string, string> };
 }
 
@@ -335,6 +335,57 @@ describe('Spec playback-sound › Ersatz durch den Synth', () => {
     const { user } = setup(null, fakeSound({ state: 'loading' }));
     await user.click(menuButton());
     expect(soundOption('DRSKit')).not.toHaveTextContent(UNAVAILABLE);
+  });
+});
+
+describe('Spec playback-sound › Details zur Nichtverfügbarkeit', () => {
+  const LINES = ['Dekodieren, snare-normal (opus): EncodingError: Decoding failed', 'Abruf, crash-soft (aac): HTTP 404'];
+  const dialog = () => screen.getByRole('dialog', { name: 'DRSKit nicht verfügbar' });
+  const unavailable = () => fakeSound({ state: 'unavailable', failures: LINES });
+
+  it('Details öffnen: Menü zu, Dialog offen, Klang unverändert', async () => {
+    const { user, sound } = setup(null, unavailable());
+    await user.click(menuButton());
+    await user.click(item('Details'));
+    expectClosed();
+    expect(dialog()).toBeInTheDocument();
+    expect(sound.setting.get()).toBe('drs');
+  });
+
+  it('„Details“ steht direkt unter „DRSKit“ und vor „Synth“', async () => {
+    const { user } = setup(null, unavailable());
+    await user.click(menuButton());
+    expect(follows(soundOption('DRSKit'), item('Details'))).toBe(true);
+    expect(follows(item('Details'), soundOption('Synth'))).toBe(true);
+  });
+
+  it('Der Dialog nennt je Format eine Zeile', async () => {
+    const { user } = setup(null, unavailable());
+    await user.click(menuButton());
+    await user.click(item('Details'));
+    expect(within(dialog()).getAllByRole('listitem').map((line) => line.textContent)).toEqual(LINES);
+  });
+
+  it('Dialog schließen über den Knopf', async () => {
+    const { user } = setup(null, unavailable());
+    await user.click(menuButton());
+    await user.click(item('Details'));
+    await user.click(within(dialog()).getByRole('button', { name: 'Schließen' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('Dialog schließen über Escape', async () => {
+    const { user } = setup(null, unavailable());
+    await user.click(menuButton());
+    await user.click(item('Details'));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it.each(['ready', 'loading', 'idle'] as const)('Kein Eintrag ohne Fehler (%s)', async (state) => {
+    const { user } = setup(null, fakeSound({ state }));
+    await user.click(menuButton());
+    expect(within(menu()).queryByRole('menuitem', { name: 'Details' })).not.toBeInTheDocument();
   });
 });
 

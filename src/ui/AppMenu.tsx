@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useSyncExternalStore, type ChangeEvent, type ReactNode } from 'react';
+import { Fragment, useCallback, useRef, useState, useSyncExternalStore, type ChangeEvent, type ReactNode } from 'react';
 import type { Sound } from '../audio/soundSetting';
 import { newId } from '../domain/id';
 import { exportFileName, parseNotebookFile, serializeNotebook } from '../persistence/fileFormat';
@@ -10,6 +10,7 @@ import { CheckIcon, ExportIcon, ImportIcon, InfoIcon, MenuIcon, PersonIcon } fro
 import { ImportDialog } from './ImportDialog';
 import { useSound } from './playback';
 import { useReport } from './messages';
+import { SampleFailureDialog } from './SampleFailureDialog';
 import { useDismiss } from './useDismiss';
 import { useStore } from './useLibrary';
 import { useThemeSetting } from './useTheme';
@@ -26,6 +27,8 @@ export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
   const [changelogOpen, setChangelogOpen] = useState(false);
+  const [sampleFailureOpen, setSampleFailureOpen] = useState(false);
+  const { loader } = useSound();
   const area = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   useDismiss(open, area, useCallback(() => setOpen(false), []));
@@ -105,7 +108,7 @@ export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void
           <hr />
           <ThemeChoiceSection onChoose={() => setOpen(false)} />
           <hr />
-          <SoundChoice onChoose={() => setOpen(false)} />
+          <SoundChoice onChoose={() => setOpen(false)} onDetails={choose(() => setSampleFailureOpen(true))} />
           <hr />
           <button type="button" role="menuitem" onClick={choose(() => setChangelogOpen(true))}>
             <InfoIcon />
@@ -116,6 +119,7 @@ export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void
       {/* Außerhalb des aufklappbaren Teils: Die Dateiauswahl überdauert das Schließen des Menüs. */}
       <input ref={fileInput} type="file" accept=".json,application/json" aria-label="Importieren" hidden onChange={(e) => void importLibrary(e)} />
       {changelogOpen && <ChangelogDialog entries={CHANGELOG} onClose={() => setChangelogOpen(false)} />}
+      {sampleFailureOpen && <SampleFailureDialog failures={loader.failures()} onClose={() => setSampleFailureOpen(false)} />}
       {pending && (
         <ImportDialog
           plan={pending.plan}
@@ -133,6 +137,8 @@ interface ChoiceOption<T extends string> {
   value: T;
   label: string;
   hint?: string;
+  /** Eigener Eintrag unter der Option; ein Knopf in der Option wäre ungültig. */
+  below?: ReactNode;
 }
 
 /** Abschnitt mit Überschrift und genau einer gewählten Option; Wählen schließt das Menü (theme-choice, design.md D4). */
@@ -156,16 +162,19 @@ function MenuChoice<T extends string>({
       <span id={id} className="app-menu-heading">
         {heading}
       </span>
-      {options.map(({ value, label, hint }) => (
-        <button key={value} type="button" role="menuitemradio" aria-checked={chosen === value} onClick={() => onChoose(value)}>
-          <span className="app-menu-check" aria-hidden="true">
-            {chosen === value ? <CheckIcon /> : null}
-          </span>
-          <span>
-            {label}
-            {hint && <span className="app-menu-hint">{hint}</span>}
-          </span>
-        </button>
+      {options.map(({ value, label, hint, below }) => (
+        <Fragment key={value}>
+          <button type="button" role="menuitemradio" aria-checked={chosen === value} onClick={() => onChoose(value)}>
+            <span className="app-menu-check" aria-hidden="true">
+              {chosen === value ? <CheckIcon /> : null}
+            </span>
+            <span>
+              {label}
+              {hint && <span className="app-menu-hint">{hint}</span>}
+            </span>
+          </button>
+          {below}
+        </Fragment>
       ))}
       {children}
     </div>
@@ -197,12 +206,21 @@ function ThemeChoiceSection({ onChoose }: { onChoose: () => void }) {
 }
 
 /** Abschnitt „Klang“: Wahl zwischen Aufnahmen und Synth, Hinweis und Namensnennung (drum-samples, design.md D7). */
-function SoundChoice({ onChoose }: { onChoose: () => void }) {
+function SoundChoice({ onChoose, onDetails }: { onChoose: () => void; onDetails: () => void }) {
   const { setting, loader } = useSound();
   const chosen = useSyncExternalStore(setting.subscribe, setting.get);
-  const loaderState = useSyncExternalStore(loader.subscribe, loader.state);
+  const unavailable = useSyncExternalStore(loader.subscribe, loader.state) === 'unavailable';
   const sounds: ChoiceOption<Sound>[] = [
-    { value: 'drs', label: 'DRSKit', hint: loaderState === 'unavailable' ? 'auf diesem Gerät nicht verfügbar' : undefined },
+    {
+      value: 'drs',
+      label: 'DRSKit',
+      hint: unavailable ? 'auf diesem Gerät nicht verfügbar' : undefined,
+      below: unavailable && (
+        <button type="button" role="menuitem" className="app-menu-details" onClick={onDetails}>
+          Details
+        </button>
+      ),
+    },
     { value: 'synth', label: 'Synth' },
   ];
   return (

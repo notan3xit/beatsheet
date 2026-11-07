@@ -29,7 +29,7 @@ describe('Spec playback-sound › Klang der Aufnahmen', () => {
     const buffers = Object.fromEntries(SAMPLE_KEYS.map((key) => [key, { key }])) as unknown as SampleBuffers;
     const setting = createSoundSetting(null);
     let state: LoaderState = 'ready';
-    const loader = { state: () => state, buffers: () => buffers, load: async () => {}, subscribe: () => () => {} };
+    const loader = { state: () => state, buffers: () => buffers, failures: () => [], load: async () => {}, subscribe: () => () => {} };
     const player = createWebAudioPlayer({ AudioContext: AudioContext as unknown as typeof globalThis.AudioContext }, { setting, loader });
     player.start(source);
     const ctx = created[0]!;

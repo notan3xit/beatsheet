@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { INSTRUMENTS } from '../domain/types';
-import { createSampleLoader, SAMPLE_KEYS, type SampleFormat } from './sampleLoader';
+import { browserFetch, createSampleLoader, SAMPLE_KEYS, type SampleFormat } from './sampleLoader';
 
 const format = (name: string): SampleFormat => ({
   name,
@@ -48,6 +48,80 @@ describe('Spec playback-sound › Laden im Hintergrund', () => {
     await Promise.all([first, second]);
     await loader.load();
     expect(fetchData).toHaveBeenCalledTimes(SAMPLE_KEYS.length);
+  });
+});
+
+describe('Spec playback-sound › Grund der Nichtverfügbarkeit', () => {
+  /** Abruf und Dekodieren je Aufnahme steuerbar, in der Form, die die Spec benennt. */
+  function failing({ fetchFails = {}, decodeFails = {} }: { fetchFails?: Record<string, unknown>; decodeFails?: Record<string, unknown> }) {
+    return createSampleLoader({
+      formats: [OPUS, AAC],
+      fetchData: async (url) => {
+        if (url in fetchFails) throw fetchFails[url];
+        return new TextEncoder().encode(url).buffer as ArrayBuffer;
+      },
+      decode: async (data) => {
+        const url = new TextDecoder().decode(data);
+        if (url in decodeFails) throw decodeFails[url];
+        return { url } as unknown as AudioBuffer;
+      },
+    });
+  }
+  const encodingError = () => new DOMException('Decoding failed', 'EncodingError');
+
+  it('Abruf scheitert: Schritt, Aufnahme, Format und Fehlertext', async () => {
+    const loader = failing({ fetchFails: { 'opus/crash-soft': new Error('HTTP 404') } });
+    await loader.load();
+    expect(loader.failures()).toEqual(['Abruf, crash-soft (opus): HTTP 404']);
+  });
+
+  it('Beide Formate nicht dekodierbar: je Format eine Zeile', async () => {
+    const loader = failing({ decodeFails: { 'opus/snare-normal': encodingError(), 'aac/snare-normal': encodingError() } });
+    await loader.load();
+    expect(loader.failures()).toEqual([
+      'Dekodieren, snare-normal (opus): EncodingError: Decoding failed',
+      'Dekodieren, snare-normal (aac): EncodingError: Decoding failed',
+    ]);
+  });
+
+  it('Mehrere Aufnahmen scheitern: die erste und die Anzahl', async () => {
+    const [first, second, third] = SAMPLE_KEYS.filter((key) => key !== 'snare-normal');
+    const loader = failing({
+      fetchFails: { [`opus/${third}`]: new TypeError('Load failed') },
+      decodeFails: { [`opus/${second}`]: encodingError(), [`opus/${first}`]: encodingError() },
+    });
+    await loader.load();
+    expect(loader.state()).toBe('unavailable');
+    expect(loader.failures()).toEqual([`Dekodieren, ${first} (opus): EncodingError: Decoding failed (3 Aufnahmen gescheitert)`]);
+  });
+
+  it('Fehlerantwort des Servers: nur der Status, ohne URL', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 404 })));
+    await expect(browserFetch('/assets/crash-soft-abc.webm')).rejects.toThrow(/^HTTP 404$/);
+    vi.unstubAllGlobals();
+  });
+
+  it('Ablehnung ohne Fehlerobjekt bleibt sichtbar', async () => {
+    const loader = failing({ decodeFails: { 'opus/snare-normal': null, 'aac/snare-normal': null } });
+    await loader.load();
+    expect(loader.failures()).toEqual(['Dekodieren, snare-normal (opus): null', 'Dekodieren, snare-normal (aac): null']);
+  });
+
+  it('Zweites Format: kein Grund, obwohl das erste scheiterte', async () => {
+    const loader = failing({ decodeFails: { 'opus/snare-normal': encodingError() } });
+    await loader.load();
+    expect(loader.state()).toBe('ready');
+    expect(loader.failures()).toEqual([]);
+  });
+
+  it('Der Grund steht fest, wenn der Zustand wechselt, und bleibt als Snapshot stabil', async () => {
+    const loader = failing({ fetchFails: { 'opus/crash-soft': new Error('HTTP 404') } });
+    expect(loader.failures()).toEqual([]);
+    const seen: (readonly string[])[] = [];
+    loader.subscribe(() => seen.push(loader.failures()));
+    await loader.load();
+    expect(seen.at(-1)).toHaveLength(1);
+    expect(loader.failures()).toBe(loader.failures());
   });
 });
 

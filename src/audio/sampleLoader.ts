@@ -22,6 +22,8 @@ export interface SampleLoader {
   state(): LoaderState;
   /** Dekodierte Aufnahmen, sobald der Zustand `ready` ist. */
   buffers(): SampleBuffers | null;
+  /** Je gescheitertem Format eine Zeile; leer außer im Zustand `unavailable`. */
+  failures(): readonly string[];
   /** Lädt einmal; weitere Aufrufe liefern denselben Vorgang. */
   load(): Promise<void>;
   subscribe(listener: () => void): () => void;
@@ -37,7 +39,19 @@ export interface LoaderDeps {
 /** Probe je Format, bevor die übrigen Dateien geladen werden. */
 const PROBE: SampleKey = 'snare-normal';
 
-class FetchError extends Error {}
+const NO_FAILURES: readonly string[] = [];
+
+interface Failure {
+  step: 'Abruf' | 'Dekodieren';
+  key: SampleKey;
+  error: unknown;
+}
+
+/** Auch eine Ablehnung ohne Fehlerobjekt bleibt lesbar (sample-load-reason, design.md D4). */
+function errorText(error: unknown): string {
+  const { name, message } = (error ?? {}) as Partial<Error>;
+  return [name !== 'Error' && name, message].filter(Boolean).join(': ') || String(error);
+}
 
 /**
  * Lädt die Aufnahmen im ersten dekodierbaren Format (drum-samples, design.md D3). Ein Abruffehler
@@ -46,51 +60,57 @@ class FetchError extends Error {}
 export function createSampleLoader({ formats, fetchData, decode }: LoaderDeps): SampleLoader {
   let state: LoaderState = 'idle';
   let buffers: SampleBuffers | null = null;
+  let failures = NO_FAILURES;
   let running: Promise<void> | null = null;
   const listeners = new Set<() => void>();
   const setState = (next: LoaderState) => {
     state = next;
     listeners.forEach((listener) => listener());
   };
-  const fetchChecked = (url: string) =>
-    fetchData(url).catch((error: unknown) => {
-      throw new FetchError(String(error));
-    });
 
-  const loadFormat = async (format: SampleFormat): Promise<SampleBuffers | null> => {
-    let probe: AudioBuffer;
-    const probeData = await fetchChecked(format.urls[PROBE]);
+  const loadSample = async (format: SampleFormat, key: SampleKey): Promise<AudioBuffer | Failure> => {
+    let step: Failure['step'] = 'Abruf';
     try {
-      probe = await decode(probeData);
-    } catch {
-      return null;
+      const data = await fetchData(format.urls[key]);
+      step = 'Dekodieren';
+      return await decode(data);
+    } catch (error) {
+      return { step, key, error };
     }
-    const rest = await Promise.all(
-      SAMPLE_KEYS.filter((key) => key !== PROBE).map(async (key) => [key, await decode(await fetchChecked(format.urls[key]))] as const),
-    );
-    return Object.fromEntries([[PROBE, probe], ...rest]) as SampleBuffers;
   };
+  const isFailure = (result: AudioBuffer | Failure): result is Failure => 'step' in result;
+  const lineOf = ({ step, key, error }: Failure, format: SampleFormat, count = 1) =>
+    `${step}, ${key} (${format.name}): ${errorText(error)}${count > 1 ? ` (${count} Aufnahmen gescheitert)` : ''}`;
 
   const run = async () => {
     setState('loading');
-    try {
-      for (const format of formats) {
-        const loaded = await loadFormat(format);
-        if (loaded) {
-          buffers = loaded;
-          setState('ready');
-          return;
-        }
+    const lines: string[] = [];
+    for (const format of formats) {
+      const probe = await loadSample(format, PROBE);
+      if (isFailure(probe)) {
+        lines.push(lineOf(probe, format));
+        if (probe.step === 'Abruf') break;
+        continue;
       }
-    } catch {
-      // Abruffehler oder späterer Dekodierfehler
+      const others = SAMPLE_KEYS.filter((key) => key !== PROBE);
+      const results = await Promise.all(others.map((key) => loadSample(format, key)));
+      const failed = results.filter(isFailure);
+      if (failed.length > 0) {
+        lines.push(lineOf(failed[0]!, format, failed.length));
+        break;
+      }
+      buffers = Object.fromEntries([[PROBE, probe], ...others.map((key, i) => [key, results[i]])]) as SampleBuffers;
+      setState('ready');
+      return;
     }
+    failures = lines;
     setState('unavailable');
   };
 
   return {
     state: () => state,
     buffers: () => buffers,
+    failures: () => failures,
     load() {
       running ??= run();
       return running;
@@ -117,6 +137,6 @@ export function browserDecode(win: OfflineWindow = globalThis as OfflineWindow):
 
 export async function browserFetch(url: string): Promise<ArrayBuffer> {
   const response = await fetch(url);
-  if (!response.ok) throw new Error(`${url}: ${response.status}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.arrayBuffer();
 }

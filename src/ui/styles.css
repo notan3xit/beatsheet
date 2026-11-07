@@ -213,6 +213,14 @@ input {
   color: var(--muted);
 }
 
+.app-menu button.app-menu-details {
+  /* Bündig mit dem Text der Option: Breite und Abstand von .app-menu-check */
+  margin-left: 1.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-decoration: underline;
+}
+
 .app-menu-credit {
   max-width: 14rem;
   margin: 0.2rem 0.6rem 0.3rem;
@@ -2353,6 +2361,19 @@ button.meter-own.on {
 .changelog-dialog h2 {
   margin: 0;
   font-size: 1.1rem;
+}
+.sample-failure-dialog {
+  max-width: 34rem;
+  width: calc(100vw - 2rem);
+}
+.sample-failure-dialog h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+.sample-failure-dialog ul {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+  overflow-wrap: anywhere;
 }
 .import-warning {
   margin: 0;

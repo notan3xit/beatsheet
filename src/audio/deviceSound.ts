@@ -13,7 +13,8 @@ type OfflineWindow = { OfflineAudioContext?: unknown; webkitOfflineAudioContext?
 
 /** Ein Lader, der nichts laden kann: Der Browser dekodiert keine Audiodateien. */
 function unavailableLoader(): SampleLoader {
-  return { state: () => 'unavailable', buffers: () => null, load: () => Promise.resolve(), subscribe: () => () => {} };
+  const failures = ['Dekodieren: in diesem Browser nicht möglich'];
+  return { state: () => 'unavailable', buffers: () => null, failures: () => failures, load: () => Promise.resolve(), subscribe: () => () => {} };
 }
 
 /** Wahl im Gerätespeicher, DRSKit-Aufnahmen vom Server (drum-samples, design.md D3, D6). */
