@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 /** Neuerungen je Version in Stichworten für Nutzer, neueste zuerst. Der oberste Eintrag ist die aktuelle Version. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.6.0',
+    date: '2026-11-07',
+    items: [
+      'Beatsheet lässt sich zum Home-Bildschirm hinzufügen: eigenes Fenster, Name und Icon',
+      'Bessere Lesbarkeit: stärkere Kontraste und eine ruhigere helle Ansicht',
+      'Fehlerdetails zum DRSKit sagen, wenn Neuladen helfen kann',
+    ],
+  },
+  {
     version: '0.5.1',
     date: '2026-11-07',
     items: ['Menü zeigt die Version; ein Klick öffnet „Was ist neu“', 'Ist das DRSKit nicht verfügbar, nennt „Details“ im Menü den Grund'],
