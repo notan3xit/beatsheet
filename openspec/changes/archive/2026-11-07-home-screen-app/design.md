@@ -46,7 +46,7 @@ Grenze: Bis das JavaScript läuft, gilt der Startwert nach Systemeinstellung. Ob
 
 ## Risks / Trade-offs
 
-- [Getrennter Speicher: Die installierte App sieht auf iOS weder lokale Songs noch Anmeldung aus Safari] → Songs vorher im Konto abgleichen oder exportieren. Die App merkt davon nichts und braucht keine Änderung.
+- [Getrennter Speicher: Die installierte App sieht auf iOS lokale Songs aus Safari vermutlich nicht. Die Anmeldung kam dagegen auf dem iPad mit, dort war die App nach dem Einrichten angemeldet] → Songs vorher im Konto abgleichen oder exportieren. Die App merkt davon nichts und braucht keine Änderung.
 - [Export über Blob-Link kann im eigenen Fenster versagen; Berichte dazu betreffen ältere iOS-Versionen] → Prüfung auf dem iPad nach dem Veröffentlichen. Versagt er, folgt ein eigener Change.
 - [`persist()` kann auch installiert `false` liefern] → Der Speicher-Hinweis bleibt dann wie bisher; das ist die offene Prüfung, kein Fehler dieses Changes.
 - [Ohne Netz zeigt das eigene Fenster nur eine Fehlerseite] → Bekannte Grenze dieser Stufe.
