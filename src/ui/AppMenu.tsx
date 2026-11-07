@@ -3,8 +3,10 @@ import type { Sound } from '../audio/soundSetting';
 import { newId } from '../domain/id';
 import { exportFileName, parseNotebookFile, serializeNotebook } from '../persistence/fileFormat';
 import { applyImport, planImport, type ImportEntry } from '../persistence/merge';
+import { CHANGELOG } from './changelog';
+import { ChangelogDialog } from './ChangelogDialog';
 import { downloadFile } from './download';
-import { CheckIcon, ExportIcon, ImportIcon, MenuIcon, PersonIcon } from './icons';
+import { CheckIcon, ExportIcon, ImportIcon, InfoIcon, MenuIcon, PersonIcon } from './icons';
 import { ImportDialog } from './ImportDialog';
 import { useSound } from './playback';
 import { useReport } from './messages';
@@ -16,13 +18,14 @@ import { useEmail } from './useWorkbooks';
 
 type Pending = { plan: ImportEntry[]; fromNewerVersion: boolean };
 
-/** Menü der Kopfzeile: Export und Import aller Songs, Anmelden bzw. Abmelden, Wahl von Farbschema und Klang. */
+/** Menü der Kopfzeile: Export und Import aller Songs, Anmelden bzw. Abmelden, Wahl von Farbschema und Klang, aktuelle Version. */
 export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void; onLogout: () => void; loggingOut: boolean }) {
   const store = useStore();
   const report = useReport();
   const email = useEmail();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<Pending | null>(null);
+  const [changelogOpen, setChangelogOpen] = useState(false);
   const area = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   useDismiss(open, area, useCallback(() => setOpen(false), []));
@@ -103,10 +106,16 @@ export function AppMenu({ onLogin, onLogout, loggingOut }: { onLogin: () => void
           <ThemeChoiceSection onChoose={() => setOpen(false)} />
           <hr />
           <SoundChoice onChoose={() => setOpen(false)} />
+          <hr />
+          <button type="button" role="menuitem" onClick={choose(() => setChangelogOpen(true))}>
+            <InfoIcon />
+            Version {CHANGELOG[0]!.version}
+          </button>
         </div>
       )}
       {/* Außerhalb des aufklappbaren Teils: Die Dateiauswahl überdauert das Schließen des Menüs. */}
       <input ref={fileInput} type="file" accept=".json,application/json" aria-label="Importieren" hidden onChange={(e) => void importLibrary(e)} />
+      {changelogOpen && <ChangelogDialog entries={CHANGELOG} onClose={() => setChangelogOpen(false)} />}
       {pending && (
         <ImportDialog
           plan={pending.plan}

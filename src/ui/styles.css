@@ -2340,7 +2340,8 @@ button.meter-own.on {
   gap: 0.5rem;
 }
 
-.import-dialog {
+.import-dialog,
+.changelog-dialog {
   max-width: 34rem;
   width: calc(100vw - 2rem);
   max-height: calc(100vh - 2rem);
@@ -2348,7 +2349,8 @@ button.meter-own.on {
   flex-direction: column;
   gap: 0.75rem;
 }
-.import-dialog h2 {
+.import-dialog h2,
+.changelog-dialog h2 {
   margin: 0;
   font-size: 1.1rem;
 }
@@ -2358,6 +2360,36 @@ button.meter-own.on {
   border-radius: 6px;
   background: color-mix(in srgb, var(--warning) 25%, transparent);
   color: var(--text);
+  font-size: 0.85rem;
+}
+.changelog-dialog {
+  max-height: min(32rem, calc(100vh - 2rem));
+}
+.changelog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-right: 0.75rem; /* Abstand zum Rollbalken */
+  overflow-y: auto;
+  min-height: 0;
+}
+.changelog-entry header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.changelog-entry h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.changelog-date {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.changelog-entry ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.1rem;
   font-size: 0.85rem;
 }
 .import-list {

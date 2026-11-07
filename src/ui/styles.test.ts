@@ -443,3 +443,9 @@ describe('Links im Takt-Popover', () => {
     expect(css).toMatch(/\.breadcrumbs button:hover,\s*\.popover-link:hover\s*\{[^}]*text-decoration:\s*underline;/);
   });
 });
+
+describe('Spec app-header › Dialog „Was ist neu“', () => {
+  it('Höhe bei großem Fenster', () => {
+    expect(css).toMatch(/\.changelog-dialog\s*\{[^}]*max-height:\s*min\(32rem, calc\(100vh - 2rem\)\);/);
+  });
+});

@@ -11,10 +11,12 @@ import { createNotebookStore } from '../state/notebookStore';
 import { fakePlayer } from '../test/fakePlayer';
 import { songWith } from '../test/songs';
 import { App } from './App';
+import { CHANGELOG } from './changelog';
 import { connectTheme, createThemeSetting, THEME_STORAGE_KEY, type ThemeSetting } from './theme';
 import * as download from './download';
 
 const ME = 'ich@example.com';
+const VERSION_ENTRY = `Version ${CHANGELOG[0]!.version}`;
 
 function fakeSound({ stored, state = 'ready' }: { stored?: Record<string, string>; state?: LoaderState } = {}) {
   const data = new Map(Object.entries(stored ?? {}));
@@ -58,13 +60,13 @@ describe('Spec app-header › Menü', () => {
     const { user } = setup();
     expectClosed();
     await user.click(menuButton());
-    expect(entries()).toEqual(['Exportieren', 'Importieren', 'Anmelden']);
+    expect(entries()).toEqual(['Exportieren', 'Importieren', 'Anmelden', VERSION_ENTRY]);
   });
 
   it('Menü angemeldet', async () => {
     const { user } = setup(ME);
     await user.click(menuButton());
-    expect(entries()).toEqual(['Exportieren', 'Importieren', 'Abmelden']);
+    expect(entries()).toEqual(['Exportieren', 'Importieren', 'Abmelden', VERSION_ENTRY]);
   });
 
   it('Trennstrich', async () => {
@@ -79,6 +81,30 @@ describe('Spec app-header › Menü', () => {
     const { user } = setup();
     await user.click(menuButton());
     for (const entry of within(menu()).getAllByRole('menuitem')) expect(entry.querySelector('svg')).toBeInTheDocument();
+  });
+});
+
+describe('Spec app-header › Menü › Eintrag Version', () => {
+  it('Eintrag Version', async () => {
+    const { user } = setup();
+    await user.click(menuButton());
+    const separators = within(menu()).getAllByRole('separator');
+    const last = within(menu()).getAllByRole('menuitem').at(-1)!;
+    expect(last).toHaveTextContent(VERSION_ENTRY);
+    expect(follows(within(menu()).getByRole('group', { name: 'Klang' }), separators.at(-1)!)).toBe(true);
+    expect(follows(separators.at(-1)!, last)).toBe(true);
+    expect(last.nextElementSibling).toBeNull();
+  });
+
+  it('Dialog öffnen', async () => {
+    const { user } = setup();
+    await user.click(menuButton());
+    await user.click(item(VERSION_ENTRY));
+    expectClosed();
+    const dialog = screen.getByRole('dialog', { name: 'Was ist neu' });
+    expect(within(dialog).getAllByRole('article')).toHaveLength(CHANGELOG.length);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: 'Was ist neu' })).not.toBeInTheDocument();
   });
 });
 

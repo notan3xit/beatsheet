@@ -61,6 +61,15 @@ export function CheckIcon() {
   );
 }
 
+export function InfoIcon() {
+  return (
+    <Icon>
+      <circle cx="8" cy="8" r="6.5" />
+      <path d="M8 7.25v4M8 4.5v.25" />
+    </Icon>
+  );
+}
+
 export function ImportIcon() {
   return (
     <Icon>
