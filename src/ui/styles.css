@@ -69,6 +69,8 @@
   --z-popover: 20;
   --z-modal: 30;
   --z-drag: 40;
+  /* Dauer, mit der Struktur-Zeilen zwischen voll und flach gleiten */
+  --motion-row: 240ms;
   font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: var(--text);
   background: var(--bg);
@@ -1081,7 +1083,8 @@ body.dragging-pattern .tile-add:hover {
   text-decoration: underline;
 }
 
-.lock-toggle {
+.lock-toggle,
+.structure-toggle {
   display: inline-flex;
   flex: none;
   align-self: center;
@@ -1094,8 +1097,33 @@ body.dragging-pattern .tile-add:hover {
   color: var(--muted);
 }
 
-.lock-toggle:hover {
+.lock-toggle:hover,
+.structure-toggle:hover {
   background: var(--control-hover);
+}
+
+/* Schalter und Schloss stehen beieinander; vor dem Schalter steht entsperrt „Song löschen“ */
+.structure-toggle + .lock-toggle,
+.page-title .danger + .structure-toggle {
+  margin-left: 0;
+}
+
+.structure-toggle.expanded {
+  background: var(--control);
+  color: var(--text);
+}
+
+.structure-toggle.expanded:hover {
+  background: var(--control-hover);
+}
+
+.structure-toggle {
+  height: 2rem;
+}
+
+.structure-toggle svg {
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .page-title .danger + .lock-toggle,
@@ -1112,7 +1140,8 @@ body.dragging-pattern .tile-add:hover {
   background: var(--control-hover);
 }
 
-.lock-toggle svg {
+.lock-toggle svg,
+.structure-toggle svg {
   width: 1.25rem;
   height: 1.25rem;
   fill: none;
@@ -1293,12 +1322,14 @@ select.meter-mark:hover {
 .structure-page {
   /* Basis und Höchstbreite: 16 Beats zu 2,25rem bzw. 3rem, Rand der Zeilennummern, Padding und Rahmen der Seite */
   --structure-width: calc(16 * 2.25rem + var(--row-gutter) + 2rem + 2px);
-  --structure-max: calc(16 * 3rem + var(--row-gutter) + 2rem + 2px);
+  --structure-max: calc(16 * 3rem + var(--row-gutter) + var(--name-col) + 2rem + 2px);
   /* Maßstab aus der Breite der Seite: 16 Beats füllen die Zeile, höchstens 3rem pro Beat */
   container-type: inline-size;
   --beat: min(3rem, (100cqw - var(--row-gutter)) / 16);
   /* Maße auf ganze Pixel (bei 16px), damit Striche und Kreise nicht je nach Lage verwischen */
   --row-gutter: 1.625rem;
+  /* Spalte der Segmentnamen links neben den Zeilen, sobald sie Platz hat (unten) */
+  --name-col: 7rem;
   /* Abstand der Balken zu Taktstrichen und zueinander */
   --item-gap: 3px;
 }
@@ -1341,6 +1372,7 @@ select.meter-mark:hover {
   height: 1.375rem;
   margin-top: 0.25rem;
   margin-left: var(--row-gutter);
+  transition: height var(--motion-row) ease, margin-top var(--motion-row) ease;
 }
 
 /* Neuer Block: neue Zeile mit etwas mehr Luft und einer dezenten Linie */
@@ -1355,6 +1387,72 @@ select.meter-mark:hover {
   right: 0;
   top: -0.25rem;
   border-top: 1px dashed var(--border);
+  transition: top var(--motion-row) ease;
+}
+
+/* Flache Zeile: Wiederholung oder, gesperrt, leerer Block; Takte und Balken bleiben, Texte blenden aus */
+.structure-row.flat {
+  height: 0.625rem;
+  margin-top: 0.125rem;
+}
+
+.structure-row.flat.block-start {
+  margin-top: 0.25rem;
+}
+
+.structure-row.flat.block-start::before {
+  top: -0.125rem;
+}
+
+.item-label,
+.start-beat,
+.shorthand,
+.accent {
+  transition:
+    opacity var(--motion-row),
+    visibility var(--motion-row);
+}
+
+.structure-row.flat .item-label,
+.structure-row.flat .start-beat,
+.structure-row.flat .shorthand,
+.structure-row.flat .accent {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Taktnummer bleibt, kleiner und auf die Höhe der flachen Zeile ausgerichtet */
+.structure-row.flat .row-number {
+  font-size: 0.55rem;
+  line-height: 0.625rem;
+}
+
+.structure-row.flat .item {
+  top: 1px;
+  bottom: 1px;
+  padding: 0;
+  border-radius: 2px;
+}
+
+/* 2px Rahmen ließen in 10px Höhe kaum Füllung: 1px Rahmen und 1px Schatten in derselben Farbe */
+.structure-row.flat .item.highlighted {
+  border-width: 1px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--pc) var(--edge-mix), var(--text));
+}
+
+.structure-row.flat .item.ghost {
+  border-width: 1px;
+  box-shadow: 0 0 0 1px var(--ghost);
+}
+
+.structure-row.flat .insert-bar {
+  top: calc(50% - 0.5rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-row: 0ms;
+  }
 }
 
 .row-number {
@@ -1365,6 +1463,9 @@ select.meter-mark:hover {
   font-size: 0.6rem;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
+  transition:
+    line-height var(--motion-row) ease,
+    font-size var(--motion-row) ease;
 }
 
 .bar-frame {
@@ -1415,6 +1516,9 @@ select.meter-mark:hover {
 .item {
   top: 2px;
   bottom: 2px;
+  transition:
+    top var(--motion-row) ease,
+    bottom var(--motion-row) ease;
   display: flex;
   align-items: center;
   gap: 0.2rem;
@@ -1672,6 +1776,56 @@ body.dragging-pattern * {
 
 .segment-head .structure-popover {
   margin-left: var(--row-gutter);
+}
+
+/*
+ * Segmentnamen links, solange daneben 16 Beats zu 2,25rem passen:
+ * 16 * 2,25rem + --row-gutter (1,625rem) + --name-col (7rem) = 44,625rem Inhaltsbreite der Strukturseite.
+ * Nach den Grundregeln von Namen, Popover und Einfügeleiste, die es überschreibt.
+ */
+@container (min-width: 44.625rem) {
+  .segment {
+    --beat: min(3rem, (100cqw - var(--row-gutter) - var(--name-col)) / 16);
+    display: grid;
+    grid-template-columns: var(--name-col) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  /* Auf Höhe der ersten Zeile: deren Abstand nach oben, einzeilig in ihrer Mitte */
+  .segment .segment-name {
+    margin: 0.25rem 0 0;
+    transition: margin-top var(--motion-row) ease;
+  }
+
+  .segment.starts-flat .segment-name {
+    margin-top: 0;
+  }
+
+  .segment-select {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    /* Schrift bündig mit der Spalte, die Fläche bei Auswahl ragt in den Rand der Seite */
+    margin-left: -0.3rem;
+    padding: 0.1875rem 0.3rem;
+    line-height: 1rem;
+    text-align: left;
+    overflow-wrap: anywhere;
+    transition: padding-top var(--motion-row) ease;
+  }
+
+  .segment.starts-flat .segment-select {
+    padding-top: 0;
+  }
+
+  .segment-head .structure-popover {
+    margin-left: 0;
+  }
+
+  .insert-strips {
+    left: calc(var(--name-col) + var(--row-gutter));
+  }
 }
 
 /* Abschnitte eines Popovers, ab dem zweiten mit Trennlinie */

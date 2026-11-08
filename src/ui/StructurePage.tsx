@@ -217,7 +217,7 @@ function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
   return (
     <div
       ref={ref}
-      className={`structure-row${row.blockStart ? ' block-start' : ''}`}
+      className={`structure-row${row.blockStart ? ' block-start' : ''}${row.flat ? ' flat' : ''}`}
       style={{ width: `calc(var(--beat) * ${row.width})` }}
     >
       <span className="row-number" aria-hidden="true">
@@ -273,13 +273,14 @@ function SegmentView({ segment, selection }: { segment: SegmentLayout; selection
   );
 
   return (
-    <div ref={ref} className="segment">
+    <div ref={ref} className={`segment${segment.rows[0]?.flat ? ' starts-flat' : ''}`}>
       <div className="segment-head">
         <h3 className="segment-name">
           <button
             type="button"
             className="segment-select"
             data-read-safe=""
+            title={segment.name}
             aria-pressed={selected}
             onClick={() => selection.selectSegment(segment.segmentId)}
           >
@@ -292,9 +293,16 @@ function SegmentView({ segment, selection }: { segment: SegmentLayout; selection
           </Popover>
         )}
       </div>
-      {segment.rows.map((row, r) => (
-        <StructureRow key={r} row={row} selection={selection} />
-      ))}
+      <div className="segment-rows">
+        {/* Schlüssel aus Block und Zeile im Block: beim Wechsel zwischen voll und flach bleibt das Element, der Übergang greift (design.md D3) */}
+        {segment.rows.map((row, r) => (
+          <StructureRow
+            key={`${row.blockId}:${segment.rows.slice(0, r).filter((other) => other.blockId === row.blockId).length}`}
+            row={row}
+            selection={selection}
+          />
+        ))}
+      </div>
       {/* Nur beim Überfahren im DOM, damit die Leseansicht ohne Hover frei von Knöpfen bleibt */}
       <div className="insert-strips">
         {hovered && !selection.locked && (
@@ -359,8 +367,8 @@ function useDismiss(active: boolean, inside: React.RefObject<HTMLElement | null>
 export function StructurePage({ selectionState }: { selectionState: StructureSelectionState }) {
   const store = useStore();
   const song = useOpenSong();
-  const { locked } = useNotebook();
-  const layout = layoutStructure(song);
+  const { locked, expanded } = useNotebook();
+  const layout = layoutStructure(song, { locked, expanded });
   const { selection, selectBar, selectSegment, clear } = selectionState;
   const [hover, setHover] = useState<Hover>({ segmentId: null, rowKey: null });
   const dropTargets = useDropTargets((barId) =>

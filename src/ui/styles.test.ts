@@ -160,13 +160,15 @@ describe('Spec songbook-view › Doppelseite (Stylesheet)', () => {
   const songbookPadding = remOf(css.match(/\.songbook,\s*\.workspace\s*\{[^}]*padding:\s*[\d.]+rem ([\d.]+rem);/)?.[1]);
   const available = (px: number) => px / 16 - 2 * songbookPadding;
   const gutter = remOf(decl(ruleBody('.structure-page'), '--row-gutter'));
-  /** Wert eines calc()-Ausdrucks in rem (rem, px, var(--row-gutter)). */
+  const nameCol = remOf(decl(ruleBody('.structure-page'), '--name-col'));
+  /** Wert eines calc()-Ausdrucks in rem (rem, px, var(--row-gutter), var(--name-col)). */
   const evalRem = (value = '') =>
     Number(
       new Function(
         `return ${value
           .replace(/^calc/, '')
           .replace(/var\(--row-gutter\)/g, String(gutter))
+          .replace(/var\(--name-col\)/g, String(nameCol))
           .replace(/([\d.]+)px/g, '($1 / 16)')
           .replace(/([\d.]+)rem/g, '$1')}`,
       )(),
@@ -199,7 +201,7 @@ describe('Spec songbook-view › Doppelseite (Stylesheet)', () => {
     expect(decl(ruleBody('.pages'), 'flex-direction')).toBe('column');
     expect(decl(ruleBody('.pages', wide), 'flex-direction')).toBe('row');
     expect(decl(ruleBody('.structure-page'), '--structure-width')).toBe('calc(16 * 2.25rem + var(--row-gutter) + 2rem + 2px)');
-    expect(decl(ruleBody('.structure-page'), '--structure-max')).toBe('calc(16 * 3rem + var(--row-gutter) + 2rem + 2px)');
+    expect(decl(ruleBody('.structure-page'), '--structure-max')).toBe('calc(16 * 3rem + var(--row-gutter) + var(--name-col) + 2rem + 2px)');
     expect(decl(structure, 'flex')).toBe('3 1 var(--structure-width)');
     expect(decl(structure, 'max-width')).toBe('var(--structure-max)');
     expect(decl(patterns, 'flex')).toMatch(/^2 1 [\d.]+rem$/);
@@ -217,6 +219,44 @@ describe('Spec songbook-view › Doppelseite (Stylesheet)', () => {
     expect(at.side).toBe(false);
     expect(at.structure).toBe(at.patterns);
     expect(at.structure).toBeGreaterThanOrEqual(structureBasis);
+  });
+
+  describe('Segmentnamen neben der Struktur', () => {
+    // Bedingung des @container-Blocks, der die Segmente zum Raster aus Namensspalte und Zeilen macht
+    const condition = [...css.matchAll(/@container (\(min-width: ([\d.]+)rem\))/g)].find((m) =>
+      /grid-template-columns:\s*var\(--name-col\)/.test(containerBlock(m[1]!)),
+    );
+    const namesAt = Number(condition?.[2]);
+    const block = containerBlock(condition?.[1] ?? '');
+    /** Inhaltsbreite der Strukturseite bei dieser Fensterbreite. */
+    const content = (px: number) => layout(px).structure - 2 - 2 / 16;
+
+    it('Namensspalte ab 16 Beats zu 2,25rem neben der Spalte; --beat ohne die Spalte', () => {
+      expect(nameCol).toBeGreaterThan(0);
+      expect(namesAt).toBeCloseTo(16 * 2.25 + gutter + nameCol, 5);
+      expect(decl(ruleBody('.segment', block), '--beat')).toBe('min(3rem, (100cqw - var(--row-gutter) - var(--name-col)) / 16)');
+      expect(decl(ruleBody('.structure-page'), '--structure-width')).toBe('calc(16 * 2.25rem + var(--row-gutter) + 2rem + 2px)');
+    });
+
+    it('Großes Fenster: bei 1650 px Namen links und 3rem pro Beat', () => {
+      expect(content(1650)).toBeGreaterThanOrEqual(namesAt);
+      expect((content(1650) - gutter - nameCol) / 16).toBeGreaterThanOrEqual(3 - 1e-9);
+    });
+
+    it('Smartphone: bei 390 px Namen oben', () => {
+      expect(content(390)).toBeLessThan(namesAt);
+    });
+
+    it('Segmentname gleitet mit: Abstand und Innenabstand mit der Dauer der Zeilen', () => {
+      expect(decl(ruleBody('.segment .segment-name', block), 'transition')).toMatch(/margin-top var\(--motion-row\)/);
+      expect(decl(ruleBody('.segment-select', block), 'transition')).toMatch(/padding-top var\(--motion-row\)/);
+    });
+
+    it('Langer Name: höchstens zwei Zeilen, dann gekürzt', () => {
+      const name = ruleBody('.segment-select', block);
+      expect(decl(name, '-webkit-line-clamp')).toBe('2');
+      expect(decl(name, 'overflow')).toBe('hidden');
+    });
   });
 
   it('Großes Fenster: bei 1650 px Struktur breiter als bei 1024 px, Patternseite höchstens zwei Spalten', () => {
@@ -448,5 +488,49 @@ describe('Links im Takt-Popover', () => {
 describe('Spec app-header › Dialog „Was ist neu“', () => {
   it('Höhe bei großem Fenster', () => {
     expect(css).toMatch(/\.changelog-dialog\s*\{[^}]*max-height:\s*min\(32rem, calc\(100vh - 2rem\)\);/);
+  });
+});
+
+describe('Spec songbook-view › Flache Zeilen (Stylesheet)', () => {
+  /** Deklarationen aller Regeln, deren Selektorliste genau diesen Selektor enthält. */
+  const rulesWith = (selector: string) =>
+    [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter((m) => m[1]!.split(',').map((s) => s.trim()).includes(selector))
+      .map((m) => m[2]!);
+  const declIn = (selector: string, prop: string) => rulesWith(selector).map((b) => decl(b, prop)).find((v) => v !== undefined);
+
+  it('Höhe: 0,625rem, Abstand höchstens 0,125rem, am Blockanfang höchstens 0,25rem', () => {
+    expect(declIn('.structure-row.flat', 'height')).toBe('0.625rem');
+    expect(remOf(declIn('.structure-row.flat', 'margin-top'))).toBeLessThanOrEqual(0.125);
+    expect(remOf(declIn('.structure-row.flat.block-start', 'margin-top'))).toBeLessThanOrEqual(0.25);
+  });
+
+  it.each(['.item-label', '.start-beat', '.shorthand', '.accent'])('Darstellung: %s ist in flachen Zeilen ausgeblendet', (part) => {
+    expect(declIn(`.structure-row.flat ${part}`, 'visibility')).toBe('hidden');
+    expect(declIn(`.structure-row.flat ${part}`, 'opacity')).toBe('0');
+  });
+
+  it('Zeilennummern: sichtbar, kleiner, auf die Höhe der flachen Zeile ausgerichtet und mitgleitend', () => {
+    expect(declIn('.structure-row.flat .row-number', 'visibility')).toBeUndefined();
+    expect(declIn('.structure-row.flat .row-number', 'opacity')).toBeUndefined();
+    expect(declIn('.structure-row.flat .row-number', 'font-size')).toBe('0.55rem');
+    expect(declIn('.structure-row.flat .row-number', 'line-height')).toBe(declIn('.structure-row.flat', 'height'));
+    expect(decl(ruleBody('.row-number'), 'transition')).toMatch(/line-height var\(--motion-row\)/);
+  });
+
+  it('Darstellung: dieselben Tönungen wie in vollen Zeilen', () => {
+    const flatRules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((m) => /\.flat\b/.test(m[1]!));
+    expect(flatRules.length).toBeGreaterThan(0);
+    expect(flatRules.filter((m) => /(?:^|;)\s*background/.test(m[2]!)).map((m) => m[1]!.trim())).toEqual([]);
+  });
+
+  it('Übergang: Höhe und Abstand gleiten mit der Dauer aus einem Token', () => {
+    expect(decl(ruleBody('.structure-row'), 'transition')).toMatch(/height var\(--motion-row\)/);
+    expect(decl(ruleBody('.structure-row'), 'transition')).toMatch(/margin-top var\(--motion-row\)/);
+    expect(token('motion-row')).toMatch(/^\d+ms$/);
+  });
+
+  it('Reduzierte Bewegung: Dauer 0', () => {
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*:root\s*\{[^}]*--motion-row:\s*0ms/);
   });
 });

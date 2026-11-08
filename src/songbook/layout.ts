@@ -94,6 +94,8 @@ export interface Row {
   blockStart: boolean;
   /** Erste Zeile eines Blocks (auch des ersten im Segment). */
   firstInBlock: boolean;
+  /** Flach dargestellt: Wiederholung des vorigen Blocks bzw. eines früheren Segments oder, gesperrt, leerer Block. */
+  flat: boolean;
   width: number;
   bars: BarFrame[];
   items: Item[];
@@ -153,11 +155,47 @@ export function selectedPatterns(song: Song, barIds: readonly string[]) {
   };
 }
 
-/** Layout der linken Buchseite: Zeilen zu höchstens 16 Beats, jeder Block beginnt eine neue Zeile. */
-export function layoutStructure(song: Song): SegmentLayout[] {
+/** Signatur eines Takts, wie er erscheint: Länge, Groove ab Beat, Fill-Abschnitte, Akzente (design.md D1). */
+const barSignature = (bar: ResolvedBar) =>
+  JSON.stringify([
+    bar.beats,
+    bar.groove && [bar.groove.patternId, bar.groove.offset],
+    bar.fills.map((f) => [f.patternId, f.from, f.to, f.fillOffset]),
+    bar.accents.map((a) => [a.instrument, a.beat, a.position]),
+  ]);
+
+const isEmpty = (bar: ResolvedBar) => !bar.groove && bar.fills.length === 0 && bar.accents.length === 0;
+
+/** Flache Blöcke: leere nur im gesperrten Song, die übrigen, wenn ein früherer Block des Songs genauso aussieht. */
+function flatBlocks(song: Song, resolved: ResolvedBar[], locked: boolean): Set<string> {
+  const barsOf = new Map<string, ResolvedBar[]>();
+  for (const bar of resolved) {
+    const bars = barsOf.get(bar.blockId);
+    if (bars) bars.push(bar);
+    else barsOf.set(bar.blockId, [bar]);
+  }
+  const blockSignature = (blockId: string) => (barsOf.get(blockId) ?? []).map(barSignature).join('|');
+
+  const flat = new Set<string>();
+  const seen = new Set<string>();
+  for (const block of song.segments.flatMap((s) => s.blocks)) {
+    const signature = blockSignature(block.id);
+    const empty = (barsOf.get(block.id) ?? []).every(isEmpty);
+    if (empty ? locked : seen.has(signature)) flat.add(block.id);
+    seen.add(signature);
+  }
+  return flat;
+}
+
+/**
+ * Layout der linken Buchseite: Zeilen zu höchstens 16 Beats, jeder Block beginnt eine neue Zeile.
+ * `locked`: Song gesperrt, dann sind auch leere Blöcke flach. `expanded`: ausgeklappt, keine Zeile ist flach.
+ */
+export function layoutStructure(song: Song, { locked = false, expanded = false }: { locked?: boolean; expanded?: boolean } = {}): SegmentLayout[] {
   const resolved = resolveSong(song);
   const patterns = new Map(song.patterns.map((p) => [p.id, p]));
   const fills = fillInstances(resolved);
+  const flat = expanded ? new Set<string>() : flatBlocks(song, resolved, locked);
 
   return song.segments.map((segment) => {
     const rows: Row[] = [];
@@ -172,7 +210,7 @@ export function layoutStructure(song: Song): SegmentLayout[] {
       const bars = resolved.filter((r) => r.blockId === block.id);
       splitIntoRows(bars).forEach((rowBars, i) => {
         const row = layoutRow(rowBars, patterns, fills, labeled);
-        rows.push({ blockId: block.id, blockStart: b > 0 && i === 0, firstInBlock: i === 0, ...row });
+        rows.push({ blockId: block.id, blockStart: b > 0 && i === 0, firstInBlock: i === 0, flat: flat.has(block.id), ...row });
       });
     });
     return { segmentId: segment.id, name: segment.name, rows };
@@ -209,7 +247,7 @@ function layoutRow(
   patterns: Map<string, Pattern>,
   fills: FillInstance[],
   labeled: ReadonlySet<string>,
-): Omit<Row, 'blockId' | 'blockStart' | 'firstInBlock'> {
+): Omit<Row, 'blockId' | 'blockStart' | 'firstInBlock' | 'flat'> {
   const rowStart = bars[0]!.start;
   const rowEnd = bars.at(-1)!.start + bars.at(-1)!.beats;
   const frames: BarFrame[] = [];

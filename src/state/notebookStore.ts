@@ -22,6 +22,8 @@ export interface NotebookState {
   view: View;
   /** Geöffneter Song gegen Bearbeiten gesperrt; gilt nur in diesem Tab und wird nicht gespeichert. */
   locked: boolean;
+  /** Struktur des geöffneten Songs ausgeklappt, ohne flache Zeilen; gilt nur in diesem Tab und wird nicht gespeichert. */
+  expanded: boolean;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -39,6 +41,7 @@ export interface NotebookStore {
   backToBook(): void;
   backToList(): void;
   setLocked(locked: boolean): void;
+  setExpanded(expanded: boolean): void;
 
   /** Ändert den geöffneten Song (Struktur, Platzhalter …); erhöht seine Revision. */
   updateSong(change: (song: Song) => Song): void;
@@ -90,6 +93,7 @@ export function createNotebookStore(
   let openSongId: string | null = null;
   let view: View = { kind: 'list' };
   let locked = true;
+  let expanded = false;
   let history = emptyHistory();
   let state = snapshot();
   const listeners = new Set<() => void>();
@@ -97,7 +101,7 @@ export function createNotebookStore(
   const nextId = () => deps?.newId() ?? newId();
 
   function snapshot(): NotebookState {
-    return { songs, workbooks, placement, openSongId, view, locked, canUndo: history.past.length > 0, canRedo: history.future.length > 0 };
+    return { songs, workbooks, placement, openSongId, view, locked, expanded, canUndo: history.past.length > 0, canRedo: history.future.length > 0 };
   }
 
   const emit = () => {
@@ -211,6 +215,7 @@ export function createNotebookStore(
       openSongId = id;
       const song = songs.find((s) => s.id === id);
       locked = !song || song.segments.length > 0 || song.patterns.length > 0;
+      expanded = false;
       setView({ kind: 'book' });
       emit();
     },
@@ -230,6 +235,10 @@ export function createNotebookStore(
     },
     setLocked(next) {
       locked = next;
+      emit();
+    },
+    setExpanded(next) {
+      expanded = next;
       emit();
     },
 

@@ -360,3 +360,119 @@ describe('Spec songbook-view › Patterns ausgewählter Takte', () => {
     expect(selectedPatterns(song([a, b], [bars]), bars.map((x) => x.id))).toEqual({ grooveId: null, fillId: null, patternIds: new Set([a.id, b.id]) });
   });
 });
+
+describe('Spec songbook-view › Wiederholte Blöcke', () => {
+  const a = groove(4, 'A');
+  const b = groove(4, 'B', [a]);
+  const f1 = fill(1, 'f1', [a, b]);
+  const f2 = fill(1, 'f2', [a, b, f1]);
+  const patterns = [a, b, f1, f2];
+  /** Block aus vier Takten Groove A, der letzte mit Fill. */
+  const phrase = (fillId: string | null = f1.id) => [barOf({ grooveId: a.id }), barOf({ grooveId: a.id }), barOf({ grooveId: a.id }), barOf({ grooveId: a.id, fillId })];
+  const flags = (layout: ReturnType<typeof layoutStructure>) => layout.map((s) => s.rows.map((r) => r.flat));
+
+  it('Wiederholter Block', () => {
+    expect(flags(layoutStructure(song(patterns, [phrase(), phrase(), phrase(), phrase()])))).toEqual([[false, true, true, true]]);
+  });
+
+  it('Block mit anderem Fill', () => {
+    expect(flags(layoutStructure(song(patterns, [phrase(f1.id), phrase(f2.id)])))).toEqual([[false, false]]);
+  });
+
+  it('Früherer Block im selben Segment', () => {
+    const other = [barOf({ grooveId: b.id }), barOf({ grooveId: b.id }), barOf({ grooveId: b.id }), barOf({ grooveId: b.id })];
+    expect(flags(layoutStructure(song(patterns, [phrase(), other, phrase()])))).toEqual([[false, false, true]]);
+  });
+
+  it('Block aus einem früheren Segment', () => {
+    const longer = () => [...phrase(), barOf({ grooveId: a.id, fillId: f2.id })];
+    expect(flags(layoutStructure(song(patterns, [phrase(), phrase()], [phrase(), longer()])))).toEqual([
+      [false, true],
+      // zweiter Block mit 5 Takten: zwei volle Zeilen
+      [true, false, false],
+    ]);
+  });
+
+  it('Fill aus dem folgenden Block', () => {
+    const long = fill(6, 'lang', patterns);
+    const next = [barOf({ grooveId: b.id, fillId: long.id })];
+    expect(flags(layoutStructure(song([...patterns, long], [phrase(), phrase(), next])))).toEqual([[false, false, false]]);
+  });
+
+  it('Wiederholtes Segment', () => {
+    const chorus = () => [[barOf({ grooveId: b.id }), barOf({ grooveId: b.id, fillId: f2.id })]];
+    const layout = layoutStructure(song(patterns, [phrase()], chorus(), [phrase()], chorus()));
+    expect(flags(layout)).toEqual([[false], [false], [true], [true]]);
+    expect(layout[2]!.name).toBe('Segment 3');
+  });
+
+  it('Gleiches Segment mit anderem Namen', () => {
+    const s = song(patterns, [phrase(), phrase()], [phrase(), phrase()]);
+    s.segments[0]!.name = 'Verse';
+    s.segments[1]!.name = 'Solo';
+    expect(flags(layoutStructure(s))).toEqual([
+      [false, true],
+      [true, true],
+    ]);
+  });
+
+  it('Mehrzeiliger Block: alle Zeilen der Wiederholung sind flach', () => {
+    const long = () => Array.from({ length: 6 }, () => barOf({ grooveId: a.id }));
+    expect(flags(layoutStructure(song(patterns, [long(), long()])))).toEqual([[false, false, true, true]]);
+  });
+});
+
+describe('Spec songbook-view › Leere Blöcke', () => {
+  const a = groove(4, 'A');
+  const empty = () => [barOf(), barOf(), barOf(), barOf()];
+  const flags = (layout: ReturnType<typeof layoutStructure>) => layout.map((s) => s.rows.map((r) => r.flat));
+
+  it('Leeres Intro', () => {
+    expect(flags(layoutStructure(song([a], [empty()], [[barOf({ grooveId: a.id })]]), { locked: true }))).toEqual([[true], [false]]);
+  });
+
+  it('Entsperren', () => {
+    expect(flags(layoutStructure(song([a], [empty()], [[barOf({ grooveId: a.id })]]), { locked: false }))).toEqual([[false], [false]]);
+    expect(flags(layoutStructure(song([a], [empty()])))).toEqual([[false]]);
+  });
+
+  it('Neues leeres Segment', () => {
+    expect(flags(layoutStructure(song([a], [empty()], [empty()])))).toEqual([[false], [false]]);
+  });
+
+  it('Leere Blöcke hintereinander', () => {
+    expect(flags(layoutStructure(song([a], [empty(), empty()])))).toEqual([[false, false]]);
+  });
+
+  it('Wiederholtes Segment mit leerem Block: nur der gefüllte Block ist flach', () => {
+    const filled = () => [barOf({ grooveId: a.id })];
+    expect(flags(layoutStructure(song([a], [empty(), filled()], [empty(), filled()])))).toEqual([
+      [false, false],
+      [false, true],
+    ]);
+  });
+
+  it('Leerer Takt mit Akzent', () => {
+    const bars = [barOf({ accents: [{ instrument: 'crash', beat: 0, position: 0 }] })];
+    expect(flags(layoutStructure(song([a], [bars]), { locked: true }))).toEqual([[false]]);
+  });
+
+  it('Teilweise leerer Block', () => {
+    const bars = [barOf(), barOf(), barOf({ grooveId: a.id }), barOf({ grooveId: a.id })];
+    expect(flags(layoutStructure(song([a], [bars]), { locked: true }))).toEqual([[false]]);
+  });
+
+  it('Vom Fill des folgenden Blocks erreichter Block ist nicht leer', () => {
+    const f = fill(6, 'f', [a]);
+    expect(flags(layoutStructure(song([a, f], [empty(), [barOf({ grooveId: a.id, fillId: f.id })]]), { locked: true }))).toEqual([[false, false]]);
+  });
+});
+
+describe('Spec songbook-view › Struktur ausklappen', () => {
+  it('Ausgeklappt ist keine Zeile flach, auch kein leerer Block im gesperrten Song', () => {
+    const a = groove(4, 'A');
+    const phrase = () => [barOf({ grooveId: a.id }), barOf({ grooveId: a.id })];
+    const layout = layoutStructure(song([a], [[barOf(), barOf()]], [phrase(), phrase()], [phrase()]), { locked: true, expanded: true });
+    expect(layout.flatMap((s) => s.rows.map((r) => r.flat))).toEqual([false, false, false, false]);
+  });
+});

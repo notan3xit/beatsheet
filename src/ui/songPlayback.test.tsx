@@ -249,6 +249,17 @@ describe('Spec song-playback › Wiedergabeposition in der Struktur', () => {
     expect(scrollIntoView.mock.calls.length).toBe(calls);
   });
 
+  it('Wiedergabe in flacher Zeile', async () => {
+    // Chorus gleicht Verse und erscheint flach
+    const { user, bars, reach } = setup();
+    expect(bar(3).closest('.structure-row')).toHaveClass('flat');
+    await user.click(songButton());
+    reach(bars()[2]!.id, 9);
+    expect(playing()).toEqual(['Takt 3']);
+    await waitFor(() => expect(line()?.style.left).toBe('calc(var(--beat) * 1)'));
+    expect(line()!.closest('.structure-row')).toContainElement(bar(3));
+  });
+
   it('Keine Anzeige nach Stopp', async () => {
     const { user, bars, reach } = setup();
     await user.click(songButton());

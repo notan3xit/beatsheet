@@ -149,6 +149,14 @@ describe('Spec songbook-view › Patterns auf Takte ziehen', () => {
     expect(bars().map((x) => x.grooveId)).toEqual([...Array(4).fill(a!.id), ...Array(4).fill(b!.id)]);
   });
 
+  it('Ablegen in flacher Zeile', () => {
+    const [a, b] = seed({ kind: 'groove', name: 'A' }, { kind: 'groove', name: 'B' });
+    const { bars } = setup([a!, b!], (s) => ['V', 'C'].reduce((x, name) => appendSegment(x, { name, bars: 2, grooveId: a!.id }), s));
+    expect(bar(4).closest('.structure-row')).toHaveClass('flat');
+    drag(cardHandle('B'), bar(4));
+    expect(bars().map((x) => x.grooveId)).toEqual([a!.id, a!.id, a!.id, b!.id]);
+  });
+
   it('Fill auf einen Takt', () => {
     const [a, f] = seed({ kind: 'groove', name: 'A' }, { kind: 'fill', name: 'f1' });
     const { bars } = setup([a!, f!], (s) => appendSegment(s, { name: 'V', bars: 4, grooveId: a!.id }));

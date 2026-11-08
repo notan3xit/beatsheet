@@ -10,6 +10,7 @@ import { useReport } from './messages';
 import { PatternPage } from './PatternPage';
 import { PlayButton } from './PlayButton';
 import { StructurePage } from './StructurePage';
+import { StructureToggle } from './StructureToggle';
 import { NoAudioNote, usePlayer, useSongPlayback } from './playback';
 import { MeterMark } from './meter';
 import { TempoMark } from './TempoMark';
@@ -65,6 +66,7 @@ function SongHeader() {
             Song löschen
           </button>
         )}
+        <StructureToggle />
         <LockToggle />
       </div>
     </header>
