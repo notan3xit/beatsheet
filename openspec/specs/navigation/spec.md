@@ -7,7 +7,7 @@ Zeigt, wo im Notenbuch man sich befindet (Song-Liste, Doppelseite eines Songs, P
 ## Requirements
 
 ### Requirement: Breadcrumbs
-Die Doppelseite MUST über ihrer Überschrift den Pfad „Songs“ zeigen, der Pattern-Editor den Pfad „Songs“ und den Songtitel. „Songs“ MUST zur Song-Liste führen, der Songtitel zur Doppelseite des Songs. Die Song-Liste MUST keine eigene Überschrift „Songs“ tragen; sie beginnt mit „Meine Songs“. Eigene Zurück-Knöpfe MUST es nicht mehr geben.
+Die Doppelseite MUST über ihrer Überschrift den Pfad „Songs“ zeigen, der Pattern-Editor und der Verlauf den Pfad „Songs“ und den Songtitel. „Songs“ MUST zur Song-Liste führen, der Songtitel zur Doppelseite des Songs. Die Song-Liste MUST keine eigene Überschrift „Songs“ tragen; sie beginnt mit „Meine Songs“. Eigene Zurück-Knöpfe MUST es nicht mehr geben.
 
 #### Scenario: Pfad im Pattern-Editor
 - **WHEN** der Nutzer im Song „Hysteria“ den Groove „Verse“ öffnet
@@ -29,6 +29,10 @@ Die Doppelseite MUST über ihrer Überschrift den Pfad „Songs“ zeigen, der P
 #### Scenario: Song-Liste ohne Überschrift
 - **WHEN** der Nutzer die Song-Liste öffnet
 - **THEN** ist „Meine Songs“ ihre erste Überschrift, und eine Überschrift „Songs“ gibt es nicht
+
+#### Scenario: Pfad im Verlauf
+- **WHEN** der Nutzer den Verlauf von „Hysteria“ öffnet und im Pfad auf „Hysteria“ klickt
+- **THEN** zeigt die App die Doppelseite von „Hysteria“
 
 ### Requirement: Editierbare Überschrift
 Songtitel auf der Doppelseite und Patternname im Pattern-Editor MUST als Überschrift erscheinen. Bei entsperrtem Song MUST ein Klick auf die Überschrift sie in ein Eingabefeld mit dem aktuellen Namen verwandeln. Enter oder Verlassen des Felds MUST den Namen übernehmen, Escape MUST die Eingabe verwerfen. Danach MUST wieder die Überschrift erscheinen. Ein abgelehnter Name MUST den bisherigen Namen stehen lassen.
@@ -54,7 +58,7 @@ Songtitel auf der Doppelseite und Patternname im Pattern-Editor MUST als Übersc
 - **THEN** erscheint kein Eingabefeld und die Überschrift lautet weiterhin „Hysteria“
 
 ### Requirement: Position in der Adresse
-Die Adresse der App MUST die aktuelle Ansicht nennen: die Song-Liste, die Doppelseite eines Songs oder den Pattern-Editor eines Patterns, jeweils über die IDs von Song und Pattern. Die Adresse MUST jeder Navigation in der App folgen. Beim Start MUST die App die Ansicht öffnen, die die Adresse nennt.
+Die Adresse der App MUST die aktuelle Ansicht nennen: die Song-Liste, die Doppelseite eines Songs, den Verlauf eines Songs oder den Pattern-Editor eines Patterns, jeweils über die IDs von Song und Pattern. Die Adresse MUST jeder Navigation in der App folgen. Beim Start MUST die App die Ansicht öffnen, die die Adresse nennt.
 
 #### Scenario: Adresse folgt der Navigation
 - **WHEN** der Nutzer in der Song-Liste den Song „Hysteria“ öffnet und dort den Groove „Verse“
@@ -71,6 +75,10 @@ Die Adresse der App MUST die aktuelle Ansicht nennen: die Song-Liste, die Doppel
 #### Scenario: Zur Song-Liste
 - **WHEN** der Nutzer im Pfad „Songs“ wählt
 - **THEN** nennt die Adresse die Song-Liste
+
+#### Scenario: Neuladen im Verlauf
+- **WHEN** der Nutzer im Verlauf von „Hysteria“ die Seite neu lädt
+- **THEN** zeigt die App wieder den Verlauf von „Hysteria“
 
 ### Requirement: Browser-Verlauf
 Jede Navigation in der App MUST einen Eintrag im Browser-Verlauf anlegen. Zurück und Vor im Browser MUST zur jeweiligen Ansicht wechseln.
