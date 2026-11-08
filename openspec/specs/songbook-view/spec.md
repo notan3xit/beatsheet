@@ -150,7 +150,7 @@ Solange nichts ausgewählt ist und sich der Mauszeiger nicht über der Struktur 
 - **THEN** zeigt die linke Seite keine Einfüge-Knöpfe mehr
 
 ### Requirement: Bearbeiten über die Auswahl
-Ein Klick auf einen Segmentnamen MUST das Segment auswählen. Ein Klick auf einen Takt MUST diesen Takt auswählen, Shift+Klick einen Bereich in Songreihenfolge. Es MUST immer nur entweder ein Segment oder Takte ausgewählt sein. Zur Auswahl MUST ein Popover an der Auswahl erscheinen, das alle Aktionen für diese Auswahl enthält, die der Sperrzustand des Songs zulässt. Das Popover MUST innerhalb der Breite der linken Seite liegen und nach links rücken, wo es an der Auswahl über den rechten Rand ragen würde. Escape oder ein Klick außerhalb von Struktur und Popover MUST die Auswahl aufheben und das Popover schließen.
+Ein Klick auf einen Segmentnamen MUST das Segment auswählen. Ein Klick auf einen Takt MUST diesen Takt auswählen, Shift+Klick einen Bereich in Songreihenfolge. Es MUST immer nur entweder ein Segment oder Takte ausgewählt sein. Zur Auswahl MUST ein Popover an der Auswahl erscheinen, das alle Aktionen für diese Auswahl enthält, die der Sperrzustand des Songs zulässt. Das Popover MUST innerhalb der Breite der linken Seite liegen und nach links rücken, wo es an der Auswahl über den rechten Rand ragen würde. Escape oder ein Klick außerhalb von Struktur, Popover, Abspiel-Knöpfen und Übetempo im Kopf der Doppelseite MUST die Auswahl aufheben und das Popover schließen.
 
 #### Scenario: Takte auswählen
 - **WHEN** der Nutzer Takt 5 anklickt und mit Shift Takt 8 anklickt
@@ -167,6 +167,10 @@ Ein Klick auf einen Segmentnamen MUST das Segment auswählen. Ein Klick auf eine
 #### Scenario: Popover am rechten Rand
 - **WHEN** der Nutzer in einem 390 px breiten Fenster den letzten Takt einer 16-Beat-Zeile auswählt
 - **THEN** liegt das Takt-Popover vollständig innerhalb der Breite der linken Seite
+
+#### Scenario: Bedienung im Kopf
+- **WHEN** die Takte 2 bis 3 ausgewählt sind und der Nutzer im Kopf „Üben“ einschaltet
+- **THEN** sind weiterhin die Takte 2 bis 3 ausgewählt
 
 ### Requirement: Segment-Popover
 Das Popover eines ausgewählten Segments MUST anbieten: den Namen ändern, das Segment nach oben oder unten verschieben, duplizieren, ein Segment danach einfügen, einen Block unten anfügen, das Segment nach Bestätigung löschen, ab dem Segment abspielen („Ab hier abspielen“) und das Segment in Schleife abspielen („In Schleife abspielen“). Nicht mögliche Verschiebungen MUST deaktiviert sein.
