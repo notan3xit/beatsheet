@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 /** Neuerungen je Version in Stichworten für Nutzer, neueste zuerst. Der oberste Eintrag ist die aktuelle Version. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.7.0',
+    date: '2026-11-08',
+    items: [
+      'Kompaktere Struktur: Wiederholte Blöcke und, im gesperrten Song, leere Blöcke erscheinen als schmale Zeilen; ein Schalter neben dem Schloss klappt alles aus',
+      'Segmentnamen stehen auf breiten Bildschirmen links neben der Struktur',
+      'DRSKit-Aufnahmen laden zuverlässiger',
+    ],
+  },
+  {
     version: '0.6.0',
     date: '2026-11-07',
     items: [
