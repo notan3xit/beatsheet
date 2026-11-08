@@ -451,3 +451,114 @@ describe('Spec account-songs › Vorgemerktes Löschen', () => {
     expect(repo.hasUnsent()).toBe(false);
   });
 });
+
+describe('Spec song-history › Autor einer Änderung', () => {
+  const messages = (bytes: Uint8Array) => A.getAllChanges(A.load(bytes)).map((c) => A.decodeChange(c).message);
+
+  it('Änderung im Workbook: Der Autor steht in jeder geschriebenen Änderung', async () => {
+    const repo = await openRepository(uniqueDb(), { author: () => 'max@example.org' });
+    const store = createNotebookStore();
+    const connection = connectStore(store, repo);
+    const song = store.createSong('Hysteria');
+    await connection.flush();
+    store.openSong(song.id);
+    store.updateSong((s) => ({ ...s, tempo: 90 }));
+    await connection.flush();
+    expect(messages(repo.documentBytes(song.id)).slice(1)).toEqual([JSON.stringify({ by: 'max@example.org' })]);
+  });
+
+  it('Auch das Anlegen eines Songs trägt den Autor', async () => {
+    const repo = await openRepository(uniqueDb(), { author: () => 'max@example.org' });
+    const store = createNotebookStore();
+    const connection = connectStore(store, repo);
+    const song = store.createSong('Hysteria');
+    await connection.flush();
+    expect(messages(repo.documentBytes(song.id))).toEqual([JSON.stringify({ by: 'max@example.org' })]);
+    expect(songOf(A.load(repo.documentBytes(song.id)))).toEqual(store.getState().songs[0]);
+  });
+
+  it('Ohne Anmeldung', async () => {
+    const repo = await openRepository(uniqueDb(), { author: () => null });
+    const store = createNotebookStore();
+    const connection = connectStore(store, repo);
+    const song = store.createSong('Hysteria');
+    store.openSong(song.id);
+    store.updateSong((s) => ({ ...s, tempo: 90 }));
+    await connection.flush();
+    expect(messages(repo.documentBytes(song.id)).every((m) => m === null)).toBe(true);
+  });
+
+  it('receive schreibt eigene, noch nicht gespeicherte Änderungen mit Autor', async () => {
+    const repo = await openRepository(uniqueDb(), { author: () => 'ich@example.com' });
+    const store = createNotebookStore();
+    const connection = connectStore(store, repo);
+    const created = store.createSong('Intro');
+    await connection.flush();
+    const base = A.getHeads(A.load(repo.documentBytes(created.id)));
+    repo.place(created.id, 'band', base);
+    const foreign = applySong(A.load(repo.documentBytes(created.id)), { ...created, tempo: 90, revision: 2 }, JSON.stringify({ by: 'anna@example.com' }));
+    store.renameSong(created.id, 'Eigener Titel');
+    repo.receive(created.id, store.getState().songs[0]!, { changes: A.saveSince(foreign, base), heads: A.getHeads(foreign) });
+    const all = messages(repo.documentBytes(created.id));
+    expect(all).toContain(JSON.stringify({ by: 'anna@example.com' }));
+    expect(all).toContain(JSON.stringify({ by: 'ich@example.com' }));
+  });
+});
+
+describe('Spec song-history › Wiederherstellung als neue Änderung', () => {
+  async function setup() {
+    const repo = await openRepository(uniqueDb(), { author: () => 'max@example.org' });
+    const store = createNotebookStore();
+    const connection = connectStore(store, repo, { debounceMs: 10_000 });
+    const song = store.createSong('Hysteria');
+    await connection.flush();
+    store.openSong(song.id);
+    return { repo, store, connection, song };
+  }
+
+  it('Eigener Change mit Zielzeit, auch direkt nach einer Bearbeitung im selben Entprell-Fenster', async () => {
+    const { repo, store, connection, song } = await setup();
+    store.updateSong((s) => ({ ...s, title: 'Hysteria (live)' }));
+    store.restoreSong({ ...store.getState().songs[0]!, tempo: 90 }, 1762559580);
+    await connection.flush();
+
+    const steps = repo.history(song.id)!.steps;
+    expect(steps.slice(1).map(({ author, restore }) => ({ author, restore }))).toEqual([
+      { author: 'max@example.org', restore: undefined },
+      { author: 'max@example.org', restore: 1762559580 },
+    ]);
+    expect(repo.history(song.id)!.songAt(1)).toMatchObject({ title: 'Hysteria (live)', tempo: 120 });
+  });
+
+  it('Eintrag im Verlauf und Wiederherstellung zurücknehmen', async () => {
+    const { repo, store, connection, song } = await setup();
+    store.updateSong((s) => ({ ...s, tempo: 90 }));
+    await connection.flush();
+    const before = repo.history(song.id)!.songAt(0)!;
+    store.restoreSong({ ...store.getState().songs[0]!, tempo: before.tempo }, 1);
+    await connection.flush();
+    expect(store.getState().songs[0]!.tempo).toBe(120);
+
+    // Den Stand vor der Wiederherstellung zurückholen
+    const history = repo.history(song.id)!;
+    const beforeRestore = history.songAt(history.steps.length - 2)!;
+    store.restoreSong({ ...store.getState().songs[0]!, tempo: beforeRestore.tempo }, 2);
+    await connection.flush();
+    expect(songOf(A.load(repo.documentBytes(song.id))).tempo).toBe(90);
+    expect(repo.history(song.id)!.steps.map((s) => s.restore).filter(Boolean)).toEqual([1, 2]);
+  });
+});
+
+describe('Spec song-history › Verlauf öffnen', () => {
+  it('Beim Öffnen des Verlaufs werden ausstehende Änderungen sofort geschrieben', async () => {
+    const repo = await openRepository(uniqueDb());
+    const store = createNotebookStore();
+    connectStore(store, repo, { debounceMs: 10_000 });
+    const song = store.createSong('Hysteria');
+    store.openSong(song.id);
+    store.updateSong((s) => ({ ...s, tempo: 90 }));
+    expect(repo.history(song.id)).toBeNull();
+    store.openHistory();
+    expect(repo.history(song.id)!.songAt(repo.history(song.id)!.steps.length - 1)!.tempo).toBe(90);
+  });
+});

@@ -343,7 +343,9 @@ describe('Spec songbook-view › Struktur ausklappen', () => {
   it('Lage in der Kopfzeile', () => {
     withRepeat();
     const buttons = [...document.querySelector('.songbook-header .page-title')!.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? b.textContent);
-    expect(buttons.slice(-3)).toEqual(['Song löschen', 'Struktur ausklappen', 'Song sperren']);
+    // „Song löschen“ links vom Schalter (dazwischen „Verlauf“, song-history), der Schalter direkt links vom Schloss
+    expect(buttons.slice(-2)).toEqual(['Struktur ausklappen', 'Song sperren']);
+    expect(buttons.indexOf('Song löschen')).toBeLessThan(buttons.indexOf('Struktur ausklappen'));
   });
 
   it('Pattern-Editor', () => {

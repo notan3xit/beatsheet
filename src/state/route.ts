@@ -4,13 +4,15 @@ import type { NotebookState } from './notebookStore';
 export type Route =
   | { kind: 'list' }
   | { kind: 'book'; songId: string }
-  | { kind: 'pattern'; songId: string; patternId: string };
+  | { kind: 'pattern'; songId: string; patternId: string }
+  | { kind: 'history'; songId: string };
 
 const LIST: Route = { kind: 'list' };
 
 export function routeOf(state: NotebookState): Route {
   if (state.openSongId === null || state.view.kind === 'list') return LIST;
   if (state.view.kind === 'pattern') return { kind: 'pattern', songId: state.openSongId, patternId: state.view.patternId };
+  if (state.view.kind === 'history') return { kind: 'history', songId: state.openSongId };
   return { kind: 'book', songId: state.openSongId };
 }
 
@@ -22,6 +24,8 @@ export function hashOf(route: Route): string {
       return `#/songs/${encodeURIComponent(route.songId)}`;
     case 'pattern':
       return `#/songs/${encodeURIComponent(route.songId)}/patterns/${encodeURIComponent(route.patternId)}`;
+    case 'history':
+      return `#/songs/${encodeURIComponent(route.songId)}/history`;
   }
 }
 
@@ -33,6 +37,7 @@ export function parseHash(hash: string): Route {
     if (rest.length > 0 || songs !== 'songs' || !songId) return LIST;
     if (patterns === undefined) return { kind: 'book', songId };
     if (patterns === 'patterns' && patternId) return { kind: 'pattern', songId, patternId };
+    if (patterns === 'history' && patternId === undefined) return { kind: 'history', songId };
     return LIST;
   } catch {
     return LIST; // ungültige Prozent-Kodierung

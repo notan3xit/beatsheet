@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPattern } from '../domain/pattern';
 import { createNotebookStore, type NotebookStore } from '../state/notebookStore';
 import { songWith } from '../test/songs';
@@ -144,6 +144,39 @@ describe('Spec navigation › Unbekannte Adresse', () => {
   it('Pattern löschen im Editor', () => {
     const store = start(patternHash);
     store.remove(verse.id);
+    expect(window.location.hash).toBe(bookHash);
+  });
+});
+
+describe('Spec navigation › Position in der Adresse (Verlauf)', () => {
+  const historyHash = `${bookHash}/history`;
+
+  it('Neuladen im Verlauf', () => {
+    const store = start(historyHash);
+    expect(view(store)).toEqual({ openSongId: hysteria.id, view: { kind: 'history' } });
+    expect(window.location.hash).toBe(historyHash);
+  });
+
+  it('Adresse folgt dem Öffnen des Verlaufs', () => {
+    const store = start(bookHash);
+    store.openHistory();
+    expect(window.location.hash).toBe(historyHash);
+  });
+
+  it('Unbekannter Song', () => {
+    const store = start('#/songs/gibt-es-nicht/history');
+    expect(view(store).view).toEqual({ kind: 'list' });
+    expect(window.location.hash).toBe('#/');
+  });
+});
+
+describe('Spec song-history › Kein Verlauf auf Smartphones', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('Link auf den Verlauf am Smartphone', () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query === '(max-width: 40rem)' }));
+    const store = start(`${bookHash}/history`);
+    expect(view(store)).toEqual({ openSongId: hysteria.id, view: { kind: 'book' } });
     expect(window.location.hash).toBe(bookHash);
   });
 });

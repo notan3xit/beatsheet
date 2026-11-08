@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createPattern } from '../domain/pattern';
 import type { Bar, Pattern, Song } from '../domain/types';
 import { barOf, songWith } from '../test/songs';
-import { songMotif } from './motif';
+import { historyMotif, songMotif } from './motif';
 
 function song(patterns: Pattern[], ...segments: Bar[][][]): Song {
   return {
@@ -71,5 +71,28 @@ describe('Spec song-motif › Darstellung des Motivs', () => {
 describe('Spec song-motif › Motiv eines leeren Songs', () => {
   it('Neuer Song', () => {
     expect(songMotif(songWith({}))).toEqual([]);
+  });
+});
+
+describe('Spec song-history › Vergleich der Struktur (Motiv)', () => {
+  it('Segmente mit Namen, Zeilen ohne Grenze, je Takt mit ID, Nummer, Groove und Fill', () => {
+    const many = Array.from({ length: 14 }, () => [bars(4, { grooveId: verse.id })]);
+    const intro = [bars(2, { grooveId: chorus.id }), [barOf({ grooveId: verse.id, fillId: roll.id }), barOf()]];
+    const motif = historyMotif(song(patterns, intro, ...many));
+    expect(motif).toHaveLength(15);
+    expect(motif[0]!.name).toBe('Segment 1');
+    // Jeder Block beginnt eine neue Zeile
+    const [first, second] = motif[0]!.rows;
+    expect(first!.map((b) => [b.number, b.x, b.width])).toEqual([[1, 0, 4], [2, 4, 4]]);
+    expect(second![0]).toMatchObject({ number: 3, x: 0, width: 4, groove: { patternId: verse.id, color: verse.color } });
+    expect(second![0]!.fill).toEqual({ patternId: roll.id, color: roll.color, x: 2, width: 2 });
+    expect(second![1]).toMatchObject({ number: 4, groove: null, fill: null });
+    expect(second![0]!.barId).toBe(intro[1]![0]!.id);
+    expect(motif.flatMap((s) => s.rows)).toHaveLength(16);
+  });
+
+  it('Mehr als 16 Beats je Block brechen in eine neue Zeile um', () => {
+    const [segment] = historyMotif(song(patterns, [bars(5, { grooveId: verse.id })]));
+    expect(segment!.rows.map((row) => row.length)).toEqual([4, 1]);
   });
 });

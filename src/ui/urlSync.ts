@@ -3,6 +3,9 @@ import { hashOf, parseHash, routeOf, type Route } from '../state/route';
 
 const same = (a: Route, b: Route) => hashOf(a) === hashOf(b);
 
+/** Fensterbreite, ab der die App ihr Smartphone-Layout zeigt. */
+export const NARROW = '(max-width: 40rem)';
+
 /**
  * Hält Adresse (Hash) und Ansicht synchron (url-position, design.md D3):
  * Start und Zurück/Vor öffnen die genannte Ansicht, Navigation in der App legt einen Verlaufseintrag an,
@@ -10,6 +13,8 @@ const same = (a: Route, b: Route) => hashOf(a) === hashOf(b);
  */
 export function connectUrl(store: NotebookStore, win: Window = window): () => void {
   let applying = false;
+  /** Smartphone: Den Verlauf gibt es dort nicht (song-history, design.md D7). */
+  const narrow = () => win.matchMedia?.(NARROW).matches ?? false;
 
   /** Öffnet die Ansicht der Route, soweit Song und Pattern existieren. */
   const apply = (route: Route) => {
@@ -23,6 +28,9 @@ export function connectUrl(store: NotebookStore, win: Window = window): () => vo
       } else if (route.kind === 'pattern' && song.patterns.some((p) => p.id === route.patternId)) {
         if (state.openSongId !== song.id) store.openSong(song.id);
         store.openPattern(route.patternId);
+      } else if (route.kind === 'history' && !narrow()) {
+        if (state.openSongId !== song.id) store.openSong(song.id);
+        store.openHistory();
       } else if (state.openSongId !== song.id) {
         store.openSong(song.id);
       } else {

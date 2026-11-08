@@ -534,3 +534,37 @@ describe('Spec songbook-view › Flache Zeilen (Stylesheet)', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{\s*:root\s*\{[^}]*--motion-row:\s*0ms/);
   });
 });
+
+describe('Spec song-history › Kein Verlauf auf Smartphones (Stylesheet)', () => {
+  it('Smartphone: Knopf „Verlauf“ unter 40rem ausgeblendet', () => {
+    const narrow = [...css.matchAll(/@media \(max-width: 40rem\)\s*\{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n');
+    expect(narrow).toMatch(/\.history-open\s*\{[^}]*display:\s*none/);
+  });
+});
+
+describe('Spec song-history › Gestaltung (Stylesheet)', () => {
+  const rules = (selector: RegExp) => [...css.matchAll(new RegExp(`${selector.source}[^{]*\\{([^}]*)\\}`, 'g'))].map((m) => m[1]).join('\n');
+
+  it('Markierungen ohne red, unterscheidbar in der Form', () => {
+    const marks = rules(/\.step\[data-mark=/);
+    expect(marks).toMatch(/var\(--mark-added\)/);
+    expect(marks).toMatch(/var\(--mark-changed\)/);
+    expect(marks).toMatch(/dashed var\(--mark-removed\)/);
+    for (const name of ['mark-added', 'mark-changed', 'mark-removed']) expect(token(name)).not.toMatch(/danger|red/);
+  });
+
+  it('Alter und neuer Wert, Hinweis auf Änderungen anderer, Bearbeitung ohne Nettounterschied', () => {
+    expect(rules(/\.old-value/)).toMatch(/color:\s*var\(--muted\)/);
+    expect(rules(/\.old-value/)).toMatch(/line-through/);
+    expect(rules(/\.new-value/)).toMatch(/background:\s*color-mix\(in srgb, var\(--success\) 20%, transparent\)/);
+    expect(rules(/\.new-value/)).toMatch(/color:\s*var\(--text\)/);
+    expect(rules(/\.history-edit\[data-unchanged\]/)).toMatch(/color:\s*var\(--muted\)/);
+  });
+
+  it('Hinweis zum Takt auf der Ebene der Popover', () => {
+    const tip = rules(/\.history-tip/);
+    expect(tip).toMatch(/z-index:\s*var\(--z-popover\)/);
+    expect(tip).toMatch(/background:\s*var\(--bg\)/);
+    expect(tip).toMatch(/pointer-events:\s*none/);
+  });
+});

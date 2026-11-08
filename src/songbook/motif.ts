@@ -1,5 +1,5 @@
 import type { PatternColor, Song } from '../domain/types';
-import { layoutStructure } from './layout';
+import { BEATS_PER_ROW, layoutStructure } from './layout';
 
 /** Strich des Motivs; Lage und Länge in Beats, relativ zum Zeilenanfang. */
 export interface MotifStroke {
@@ -38,4 +38,59 @@ export function songMotif(song: Song): MotifRow[] {
       return { strokes: strokes.map(({ patternId: _, ...stroke }) => stroke), dots };
     }),
   ).slice(0, MOTIF_MAX_ROWS);
+}
+
+/** Ein Takt im Motiv des Verlaufs; Lage und Länge in Beats, relativ zum Zeilenanfang. */
+export interface HistoryMotifBar {
+  barId: string;
+  /** Laufende Taktnummer im Song, ab 1. */
+  number: number;
+  x: number;
+  width: number;
+  groove: { patternId: string; color: PatternColor } | null;
+  /** Der Fill endet am Taktende und reicht höchstens über den Takt. */
+  fill: { patternId: string; color: PatternColor; x: number; width: number } | null;
+}
+
+export interface HistoryMotifSegment {
+  segmentId: string;
+  name: string;
+  rows: HistoryMotifBar[][];
+}
+
+/**
+ * Motiv für den Vergleich im Verlauf (song-history, design.md D8): wie die Kachel Zeilen zu 16 Beats, jeder Block in
+ * einer neuen Zeile, aber mit Segmentnamen, ohne Zeilengrenze und je Takt ein Element.
+ */
+export function historyMotif(song: Song): HistoryMotifSegment[] {
+  const patterns = new Map(song.patterns.map((p) => [p.id, p]));
+  let number = 0;
+  return song.segments.map((segment) => {
+    const rows: HistoryMotifBar[][] = [];
+    for (const block of segment.blocks) {
+      let row: HistoryMotifBar[] = [];
+      let x = 0;
+      for (const bar of block.bars) {
+        if (row.length > 0 && x + bar.beats > BEATS_PER_ROW) {
+          rows.push(row);
+          row = [];
+          x = 0;
+        }
+        const groove = bar.grooveId ? patterns.get(bar.grooveId) : undefined;
+        const fill = bar.fillId ? patterns.get(bar.fillId) : undefined;
+        const fillWidth = fill ? Math.min(fill.beats.length, bar.beats) : 0;
+        row.push({
+          barId: bar.id,
+          number: ++number,
+          x,
+          width: bar.beats,
+          groove: groove ? { patternId: groove.id, color: groove.color } : null,
+          fill: fill ? { patternId: fill.id, color: fill.color, x: x + bar.beats - fillWidth, width: fillWidth } : null,
+        });
+        x += bar.beats;
+      }
+      if (row.length > 0) rows.push(row);
+    }
+    return { segmentId: segment.id, name: segment.name, rows };
+  });
 }

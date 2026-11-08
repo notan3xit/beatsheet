@@ -289,3 +289,15 @@ describe('Spec song-lock › Sperrzustand im Store', () => {
     expect(currentSong()).toBe(before);
   });
 });
+
+describe('Spec song-history › Wiederherstellung als neue Änderung', () => {
+  it('restoreSong übernimmt den Song mit neuer Revision und hinterlässt genau einmal eine Notiz', () => {
+    const store = createNotebookStore();
+    const song = store.createSong('Hysteria');
+    store.openSong(song.id);
+    store.restoreSong({ ...song, tempo: 90 }, 1762559580);
+    expect(store.getState().songs[0]).toMatchObject({ tempo: 90, revision: song.revision + 1 });
+    expect(store.takeRestoreNotes()).toEqual(new Map([[song.id, 1762559580]]));
+    expect(store.takeRestoreNotes().size).toBe(0);
+  });
+});

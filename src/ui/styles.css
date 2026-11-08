@@ -46,6 +46,11 @@
   --danger-text: color-mix(in srgb, var(--danger) 65%, var(--text));
   --success: var(--ctp-green);
   --warning: var(--ctp-yellow);
+  /* Markierungen im Vergleichs-Sequencer des Verlaufs: neu, geändert, entfernt (song-history) */
+  --mark-mix: 60%;
+  --mark-added: color-mix(in srgb, var(--success) var(--mark-mix), var(--text));
+  --mark-changed: color-mix(in srgb, var(--warning) var(--mark-mix), var(--text));
+  --mark-removed: var(--muted);
   /* Schleier hinter Dialogen: crust ist in Latte hell und würde aufhellen */
   --backdrop: color-mix(in srgb, var(--ctp-text) 40%, transparent);
   --shadow: color-mix(in srgb, var(--ctp-crust) 35%, transparent);
@@ -97,6 +102,7 @@
   --name-tinted-mix: 65%;
   --name-strong-mix: 65%;
   --edge-mix: 100%;
+  --mark-mix: 100%;
   --backdrop: color-mix(in srgb, var(--ctp-crust) 60%, transparent);
 }
 
@@ -950,6 +956,7 @@ body.dragging-pattern .tile-add:hover {
   .workbook-empty {
     border-radius: 10px;
   }
+
 }
 
 .card-header {
@@ -1039,7 +1046,9 @@ body.dragging-pattern .tile-add:hover {
   margin-bottom: 0.25rem;
 }
 
-.songbook-header {
+/* Doppelseite und Verlauf: gleicher Abstand zwischen Überschrift und Inhalt */
+.songbook-header,
+.history-header {
   margin-bottom: 1rem;
 }
 
@@ -1084,7 +1093,8 @@ body.dragging-pattern .tile-add:hover {
 }
 
 .lock-toggle,
-.structure-toggle {
+.structure-toggle,
+.history-open {
   display: inline-flex;
   flex: none;
   align-self: center;
@@ -1098,7 +1108,8 @@ body.dragging-pattern .tile-add:hover {
 }
 
 .lock-toggle:hover,
-.structure-toggle:hover {
+.structure-toggle:hover,
+.history-open:hover {
   background: var(--control-hover);
 }
 
@@ -1117,11 +1128,13 @@ body.dragging-pattern .tile-add:hover {
   background: var(--control-hover);
 }
 
-.structure-toggle {
+.structure-toggle,
+.history-open {
   height: 2rem;
 }
 
-.structure-toggle svg {
+.structure-toggle svg,
+.history-open svg {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -1141,7 +1154,8 @@ body.dragging-pattern .tile-add:hover {
 }
 
 .lock-toggle svg,
-.structure-toggle svg {
+.structure-toggle svg,
+.history-open svg {
   width: 1.25rem;
   height: 1.25rem;
   fill: none;
@@ -2655,4 +2669,403 @@ button.meter-own.on {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+/* --- Verlauf eines Songs (song-history) --- */
+
+.song-history {
+  padding: 1rem 1.25rem;
+}
+
+.page-title .danger + .history-open,
+.history-open + .structure-toggle {
+  margin-left: 0;
+}
+
+.history-layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.history-list,
+.history-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.history-list {
+  max-height: calc(100vh - 9rem);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.history-day h3 {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-local-1);
+  margin: 0;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.history-person-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem 0.2rem;
+  font-weight: 600;
+}
+
+.history-edit {
+  display: grid;
+  grid-template-columns: 0.7rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    'swatch what time'
+    '. summary summary';
+  column-gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.75rem 0.4rem 1.25rem;
+  text-align: left;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+}
+
+.history-edit:hover {
+  background: var(--control-hover);
+}
+
+.history-edit[aria-current='true'] {
+  background: var(--control);
+}
+
+.history-edit[data-unchanged] {
+  color: var(--muted);
+}
+
+.history-swatch {
+  grid-area: swatch;
+  align-self: center;
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 3px;
+  background: var(--pc, var(--border));
+}
+
+.history-what {
+  grid-area: what;
+  font-weight: 500;
+}
+
+.history-summary {
+  grid-area: summary;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.history-time {
+  grid-area: time;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.history-detail h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.history-detail h4 {
+  margin: 1rem 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.history-detail p {
+  margin: 0.2rem 0 0;
+}
+
+.history-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.history-banner > div:first-child {
+  flex: 1;
+  min-width: 14rem;
+}
+
+.history-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.history-steps {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+}
+
+.history-steps input {
+  flex: 1;
+}
+
+.history-steps button {
+  width: 2rem;
+  padding: 0.2rem 0;
+}
+
+.history-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 0.75rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.history-key {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.old-value {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.new-value {
+  padding: 0 0.25rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--success) 20%, transparent);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.history-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
+  gap: 1rem;
+}
+
+.history-columns > section {
+  min-width: 0;
+}
+
+/* Markierungen: vom Zellinhalt durch einen Spalt in Seitenfarbe abgesetzt, Form unterscheidet sie */
+.step[data-mark] {
+  position: relative;
+  z-index: var(--z-local-1);
+}
+
+.step[data-mark='added'] {
+  box-shadow: 0 0 0 1px var(--bg), 0 0 0 3px var(--mark-added);
+}
+
+.step[data-mark='changed'] {
+  box-shadow: 0 0 0 1px var(--bg), 0 0 0 2px var(--mark-changed), 0 0 0 3px var(--bg), 0 0 0 4px var(--mark-changed);
+}
+
+.step[data-mark='removed'] {
+  outline: 2px dashed var(--mark-removed);
+  outline-offset: -2px;
+}
+
+.history-motif {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  --motif-row: 7px;
+  --motif-gap: 1.5px;
+}
+
+.history-motif-segment {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.history-motif-name {
+  flex: none;
+  width: 9rem;
+  font-size: 0.8rem;
+  line-height: 1.1;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.history-motif-segment.marked .history-motif-name {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.history-segment-mark {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.history-motif-name .old-new {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.history-motif-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 16rem;
+  flex: none;
+}
+
+/* Abstand zwischen Takten, ohne die Lage zu verschieben */
+.history-motif .motif-stroke {
+  clip-path: inset(0 var(--motif-gap) round 999px);
+}
+
+.history-motif .motif-stroke.neutral {
+  background: var(--border);
+}
+
+.history-motif .motif-dot.marked {
+  background: var(--text);
+}
+
+.history-motif-bar {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  z-index: var(--z-local-2);
+  border-radius: 3px;
+}
+
+.history-motif-bar:hover {
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.history-tip {
+  position: fixed;
+  z-index: var(--z-popover);
+  pointer-events: none;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.dialog-list {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.dialog-list li {
+  margin: 0.25rem 0;
+}
+
+.dialog h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+/* Den Verlauf gibt es auf Smartphones nicht; nach den Regeln der Symbolknöpfe, damit es sie überstimmt */
+@media (max-width: 40rem) {
+  .history-open {
+    display: none;
+  }
+}
+
+/* Vergleich eines Patterns: Vorher (einklappbar) und Nachher in einem gemeinsamen Scrollbereich */
+.history-sequencers {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.history-sequencers h4 {
+  margin: 0.5rem 0 0.25rem;
+}
+
+.history-previous summary {
+  width: max-content;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.history-previous[open] summary {
+  margin-bottom: 0.25rem;
+}
+
+/* Kompakter Sequencer: nur zum Ansehen, daher kleinere Zellen und Beschriftung */
+.sequencer.compact .instrument {
+  font-size: 0.7rem;
+  padding: 0 0.4rem;
+}
+
+.sequencer.compact .beat-head {
+  padding: 0 0.15rem 0.25rem;
+}
+
+.sequencer.compact .beat-number,
+.sequencer.compact .beat-head .value-control {
+  font-size: 0.65rem;
+}
+
+.sequencer.compact .beat-head .value-control {
+  height: auto;
+  padding: 0;
+}
+
+.sequencer.compact .beat-cells {
+  gap: 2px;
+  padding: 1px 0.15rem;
+}
+
+.sequencer.compact .step {
+  height: 1.1rem;
+  border-radius: 3px;
+  /* Zeile des Knopfs so hoch wie die Zelle, sonst rutscht das Zeichen der Spielweise nach unten */
+  font-size: 0.6rem;
+  line-height: 1.1rem;
+}
+
+.sequencer.compact .step[data-articulation]::before {
+  font-size: 0.6rem;
+  line-height: 1.1rem;
+}
+
+.sequencer.compact .step[data-articulation='flam']::before,
+.sequencer.compact .step[data-articulation='drag']::before {
+  top: 0.15rem;
+  left: 0.15rem;
+}
+
+.sequencer.compact .step[data-emphasis]::after {
+  font-size: 0.55rem;
 }

@@ -3,7 +3,8 @@ import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from '
 import { DEFAULT_TEMPO, type Pattern, type Song, type Workbook } from '../domain/types';
 import type { NotebookStore } from '../state/notebookStore';
 import { songFromV1Patterns } from './fileFormat';
-import { applySong, createSongDoc, songOf, type SongDocument } from './songDoc';
+import { readHistory, type SongHistory } from './history';
+import { applySong, changeMessage, createSongDoc, songOf, type SongDocument } from './songDoc';
 
 /** Ein Datensatz pro Song: das gespeicherte Automerge-Dokument (design.md D8). */
 interface DocumentRecord {
@@ -41,10 +42,12 @@ export interface Repository {
   loadAll(): Promise<Song[]>;
   /** Zugehörigkeit und Workbooks; nach `loadAll` aufrufen. */
   loadSyncState(): Promise<SyncState>;
-  /** Überträgt die Songs sofort in ihre Dokumente; die Speicherung folgt in einer Transaktion. */
-  write(changes: Changes): Promise<void>;
+  /** Überträgt die Songs sofort in ihre Dokumente; die Speicherung folgt in einer Transaktion. `restores`: Song-ID → Zeit des Zielstands einer Wiederherstellung. */
+  write(changes: Changes, restores?: ReadonlyMap<string, number>): Promise<void>;
   /** Vollständiges Dokument, zum Übertragen an den Server. */
   documentBytes(id: string): Uint8Array;
+  /** Historie eines Songs; zwischengespeichert, bis sich das Dokument ändert (song-history, design.md D4). `null`, solange der Song noch kein Dokument hat. */
+  history(id: string): SongHistory | null;
   /** `null`, solange der Song keinen Server-Stand hat. */
   outgoing(id: string): { base: A.Heads; changes: Uint8Array } | null;
   /** Noch nicht übertragene Änderungen und vorgemerktes Löschen; Songs ohne Server-Stand zählen nicht. Vorher `flush`. */
@@ -96,8 +99,13 @@ async function upgradeLegacy(db: IDBPDatabase<BeatsheetDB>, tx: UpgradeTx, oldVe
   for (const song of songs) await tx.objectStore('documents').put(recordOf(song));
 }
 
+export interface RepositoryOptions {
+  /** Adresse des angemeldeten Nutzers; jede Änderung trägt sie als Autor (song-history, design.md D2). */
+  author?: () => string | null;
+}
+
 /** Automerge muss vorher initialisiert sein (`initAutomerge`), weil das Upgrade Dokumente erzeugt. */
-export async function openRepository(name = 'beatsheet'): Promise<Repository> {
+export async function openRepository(name = 'beatsheet', { author = () => null }: RepositoryOptions = {}): Promise<Repository> {
   const db: IDBPDatabase<BeatsheetDB> = await openDB<BeatsheetDB>(name, DB_VERSION, {
     async upgrade(database, oldVersion, _newVersion, tx) {
       database.createObjectStore('workbooks', { keyPath: 'id' });
@@ -110,6 +118,8 @@ export async function openRepository(name = 'beatsheet'): Promise<Repository> {
   const placements = new Map<string, { workbookId: string; serverHeads: A.Heads }>();
   const deletions = new Map<string, string>();
   let saving = Promise.resolve();
+  const message = (restore?: number) => changeMessage({ by: author() ?? undefined, restore });
+  const histories = new Map<string, { heads: string; history: SongHistory }>();
 
   const recordOfDoc = (id: string, doc: SongDocument): DocumentRecord => ({ id, bytes: A.save(doc), ...placements.get(id) });
 
@@ -143,10 +153,10 @@ export async function openRepository(name = 'beatsheet'): Promise<Repository> {
       const placement = Object.fromEntries([...placements].map(([id, p]) => [id, p.workbookId]));
       return { placement, workbooks: await db.getAll('workbooks') };
     },
-    async write({ put, remove }) {
+    async write({ put, remove }, restores) {
       const records = put.map((song) => {
         const current = docs.get(song.id);
-        const doc = current ? applySong(current, song) : createSongDoc(song);
+        const doc = current ? applySong(current, song, message(restores?.get(song.id))) : createSongDoc(song, message());
         docs.set(song.id, doc);
         return recordOfDoc(song.id, doc);
       });
@@ -158,6 +168,16 @@ export async function openRepository(name = 'beatsheet'): Promise<Repository> {
       await Promise.all([...records.map((r) => tx.store.put(r)), ...remove.filter((id) => !deletions.has(id)).map((id) => tx.store.delete(id)), tx.done]);
     },
     documentBytes: (id) => A.save(docOf(id)),
+    history(id) {
+      const doc = docs.get(id);
+      if (!doc) return null;
+      const heads = A.getHeads(doc).join();
+      const cached = histories.get(id);
+      if (cached?.heads === heads) return cached.history;
+      const history = readHistory(doc);
+      histories.set(id, { heads, history });
+      return history;
+    },
     outgoing(id) {
       const placed = placements.get(id);
       const doc = docs.get(id);
@@ -167,7 +187,7 @@ export async function openRepository(name = 'beatsheet'): Promise<Repository> {
       return deletions.size > 0 || [...placements].some(([id, { serverHeads }]) => A.saveSince(docOf(id), serverHeads).length > 0);
     },
     receive(id, current, { changes, heads }) {
-      let doc = applySong(docOf(id), current);
+      let doc = applySong(docOf(id), current, message());
       if (changes && changes.length > 0) doc = A.loadIncremental(doc, changes);
       docs.set(id, doc);
       placements.set(id, { workbookId: placements.get(id)!.workbookId, serverHeads: heads });
@@ -250,9 +270,23 @@ export function connectStore(store: NotebookStore, repo: Repository, { debounceM
 
   const unsubscribe = store.subscribe(() => {
     const current = new Map(store.getState().songs.map((s) => [s.id, s]));
-    for (const [id, song] of current) if (saved.get(id) !== song) pending.set(id, song);
+    const notes = store.takeRestoreNotes();
+    const restored: Song[] = [];
+    for (const [id, song] of current) {
+      if (saved.get(id) === song) continue;
+      if (notes.has(id)) restored.push(song);
+      else pending.set(id, song);
+    }
     for (const id of saved.keys()) if (!current.has(id)) pending.set(id, null);
     saved = current;
+    if (restored.length > 0) {
+      // Eine Wiederherstellung ist ein eigener Change: zuerst Ausstehendes, dann sie sofort (song-history, design.md D3)
+      void flush();
+      for (const song of restored) pending.delete(song.id);
+      writing = Promise.all([writing, repo.write({ put: restored, remove: [] }, notes)]).then(() => undefined);
+    }
+    // Der Verlauf liest das Dokument: Ausstehendes sofort hinein (song-history)
+    if (pending.size > 0 && store.getState().view.kind === 'history') void flush();
     if (pending.size > 0 && timer === undefined) timer = setTimeout(() => void flush(), debounceMs);
   });
 

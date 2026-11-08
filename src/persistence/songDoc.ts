@@ -291,15 +291,47 @@ function syncMap(current: Record<string, unknown>, target: JsonObject) {
   for (const [key, value] of Object.entries(target)) syncValue(current, key, value);
 }
 
-/** Neues Dokument für einen Song. */
-export function createSongDoc(song: Song): SongDocument {
-  return A.from(toAutomerge(toDocShape(song) as unknown as JsonObject) as { v: number });
+/** Neues Dokument für einen Song; mit Nachricht trägt schon das Anlegen den Autor (song-history, design.md D1). */
+export function createSongDoc(song: Song, message?: string): SongDocument {
+  const shape = toAutomerge(toDocShape(song) as unknown as JsonObject) as Record<string, unknown>;
+  if (message === undefined) return A.from(shape as { v: number });
+  return A.change(A.init<{ v: number }>(), { message }, (d) => {
+    Object.assign(d, shape);
+  });
 }
 
 /** Überträgt einen Song als minimale Änderung ins Dokument; ein unveränderter Song erzeugt keine Änderung. */
-export function applySong(doc: SongDocument, song: Song): SongDocument {
+export function applySong(doc: SongDocument, song: Song, message?: string): SongDocument {
   const target = toDocShape(song) as unknown as JsonObject;
-  return A.change(doc, (d) => syncMap(d as unknown as Record<string, unknown>, target));
+  const apply = (d: unknown) => syncMap(d as Record<string, unknown>, target);
+  return message === undefined ? A.change(doc, apply) : A.change(doc, { message }, apply);
+}
+
+// --- Nachricht einer Änderung (song-history, design.md D1) ---------------------------
+
+/** Autor einer Änderung und, bei einer Wiederherstellung, die Zeit des Zielstands (Unixzeit in Sekunden). */
+export interface ChangeMeta {
+  by?: string;
+  restore?: number;
+}
+
+/** Nachricht für `applySong`; ohne Autor keine. */
+export function changeMessage(meta: ChangeMeta): string | undefined {
+  if (!meta.by) return undefined;
+  return JSON.stringify(meta.restore === undefined ? { by: meta.by } : { by: meta.by, restore: meta.restore });
+}
+
+/** Liest eine Nachricht; was kein solches JSON ist, gilt als ohne Autor, unbekannte Felder werden ignoriert. */
+export function readChangeMessage(message: string | null | undefined): ChangeMeta {
+  if (!message) return {};
+  let value: unknown;
+  try {
+    value = JSON.parse(message);
+  } catch {
+    return {};
+  }
+  if (!isObject(value) || typeof value.by !== 'string' || !value.by) return {};
+  return typeof value.restore === 'number' && Number.isFinite(value.restore) ? { by: value.by, restore: value.restore } : { by: value.by };
 }
 
 /** Der Song eines Dokuments, fachlich normalisiert (design.md D6). */

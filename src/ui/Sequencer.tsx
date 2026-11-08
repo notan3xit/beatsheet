@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import { compareHits, hitKey } from '../domain/history';
 import type { Step } from '../domain/playback';
 import { articulationAt, changeSubdivision, cycleArticulation, emphasisAt, toggleEmphasis, toggleHit } from '../domain/sequencer';
 import {
@@ -12,20 +14,31 @@ import {
 
 /** Mindestbreite eines Beats in rem; 32tel und 32tel-Triolen brauchen Platz für acht bzw. zwölf bedienbare Zellen (design.md D3). */
 const BEAT_MIN_WIDTH: Record<Subdivision, number> = { 2: 6.5, 3: 6.5, 4: 6.5, 6: 6.5, 8: 12, 12: 18 };
+/** Anteil der Beatbreite in der kompakten Variante; die Zellen sind dort nur zum Ansehen. */
+const COMPACT_SCALE = 0.6;
 import { useConfirm } from './ConfirmDialog';
 import { useStore } from './useLibrary';
 
-/** `playhead`: gerade erklingende Rasterposition, wird in allen Zeilen hervorgehoben. */
+/**
+ * `playhead`: gerade erklingende Rasterposition, wird in allen Zeilen hervorgehoben.
+ * `compare`: früherer Stand; Zellen tragen dann `data-mark` für neue, geänderte und entfernte Schläge (song-history).
+ */
 export function Sequencer({
   pattern,
   playhead = null,
   readOnly = false,
+  compare,
+  compact = false,
 }: {
   pattern: Pattern;
   playhead?: Step | null;
   readOnly?: boolean;
+  compare?: Pattern;
+  /** Kleinere Zellen und Beschriftung, für den Vergleich im Verlauf. */
+  compact?: boolean;
 }) {
   const store = useStore();
+  const marks = useMemo(() => (compare ? compareHits(compare, pattern) : null), [compare, pattern]);
   const confirm = useConfirm();
 
   const setSubdivision = async (beatIndex: number, subdivision: Subdivision) => {
@@ -44,9 +57,11 @@ export function Sequencer({
     <div
       role="grid"
       aria-label="Sequencer"
-      className="sequencer"
+      className={compact ? 'sequencer compact' : 'sequencer'}
       style={{
-        gridTemplateColumns: `10.5rem ${pattern.beats.map((b) => `minmax(${BEAT_MIN_WIDTH[b.subdivision]}rem, 1fr)`).join(' ')}`,
+        gridTemplateColumns: `${compact ? 7.5 : 10.5}rem ${pattern.beats
+          .map((b) => `minmax(${BEAT_MIN_WIDTH[b.subdivision] * (compact ? COMPACT_SCALE : 1)}rem, 1fr)`)
+          .join(' ')}`,
       }}
     >
       <div role="row" className="sequencer-row sequencer-head">
@@ -101,6 +116,7 @@ export function Sequencer({
                     aria-label={label}
                     data-articulation={articulation}
                     data-emphasis={emphasized || undefined}
+                    data-mark={marks?.get(hitKey(b, beat.subdivision, position, instrument))}
                     // Klick: Schlag an/aus; Shift-Klick: Spielweise durchschalten; Strg-/Cmd-Klick: Betonung an/aus
                     onClick={(e) => {
                       const change = e.ctrlKey || e.metaKey ? toggleEmphasis : e.shiftKey ? cycleArticulation : toggleHit;

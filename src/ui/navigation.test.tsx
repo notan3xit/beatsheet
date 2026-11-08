@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createPattern } from '../domain/pattern';
@@ -105,5 +105,16 @@ describe('Spec navigation › Breadcrumbs', () => {
     expect(within(path()).getAllByRole('button').map((b) => b.textContent)).toEqual(['Songs']);
     expect(heading('Hysteria')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Alle Songs' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Spec navigation › Breadcrumbs (Verlauf)', () => {
+  it('Pfad im Verlauf', async () => {
+    const { store, user } = setup([songWith({ title: 'Hysteria' })], { song: 0 });
+    act(() => store.openHistory());
+    const path = screen.getByRole('navigation', { name: 'Pfad' });
+    expect(within(path).getByRole('button', { name: 'Songs' })).toBeInTheDocument();
+    await user.click(within(path).getByRole('button', { name: 'Hysteria' }));
+    expect(store.getState().view).toEqual({ kind: 'book' });
   });
 });

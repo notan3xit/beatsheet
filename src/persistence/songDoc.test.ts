@@ -8,7 +8,7 @@ import type { Instrument, Pattern, Song } from '../domain/types';
 import { songWith } from '../test/songs';
 import { parseNotebookFile, serializeNotebook } from './fileFormat';
 import { planImport } from './merge';
-import { applySong, createSongDoc, fromDocShape, mergeSongDocs, sameSong, songOf, toDocShape, type SongDocument } from './songDoc';
+import { applySong, changeMessage, createSongDoc, fromDocShape, mergeSongDocs, readChangeMessage, sameSong, songOf, toDocShape, type SongDocument } from './songDoc';
 
 const NOW = new Date('2026-11-03T12:00:00.000Z');
 
@@ -312,5 +312,37 @@ describe('sameSong', () => {
     expect(sameSong(song, { ...song, tempo: song.tempo + 1 })).toBe(false);
     expect(sameSong(song, { ...song, title: 'Anders' })).toBe(false);
     expect(sameSong(song, { ...song, revision: song.revision + 1 })).toBe(false);
+  });
+});
+
+describe('Spec song-history › Autor einer Änderung', () => {
+  const lastMessage = (doc: SongDocument) => A.decodeChange(A.getLastLocalChange(doc)!).message;
+
+  it('Änderung trägt die Nachricht mit dem Autor', () => {
+    const song = baseSong();
+    const doc = applySong(createSongDoc(song), { ...song, tempo: 90 }, changeMessage({ by: 'max@example.org' }));
+    expect(readChangeMessage(lastMessage(doc))).toEqual({ by: 'max@example.org' });
+  });
+
+  it('Ohne Nachricht trägt die Änderung keinen Autor', () => {
+    const song = baseSong();
+    const doc = applySong(createSongDoc(song), { ...song, tempo: 90 });
+    expect(readChangeMessage(lastMessage(doc))).toEqual({});
+  });
+
+  it('Wiederherstellung mit Zielzeit', () => {
+    expect(readChangeMessage(changeMessage({ by: 'max@example.org', restore: 1762559580 }))).toEqual({ by: 'max@example.org', restore: 1762559580 });
+  });
+
+  it('Ungültige oder fremde Nachrichten gelten als ohne Autor, unbekannte Felder werden ignoriert', () => {
+    expect(readChangeMessage(null)).toEqual({});
+    expect(readChangeMessage('kein json')).toEqual({});
+    expect(readChangeMessage('{"by":42}')).toEqual({});
+    expect(readChangeMessage('[1,2]')).toEqual({});
+    expect(readChangeMessage('{"by":"a@b.de","neu":true,"restore":"x"}')).toEqual({ by: 'a@b.de' });
+  });
+
+  it('Ohne Autor keine Nachricht', () => {
+    expect(changeMessage({})).toBeUndefined();
   });
 });

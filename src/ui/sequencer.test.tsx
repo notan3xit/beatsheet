@@ -6,7 +6,11 @@ import * as renderer from '../notation/render/vexflow';
 import { notebookWith } from '../test/notebook';
 import { emptyBeats, patternOf } from '../test/patterns';
 import type { Pattern } from '../domain/types';
+import { changeSubdivision, cycleArticulation, toggleHit } from '../domain/sequencer';
 import { App } from './App';
+import { ConfirmProvider } from './ConfirmDialog';
+import { Sequencer } from './Sequencer';
+import { StoreContext } from './useLibrary';
 
 /** Pattern liegt in einem Song und ist im Pattern-Editor geöffnet. */
 function setup(pattern: Pattern) {
@@ -303,5 +307,48 @@ describe('Spec pattern-sequencer › Betonung eines Schlags (UI)', () => {
     await clickWith(user, 'Control', cellAt('Bassdrum', 1, 1));
     await user.click(screen.getByRole('button', { name: 'Rückgängig' }));
     expect(current().beats[0]).toEqual({ subdivision: 4, hits: { kick: [0] } });
+  });
+});
+
+describe('Spec song-history › Markierungen im Vergleichs-Sequencer', () => {
+  function renderCompare(pattern: Pattern, compare: Pattern | undefined) {
+    const { store } = notebookWith([pattern], 'book');
+    render(
+      <StoreContext.Provider value={store}>
+        <ConfirmProvider>
+          <Sequencer pattern={pattern} compare={compare} readOnly />
+        </ConfirmProvider>
+      </StoreContext.Provider>,
+    );
+  }
+  /** Zelle über den Anfang ihres Namens; Spielweise und Betonung hängen sich an. */
+  const at = (instrument: string, beat: number, position: number) =>
+    within(grid()).getByRole('button', { name: new RegExp(`^${instrument}, Beat ${beat}, Position ${position}(,|$)`) });
+  const mark = (instrument: string, beat: number, position: number) => at(instrument, beat, position).dataset.mark;
+
+  it('Spielweise geändert, neu und entfernt', () => {
+    const before = cycleArticulation(toggleHit(toggleHit(patternOf(emptyBeats(2)), 0, 'snare', 1), 0, 'kick', 0), 0, 'snare', 1);
+    const after = toggleHit(toggleHit(cycleArticulation(before, 0, 'snare', 1), 0, 'kick', 0), 1, 'kick', 2);
+    renderCompare(after, before);
+    expect(mark('Snare', 1, 2)).toBe('changed');
+    // Das Zeichen der Spielweise bleibt wie im Pattern-Editor
+    expect(at('Snare', 1, 2)).toHaveAttribute('data-articulation', 'drag');
+    expect(mark('Bassdrum', 1, 1)).toBe('removed');
+    expect(at('Bassdrum', 1, 1)).toHaveAttribute('aria-pressed', 'false');
+    expect(mark('Bassdrum', 2, 3)).toBe('added');
+    expect(mark('Bassdrum', 2, 1)).toBeUndefined();
+  });
+
+  it('Unterteilung gewechselt', () => {
+    const before = toggleHit(patternOf(emptyBeats(1)), 0, 'snare', 1);
+    const after = changeSubdivision(before, 0, 8).pattern;
+    renderCompare(after, before);
+    expect(mark('Snare', 1, 3)).toBeUndefined();
+    expect(at('Snare', 1, 3)).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Ohne Vergleichsstand keine Markierungen', () => {
+    renderCompare(toggleHit(patternOf(emptyBeats(1)), 0, 'kick', 0), undefined);
+    expect(mark('Bassdrum', 1, 1)).toBeUndefined();
   });
 });

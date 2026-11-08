@@ -17,6 +17,7 @@ import { createThemeSetting, type ThemeSetting } from './theme';
 import { ThemeContext } from './useTheme';
 import { SongList } from './SongList';
 import { Songbook } from './Songbook';
+import { HistoryContext, SongHistory, type HistoryOf } from './SongHistory';
 import { StoreContext, useNotebook, useOpenSong } from './useLibrary';
 import { SessionContext, SyncContext, useEmail } from './useWorkbooks';
 
@@ -34,6 +35,7 @@ function CurrentView() {
   const { view } = useNotebook();
   if (view.kind === 'book') return <Songbook />;
   if (view.kind === 'pattern') return <OpenPattern patternId={view.patternId} />;
+  if (view.kind === 'history') return <SongHistory />;
   return <SongList />;
 }
 
@@ -69,6 +71,8 @@ function Notices({ sync }: { sync: WorkbookActions }) {
   return notices.map((notice) => <MessageRow key={notice.id} kind="status" text={notice.text} onClose={() => sync.dismissNotice(notice.id)} />);
 }
 
+const NO_HISTORY: HistoryOf = () => null;
+
 export function App({
   store,
   storagePersisted = true,
@@ -80,6 +84,7 @@ export function App({
   profile: profileProp,
   session: sessionProp,
   sync,
+  historyOf = NO_HISTORY,
 }: {
   store: NotebookStore;
   storagePersisted?: boolean;
@@ -99,6 +104,8 @@ export function App({
   session?: AccountSession;
   /** Workbooks und Abgleich; ohne sie gibt es nur „Meine Songs“. */
   sync?: WorkbookActions;
+  /** Historie eines Songs (song-history); in der App aus dem Repository. */
+  historyOf?: HistoryOf;
 }) {
   const [sound] = useState(() => soundProp ?? createDeviceSound());
   const [theme] = useState(() => themeProp ?? createThemeSetting(null));
@@ -117,6 +124,7 @@ export function App({
         <ThemeContext.Provider value={theme}>
         <SessionContext.Provider value={session}>
         <SyncContext.Provider value={sync ?? null}>
+        <HistoryContext.Provider value={historyOf}>
         <ConfirmProvider>
         <MessagesProvider>
           <div className="app">
@@ -131,6 +139,7 @@ export function App({
           </div>
         </MessagesProvider>
         </ConfirmProvider>
+        </HistoryContext.Provider>
         </SyncContext.Provider>
         </SessionContext.Provider>
         </ThemeContext.Provider>

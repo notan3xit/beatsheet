@@ -142,6 +142,12 @@ describe.each(['latte', 'mocha'] as const)('Spec design-system › Kontraste in 
   it('Zustandskontrast: Rahmen in Patternfarbe auf der Seitenfläche', () => {
     expect(failures(variant, toText('edge-mix'), SURFACE, BG, 3)).toEqual([]);
   });
+
+  // Markierungen im Vergleichs-Sequencer (song-history): abgesetzt von der Zelle, daher gegen die Seitenfläche
+  it.each(['var(--mark-added)', 'var(--mark-changed)', 'var(--mark-removed)'])('Zustandskontrast: %s', (mark) => {
+    expect(failures(variant, mark, BG, BG, 3)).toEqual([]);
+    expect(failures(variant, mark, SURFACE, BG, 3)).toEqual([]);
+  });
 });
 
 describe('Spec design-system › Rollen der Schriftfarben', () => {

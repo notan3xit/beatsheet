@@ -11,7 +11,7 @@ import { DEFAULT_TEMPO, type Pattern, type PatternKind, type Song, type Workbook
 
 export const HISTORY_LIMIT = 50;
 
-export type View = { kind: 'list' } | { kind: 'book' } | { kind: 'pattern'; patternId: string };
+export type View = { kind: 'list' } | { kind: 'book' } | { kind: 'pattern'; patternId: string } | { kind: 'history' };
 
 export interface NotebookState {
   songs: Song[];
@@ -39,12 +39,18 @@ export interface NotebookStore {
   openSong(id: string): void;
   openPattern(patternId: string): void;
   backToBook(): void;
+  /** Verlauf des geöffneten Songs (song-history). */
+  openHistory(): void;
   backToList(): void;
   setLocked(locked: boolean): void;
   setExpanded(expanded: boolean): void;
 
   /** Ändert den geöffneten Song (Struktur, Platzhalter …); erhöht seine Revision. */
   updateSong(change: (song: Song) => Song): void;
+  /** Übernimmt den Song wie `updateSong` als Wiederherstellung des Stands von `restoredFrom` (Unixzeit; song-history, design.md D3). */
+  restoreSong(song: Song, restoredFrom: number): void;
+  /** Wiederherstellungen seit dem letzten Aufruf, Song-ID → Zeit des Zielstands; für das Speichern. */
+  takeRestoreNotes(): Map<string, number>;
 
   // Patterns des geöffneten Songs
   createPattern(kind: PatternKind): Pattern;
@@ -92,6 +98,7 @@ export function createNotebookStore(
   let placement = sync.placement;
   let openSongId: string | null = null;
   let view: View = { kind: 'list' };
+  const restoreNotes = new Map<string, number>();
   let locked = true;
   let expanded = false;
   let history = emptyHistory();
@@ -228,6 +235,11 @@ export function createNotebookStore(
       setView({ kind: 'book' });
       emit();
     },
+    openHistory() {
+      openSong();
+      setView({ kind: 'history' });
+      emit();
+    },
     backToList() {
       openSongId = null;
       setView({ kind: 'list' });
@@ -245,6 +257,17 @@ export function createNotebookStore(
     updateSong(change) {
       commitSong(change(openSong()));
       emit();
+    },
+    restoreSong(song, restoredFrom) {
+      if (song.id !== openSongId) throw new Error(`Song ${song.id} ist nicht geöffnet`);
+      commitSong(song);
+      restoreNotes.set(song.id, restoredFrom);
+      emit();
+    },
+    takeRestoreNotes() {
+      const notes = new Map(restoreNotes);
+      restoreNotes.clear();
+      return notes;
     },
 
     createPattern: (kind) => addAndOpen(addPattern(openSong(), { kind }, deps).pattern),

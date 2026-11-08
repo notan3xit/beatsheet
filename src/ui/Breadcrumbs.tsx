@@ -1,6 +1,6 @@
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
 
-/** Pfad über der Überschrift: „Songs“ und im Pattern-Editor der Songtitel (navigation, design.md D1). */
+/** Pfad über der Überschrift: „Songs“ und in Pattern-Editor und Verlauf der Songtitel (navigation, design.md D1). */
 export function Breadcrumbs() {
   const store = useStore();
   const { view } = useNotebook();
@@ -13,7 +13,7 @@ export function Breadcrumbs() {
             Songs
           </button>
         </li>
-        {view.kind === 'pattern' && (
+        {(view.kind === 'pattern' || view.kind === 'history') && (
           <li>
             <button type="button" data-read-safe="" onClick={() => store.backToBook()}>
               {song.title}
