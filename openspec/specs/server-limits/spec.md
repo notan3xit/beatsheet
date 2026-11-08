@@ -7,7 +7,7 @@ Begrenzt, was Accounts auf dem Server belegen können, damit niemand ihn mit Dat
 ## Requirements
 
 ### Requirement: Speichergrenze je Account
-Die Songs eines Workbooks belegen Speicher beim Besitzer des Workbooks, der eigene Bestand beim Account selbst. Übersteigt eine Änderung oder ein neuer Song die Grenze von 20 MB je Account, MUST der Server sie abweisen und den gespeicherten Stand unverändert lassen. Änderungen, die keinen zusätzlichen Speicher belegen, und Löschen MUST immer möglich sein.
+Die Songs und das Workbook-Dokument (`workbook-sync`) eines Workbooks belegen Speicher beim Besitzer des Workbooks, der eigene Bestand beim Account selbst. Übersteigt eine Änderung oder ein neuer Song die Grenze von 20 MB je Account, MUST der Server sie abweisen und den gespeicherten Stand unverändert lassen. Änderungen, die keinen zusätzlichen Speicher belegen, und Löschen MUST immer möglich sein.
 
 #### Scenario: Neuer Song über der Grenze
 - **GIVEN** der Bestand von ich@example.com hat die Grenze erreicht
@@ -29,6 +29,11 @@ Die Songs eines Workbooks belegen Speicher beim Besitzer des Workbooks, der eige
 - **GIVEN** die Besitzerin von „Band“ hat die Grenze erreicht
 - **WHEN** ein Mitglied einen eigenen Song nach „Band“ verschieben will
 - **THEN** meldet die App, dass der Speicher des Workbooks voll ist, und der Song bleibt in „Meine Songs“
+
+#### Scenario: Gesehene Stände belegen Speicher
+- **GIVEN** das Workbook-Dokument von „Band“ belegt Speicher
+- **WHEN** die Besitzerin von „Band“ so nahe an der Grenze ist, dass ein Song ohne dieses Dokument noch passen würde
+- **THEN** weist der Server den Song ab
 
 ### Requirement: Gesamtgrenze für den Speicher
 Übersteigt eine Änderung oder ein neuer Song die Grenze von 5 GB über alle Accounts, MUST der Server sie abweisen und den Vorfall protokollieren. Löschen MUST möglich bleiben.
