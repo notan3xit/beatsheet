@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 /** Neuerungen je Version in Stichworten für Nutzer, neueste zuerst. Der oberste Eintrag ist die aktuelle Version. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.8.0',
+    date: '2026-11-08',
+    items: [
+      'Verlauf je Song: wer wann was geändert hat, mit Vergleich vorher und nachher; frühere Stände lassen sich wiederherstellen (nicht auf Smartphones)',
+      'Song-Kacheln zeigen, von wann und von wem die letzte Änderung ist',
+      'Ein Punkt an Kachel und Workbook zeigt, wo sich etwas in Abwesenheit geändert hat',
+    ],
+  },
+  {
     version: '0.7.0',
     date: '2026-11-08',
     items: [
