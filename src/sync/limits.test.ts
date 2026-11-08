@@ -13,6 +13,8 @@ import { createSync, type Sync } from './sync';
 const ME = 'ich@example.com';
 const ANNA = 'anna@example.com';
 const OVERHEAD = 1024;
+/** Platz für das Workbook-Dokument mit den gesehenen Ständen zweier Mitglieder. */
+const WORKBOOK_DOC = 1024;
 
 interface Device {
   store: NotebookStore;
@@ -171,7 +173,8 @@ describe('Spec server-limits › Keine Datenverluste an einer Grenze', () => {
   });
 
   it('Änderungen anderer an einer Grenze: Das Gerät zeigt sie und behält seine eigene', async () => {
-    await start({ accountBytes: footprint() + 400 });
+    // Das Workbook-Dokument von „Band“ belegt ebenfalls Speicher der Besitzerin
+    await start({ accountBytes: footprint() + 400 + WORKBOOK_DOC });
     const me = await device(ME);
     await me.sync.createWorkbook('Band');
     const band = me.store.getState().workbooks.find((w) => w.title === 'Band')!.id;

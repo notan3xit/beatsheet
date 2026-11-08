@@ -10,6 +10,7 @@ import { createV2Database } from '../test/legacyDb';
 import { songWith } from '../test/songs';
 import { connectStore, openRepository, requestPersistentStorage } from './repository';
 import { applySong, createSongDoc, songOf } from './songDoc';
+import { createWorkbookDoc, markSeen } from './workbookDoc';
 
 const uniqueDb = () => `beatsheet-test-${crypto.randomUUID()}`;
 
@@ -223,8 +224,8 @@ describe('Spec library-persistence › Übernahme lokal gespeicherter Songs in d
     await createV2Database(dbName, [legacySongs().song]);
     (await openRepository(dbName)).close();
     const raw = await openDB(dbName);
-    expect([...raw.objectStoreNames]).toEqual(['documents', 'workbooks']);
-    expect(raw.version).toBe(4);
+    expect([...raw.objectStoreNames]).toEqual(['documents', 'workbookDocs', 'workbooks']);
+    expect(raw.version).toBe(5);
     raw.close();
   });
 });
@@ -560,5 +561,116 @@ describe('Spec song-history › Verlauf öffnen', () => {
     expect(repo.history(song.id)).toBeNull();
     store.openHistory();
     expect(repo.history(song.id)!.songAt(repo.history(song.id)!.steps.length - 1)!.tempo).toBe(90);
+  });
+});
+
+describe('Spec workbook-sync › Gesehene Stände abgleichen', () => {
+  const ME = 'ich@example.com';
+  const HEADS = ['a'.repeat(64)];
+  const serverDoc = () => {
+    const doc = createWorkbookDoc();
+    return { doc, changes: A.saveSince(doc, []), heads: A.getHeads(doc) };
+  };
+
+  it('Upgrade von Version 4 behält die Songs', async () => {
+    const name = uniqueDb();
+    const db = await openDB(name, 4, {
+      upgrade(database) {
+        database.createObjectStore('documents', { keyPath: 'id' });
+        database.createObjectStore('workbooks', { keyPath: 'id' });
+      },
+    });
+    const old = songWith({ title: 'Alt' });
+    await db.put('documents', { id: old.id, bytes: A.save(createSongDoc(old)) });
+    db.close();
+    const repo = await openRepository(name);
+    expect((await repo.loadAll()).map((s) => s.title)).toEqual(['Alt']);
+  });
+
+  it('übernimmt das Dokument vom Server, setzt eigene Einträge und behält beides über ein Neuladen', async () => {
+    const name = uniqueDb();
+    const repo = await openRepository(name);
+    expect(repo.workbookOutgoing('wb')).toEqual({ base: [], changes: new Uint8Array() });
+    expect(repo.markSeen('wb', ME, { intro: HEADS })).toBe(false);
+    const { changes, heads } = serverDoc();
+    repo.receiveWorkbook('wb', { changes, heads });
+    expect(repo.workbookSeen('wb', ME)).toBeNull();
+    expect(repo.markSeen('wb', ME, { intro: HEADS })).toBe(true);
+    expect(repo.markSeen('wb', ME, { intro: HEADS })).toBe(false);
+    const outgoing = repo.workbookOutgoing('wb');
+    expect(outgoing.base).toEqual(heads);
+    expect(outgoing.changes.length).toBeGreaterThan(0);
+    await repo.settled();
+    repo.close();
+
+    const reopened = await openRepository(name);
+    await reopened.loadAll();
+    expect(reopened.workbookSeen('wb', ME)).toEqual({ intro: HEADS });
+    expect(reopened.workbookOutgoing('wb').changes.length).toBeGreaterThan(0);
+  });
+
+  it('wendet fremde Changes an und ersetzt bei Bedarf das ganze Dokument', async () => {
+    const repo = await openRepository(uniqueDb());
+    const { doc, changes, heads } = serverDoc();
+    repo.receiveWorkbook('wb', { changes, heads });
+    const other = markSeen(doc, 'anna@example.com', { intro: HEADS });
+    repo.receiveWorkbook('wb', { changes: A.saveSince(other, heads), heads: A.getHeads(other) });
+    expect(repo.workbookSeen('wb', 'anna@example.com')).toEqual({ intro: HEADS });
+    expect(repo.workbookOutgoing('wb').changes).toHaveLength(0);
+
+    const replaced = createWorkbookDoc();
+    repo.adoptWorkbook('wb', A.save(replaced));
+    expect(repo.workbookSeen('wb', 'anna@example.com')).toBeNull();
+    expect(repo.workbookOutgoing('wb').base).toEqual(A.getHeads(replaced));
+  });
+
+  it('meldet Änderungen an gesehenen Ständen', async () => {
+    const repo = await openRepository(uniqueDb());
+    const listener = vi.fn();
+    repo.subscribeActivity(listener);
+    const { changes, heads } = serverDoc();
+    repo.receiveWorkbook('wb', { changes, heads });
+    repo.markSeen('wb', ME, { intro: HEADS });
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('vergisst das Dokument mit dem Workbook und beim Abmelden', async () => {
+    const name = uniqueDb();
+    const repo = await openRepository(name);
+    const { changes, heads } = serverDoc();
+    repo.receiveWorkbook('a', { changes, heads });
+    repo.receiveWorkbook('b', { changes, heads });
+    repo.forgetWorkbook('a');
+    expect(repo.workbookOutgoing('a').base).toEqual([]);
+    await repo.forgetWorkbookSongs();
+    expect(repo.workbookOutgoing('b').base).toEqual([]);
+    repo.close();
+    const reopened = await openRepository(name);
+    await reopened.loadAll();
+    expect(reopened.workbookOutgoing('b').base).toEqual([]);
+  });
+
+  it('nennt die Heads eines Songs', async () => {
+    const repo = await openRepository(uniqueDb());
+    const song = songWith({ title: 'Intro' });
+    expect(repo.songHeads(song.id)).toBeNull();
+    await repo.write({ put: [song], remove: [] });
+    expect(repo.songHeads(song.id)).toEqual(A.getHeads(A.load(repo.documentBytes(song.id))));
+  });
+});
+
+describe('Spec song-activity › Letzte Änderung und Neues', () => {
+  it('liefert die letzte Änderung und Neues aus dem Song-Dokument', async () => {
+    const repo = await openRepository(uniqueDb(), { author: () => 'max@example.org' });
+    const song = songWith({ title: 'Intro' });
+    expect(repo.lastChange(song.id)).toBeNull();
+    expect(repo.isNew(song.id, null, 'ich@example.com')).toBe(false);
+    await repo.write({ put: [song], remove: [] });
+    expect(repo.lastChange(song.id)).toMatchObject({ author: 'max@example.org' });
+    expect(repo.isNew(song.id, null, 'ich@example.com')).toBe(true);
+    expect(repo.isNew(song.id, null, 'max@example.org')).toBe(false);
+    const seen = repo.songHeads(song.id);
+    await repo.write({ put: [{ ...song, tempo: 90 }], remove: [] });
+    expect(repo.isNew(song.id, seen, 'ich@example.com')).toBe(true);
   });
 });

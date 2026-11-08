@@ -38,9 +38,11 @@ export function createQuota(db: Database, limits: Limits, now: () => Date): Quot
   let lastLogged: number | undefined;
 
   const used = (sql: string, ...params: string[]) => Number((db.prepare(sql).get(...params) as { n: number | null }).n ?? 0);
+  // Workbook-Dokumente zählen wie Songs beim Besitzer (song-activity, design.md D2)
   const accountUsed = (owner: string) =>
-    used(`SELECT SUM(LENGTH(s.doc) + ${SONG_OVERHEAD}) AS n FROM songs s JOIN workbooks w ON w.id = s.workbook_id WHERE w.owner = ?`, owner);
-  const totalUsed = () => used(`SELECT SUM(LENGTH(doc) + ${SONG_OVERHEAD}) AS n FROM songs`);
+    used(`SELECT SUM(LENGTH(s.doc) + ${SONG_OVERHEAD}) AS n FROM songs s JOIN workbooks w ON w.id = s.workbook_id WHERE w.owner = ?`, owner) +
+    used('SELECT SUM(LENGTH(d.doc)) AS n FROM workbook_docs d JOIN workbooks w ON w.id = d.workbook_id WHERE w.owner = ?', owner);
+  const totalUsed = () => used(`SELECT SUM(LENGTH(doc) + ${SONG_OVERHEAD}) AS n FROM songs`) + used('SELECT SUM(LENGTH(doc)) AS n FROM workbook_docs');
 
   const checkAccount: Quota['checkAccount'] = (owner, growth) => (growth > 0 && accountUsed(owner) + growth > limits.accountBytes ? 'quota-exceeded' : null);
 

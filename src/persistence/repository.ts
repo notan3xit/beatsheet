@@ -3,8 +3,10 @@ import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from '
 import { DEFAULT_TEMPO, type Pattern, type Song, type Workbook } from '../domain/types';
 import type { NotebookStore } from '../state/notebookStore';
 import { songFromV1Patterns } from './fileFormat';
+import { isNew, lastChange, type LastChange } from './activity';
 import { readHistory, type SongHistory } from './history';
 import { applySong, changeMessage, createSongDoc, songOf, type SongDocument } from './songDoc';
+import { markSeen, seenOf, type WorkbookDocument } from './workbookDoc';
 
 /** Ein Datensatz pro Song: das gespeicherte Automerge-Dokument (design.md D8). */
 interface DocumentRecord {
@@ -17,9 +19,17 @@ interface DocumentRecord {
   pendingDelete?: boolean;
 }
 
+/** Dokument eines gemeinsamen Workbooks mit dem letzten mit dem Server geteilten Stand (song-activity, design.md D4). */
+interface WorkbookDocRecord {
+  id: string;
+  bytes: Uint8Array;
+  serverHeads: A.Heads;
+}
+
 interface BeatsheetDB extends DBSchema {
   documents: { key: string; value: DocumentRecord };
   workbooks: { key: string; value: Workbook };
+  workbookDocs: { key: string; value: WorkbookDocRecord };
 }
 
 export interface Changes {
@@ -62,16 +72,33 @@ export interface Repository {
   pendingDeletes(): { id: string; workbookId: string }[];
   clearDeleted(id: string): void;
   saveWorkbooks(workbooks: readonly Workbook[]): Promise<void>;
-  /** Entfernt Workbook-Songs und die Workbook-Liste, beim Abmelden; liefert die entfernten Song-IDs. */
+  /** Entfernt Workbook-Songs, Workbook-Dokumente und die Workbook-Liste, beim Abmelden; liefert die entfernten Song-IDs. */
   forgetWorkbookSongs(): Promise<string[]>;
+  /** Heads des Song-Dokuments; `null` ohne Dokument. */
+  songHeads(id: string): A.Heads | null;
+  /** Letzte Änderung eines Songs; zwischengespeichert bis zur nächsten Änderung (song-activity, design.md D5). */
+  lastChange(id: string): LastChange | null;
+  /** Neues seit dem gesehenen Stand, für `me`; zwischengespeichert (design.md D6). */
+  isNew(id: string, seen: A.Heads | null, me: string): boolean;
+  /** Gesehene Stände einer Adresse im Workbook-Dokument; `null` ohne Dokument oder Eintrag (song-activity). */
+  workbookSeen(workbookId: string, email: string): Record<string, A.Heads> | null;
+  /** Setzt eigene Einträge; `false`, wenn sich nichts ändert oder das Dokument fehlt. */
+  markSeen(workbookId: string, email: string, entries: Record<string, A.Heads>): boolean;
+  /** Ohne Dokument `base: []`: Der Server liefert es dann vollständig. */
+  workbookOutgoing(workbookId: string): { base: A.Heads; changes: Uint8Array };
+  receiveWorkbook(workbookId: string, response: ServerResponse): void;
+  adoptWorkbook(workbookId: string, bytes: Uint8Array): void;
+  forgetWorkbook(workbookId: string): void;
+  /** Meldet Änderungen an Song- und Workbook-Dokumenten, für letzte Änderung und Neues (song-activity). */
+  subscribeActivity(listener: () => void): () => void;
   /** Abgeschlossen, sobald alle bisher angestoßenen Speicherungen durch sind. */
   settled(): Promise<void>;
   close(): void;
 }
 
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
-type UpgradeTx = IDBPTransaction<BeatsheetDB, ('documents' | 'workbooks')[], 'versionchange'>;
+type UpgradeTx = IDBPTransaction<BeatsheetDB, ('documents' | 'workbooks' | 'workbookDocs')[], 'versionchange'>;
 
 const recordOf = (song: Song): DocumentRecord => ({ id: song.id, bytes: A.save(createSongDoc(song)) });
 
@@ -80,6 +107,7 @@ const recordOf = (song: Song): DocumentRecord => ({ id: song.id, bytes: A.save(c
  * Version 2: Store "songs", ein Song als JSON pro Datensatz.
  * Version 3: Store "documents"; vorhandene Daten wandern genau einmal hinein.
  * Version 4: Store "workbooks"; `documents` bekommt optionale Felder, vorhandene Songs gelten als lokal.
+ * Version 5: Store "workbookDocs" für die Dokumente gemeinsamer Workbooks.
  */
 async function upgradeLegacy(db: IDBPDatabase<BeatsheetDB>, tx: UpgradeTx, oldVersion: number) {
   const legacyDb = db as unknown as IDBPDatabase;
@@ -108,6 +136,8 @@ export interface RepositoryOptions {
 export async function openRepository(name = 'beatsheet', { author = () => null }: RepositoryOptions = {}): Promise<Repository> {
   const db: IDBPDatabase<BeatsheetDB> = await openDB<BeatsheetDB>(name, DB_VERSION, {
     async upgrade(database, oldVersion, _newVersion, tx) {
+      database.createObjectStore('workbookDocs', { keyPath: 'id' });
+      if (oldVersion >= 4) return;
       database.createObjectStore('workbooks', { keyPath: 'id' });
       if (oldVersion >= 3) return;
       database.createObjectStore('documents', { keyPath: 'id' });
@@ -120,6 +150,17 @@ export async function openRepository(name = 'beatsheet', { author = () => null }
   let saving = Promise.resolve();
   const message = (restore?: number) => changeMessage({ by: author() ?? undefined, restore });
   const histories = new Map<string, { heads: string; history: SongHistory }>();
+  const workbookDocs = new Map<string, { doc: WorkbookDocument; serverHeads: A.Heads }>();
+  const lastChanges = new Map<string, { heads: string; value: LastChange | null }>();
+  const news = new Map<string, { key: string; value: boolean }>();
+  const seenListeners = new Set<() => void>();
+  const notifyActivity = () => seenListeners.forEach((listener) => listener());
+
+  const setWorkbookDoc = (id: string, doc: WorkbookDocument, serverHeads: A.Heads) => {
+    workbookDocs.set(id, { doc, serverHeads });
+    track(db.put('workbookDocs', { id, bytes: A.save(doc), serverHeads }));
+    notifyActivity();
+  };
 
   const recordOfDoc = (id: string, doc: SongDocument): DocumentRecord => ({ id, bytes: A.save(doc), ...placements.get(id) });
 
@@ -137,6 +178,7 @@ export async function openRepository(name = 'beatsheet', { author = () => null }
 
   return {
     async loadAll() {
+      for (const { id, bytes, serverHeads } of await db.getAll('workbookDocs')) workbookDocs.set(id, { doc: A.load(bytes), serverHeads });
       const records = await db.getAll('documents');
       return records.flatMap(({ id, bytes, workbookId, serverHeads, pendingDelete }) => {
         if (pendingDelete) {
@@ -164,6 +206,7 @@ export async function openRepository(name = 'beatsheet', { author = () => null }
         docs.delete(id);
         placements.delete(id);
       }
+      if (records.length > 0) notifyActivity();
       const tx = db.transaction('documents', 'readwrite');
       await Promise.all([...records.map((r) => tx.store.put(r)), ...remove.filter((id) => !deletions.has(id)).map((id) => tx.store.delete(id)), tx.done]);
     },
@@ -192,6 +235,7 @@ export async function openRepository(name = 'beatsheet', { author = () => null }
       docs.set(id, doc);
       placements.set(id, { workbookId: placements.get(id)!.workbookId, serverHeads: heads });
       persist(id);
+      notifyActivity();
       return songOf(doc);
     },
     adopt(id, bytes, workbookId) {
@@ -199,6 +243,7 @@ export async function openRepository(name = 'beatsheet', { author = () => null }
       docs.set(id, doc);
       placements.set(id, { workbookId, serverHeads: A.getHeads(doc) });
       persist(id);
+      notifyActivity();
       return songOf(doc);
     },
     place(id, workbookId, heads) {
@@ -230,9 +275,74 @@ export async function openRepository(name = 'beatsheet', { author = () => null }
       }
       const deleted = [...deletions.keys()];
       deletions.clear();
-      const tx = db.transaction(['documents', 'workbooks'], 'readwrite');
-      await Promise.all([...[...ids, ...deleted].map((id) => tx.objectStore('documents').delete(id)), tx.objectStore('workbooks').clear(), tx.done]);
+      workbookDocs.clear();
+      const tx = db.transaction(['documents', 'workbooks', 'workbookDocs'], 'readwrite');
+      await Promise.all([
+        ...[...ids, ...deleted].map((id) => tx.objectStore('documents').delete(id)),
+        tx.objectStore('workbooks').clear(),
+        tx.objectStore('workbookDocs').clear(),
+        tx.done,
+      ]);
+      notifyActivity();
       return ids;
+    },
+    songHeads(id) {
+      const doc = docs.get(id);
+      return doc ? A.getHeads(doc) : null;
+    },
+    lastChange(id) {
+      const doc = docs.get(id);
+      if (!doc) return null;
+      const heads = A.getHeads(doc).join();
+      const cached = lastChanges.get(id);
+      if (cached?.heads === heads) return cached.value;
+      const value = lastChange(doc);
+      lastChanges.set(id, { heads, value });
+      return value;
+    },
+    isNew(id, seen, me) {
+      const doc = docs.get(id);
+      if (!doc) return false;
+      const key = `${A.getHeads(doc).join()}|${seen?.join() ?? ''}|${me}`;
+      const cached = news.get(id);
+      if (cached?.key === key) return cached.value;
+      const value = isNew(doc, seen, me);
+      news.set(id, { key, value });
+      return value;
+    },
+    workbookSeen(workbookId, email) {
+      const entry = workbookDocs.get(workbookId);
+      return entry ? seenOf(entry.doc, email) : null;
+    },
+    markSeen(workbookId, email, entries) {
+      const entry = workbookDocs.get(workbookId);
+      if (!entry) return false;
+      const doc = markSeen(entry.doc, email, entries);
+      if (doc === entry.doc) return false;
+      setWorkbookDoc(workbookId, doc, entry.serverHeads);
+      return true;
+    },
+    workbookOutgoing(workbookId) {
+      const entry = workbookDocs.get(workbookId);
+      return entry ? { base: entry.serverHeads, changes: A.saveSince(entry.doc, entry.serverHeads) } : { base: [], changes: new Uint8Array() };
+    },
+    receiveWorkbook(workbookId, { changes, heads }) {
+      let doc = workbookDocs.get(workbookId)?.doc ?? (A.init() as WorkbookDocument);
+      if (changes && changes.length > 0) doc = A.loadIncremental(doc, changes);
+      setWorkbookDoc(workbookId, doc, heads);
+    },
+    adoptWorkbook(workbookId, bytes) {
+      const doc: WorkbookDocument = A.load(bytes);
+      setWorkbookDoc(workbookId, doc, A.getHeads(doc));
+    },
+    forgetWorkbook(workbookId) {
+      if (!workbookDocs.delete(workbookId)) return;
+      track(db.delete('workbookDocs', workbookId));
+      notifyActivity();
+    },
+    subscribeActivity(listener) {
+      seenListeners.add(listener);
+      return () => seenListeners.delete(listener);
     },
     settled: () => saving,
     close: () => db.close(),

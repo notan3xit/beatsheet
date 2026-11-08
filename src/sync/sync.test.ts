@@ -112,6 +112,7 @@ async function device(email: string, { live = true, dbName = `sync-test-${crypto
     openEvents: live ? openEvents : () => ({ close: () => {}, isClosed: () => false }),
     pollMs: 3_600_000,
     debounceMs: 10,
+    seenDebounceMs: 10,
   });
   session.setEmail(email);
   const result: Device = { store, repo, connection, sync, setOnline: (v) => void (online = v), concurrency, dbName, session };
@@ -577,5 +578,143 @@ describe('Spec workbook-sync › Abmelden mit Workbook-Songs', () => {
     await me.sync.prepareLogout();
     await me.sync.afterLogout();
     expect(titles(me)).toEqual(['Skizze']);
+  });
+});
+
+describe('Spec workbook-sync › Gesehene Stände abgleichen', () => {
+  it('Beide Mitglieder erhalten das Workbook-Dokument, der eigene Bestand keines', async () => {
+    const { me, anna, workbook } = await band();
+    expect(me.repo.workbookSeen(workbook, OWNER)).not.toBeNull();
+    expect(anna.repo.workbookSeen(workbook, ANNA)).not.toBeNull();
+    const personal = me.store.getState().workbooks.find((w) => w.personal)!.id;
+    expect(me.repo.workbookOutgoing(personal).base).toEqual([]);
+    expect(h.db.prepare('SELECT COUNT(*) AS n FROM workbook_docs').get()).toEqual({ n: 1 });
+  });
+
+  it('Gleichzeitig gesehen', async () => {
+    const { me, anna, workbook, intro } = await bandWithIntro();
+    me.setOnline(false);
+    anna.setOnline(false);
+    const heads = me.repo.songHeads(intro.id)!;
+    me.repo.markSeen(workbook, OWNER, { [intro.id]: heads });
+    anna.repo.markSeen(workbook, ANNA, { [intro.id]: heads });
+    me.setOnline(true);
+    anna.setOnline(true);
+    await me.sync.syncAll();
+    await anna.sync.syncAll();
+    await me.sync.syncAll();
+    for (const d of [me, anna]) {
+      expect(d.repo.workbookSeen(workbook, OWNER)![intro.id]).toEqual(heads);
+      expect(d.repo.workbookSeen(workbook, ANNA)![intro.id]).toEqual(heads);
+    }
+  });
+
+  it('Neues Mitglied: Der erste Abgleich gilt für alle bekannten Songs als gesehen', async () => {
+    h = await startServer();
+    const me = await device(OWNER, { live: false });
+    await me.sync.syncAll();
+    await me.sync.createWorkbook('Band');
+    const workbook = workbookNamed(me, 'Band').id;
+    const intro = me.store.createSong('Intro');
+    await me.sync.moveSong(intro.id, workbook);
+    await me.sync.invite(workbook, ANNA);
+    const anna = await device(ANNA, { live: false });
+    await anna.sync.syncAll();
+    expect(anna.repo.workbookSeen(workbook, ANNA)).toEqual({ [intro.id]: anna.repo.songHeads(intro.id) });
+    expect(h.db.prepare('SELECT doc FROM workbook_docs').get()).toBeDefined();
+    await anna.sync.syncAll();
+    expect(anna.repo.workbookOutgoing(workbook).changes).toHaveLength(0);
+  });
+
+  it('Ein Dokument mit unbekanntem Stand wird durch das des Servers ersetzt', async () => {
+    const { me, workbook, intro } = await bandWithIntro();
+    h.db.prepare('DELETE FROM workbook_docs').run();
+    await me.sync.syncAll();
+    me.repo.markSeen(workbook, OWNER, { [intro.id]: me.repo.songHeads(intro.id)! });
+    await me.sync.syncAll();
+    expect(me.repo.workbookOutgoing(workbook).changes).toHaveLength(0);
+    expect(me.repo.workbookSeen(workbook, OWNER)).not.toBeNull();
+  });
+
+  it('Austritt und Abmelden entfernen das Dokument vom Gerät', async () => {
+    const { me, anna, workbook } = await band();
+    expect(await anna.sync.removeMember(workbook, ANNA)).toEqual({ ok: true });
+    expect(anna.repo.workbookOutgoing(workbook).base).toEqual([]);
+    expect(await me.sync.prepareLogout()).toBe(true);
+    await me.sync.afterLogout();
+    expect(me.repo.workbookOutgoing(workbook).base).toEqual([]);
+  });
+});
+
+describe('Spec song-activity › Gesehen', () => {
+  /** Neues in „Intro“ für den Besitzer, nach seinem gesehenen Stand. */
+  const newFor = (d: Device, workbook: string, id: string) => d.repo.isNew(id, d.repo.workbookSeen(workbook, OWNER)?.[id] ?? null, OWNER);
+  const annaChangesTempo = async (anna: Device, bpm: number) => {
+    edit(anna, 'Intro', (s) => setTempo(s, bpm));
+    await anna.connection.flush();
+    await anna.sync.syncAll();
+  };
+
+  it('Song öffnen', async () => {
+    const { me, anna, workbook, intro } = await bandWithIntro();
+    await annaChangesTempo(anna, 90);
+    await me.sync.syncAll();
+    expect(newFor(me, workbook, intro.id)).toBe(true);
+    me.sync.start();
+    me.store.openSong(intro.id);
+    expect(newFor(me, workbook, intro.id)).toBe(false);
+    await eventually(() => expect(me.repo.workbookOutgoing(workbook).changes).toHaveLength(0));
+  });
+
+  it('Anderes Gerät', async () => {
+    const { me, anna, workbook, intro } = await bandWithIntro({ live: true });
+    await annaChangesTempo(anna, 90);
+    const phone = await device(OWNER);
+    await phone.sync.syncAll();
+    await me.sync.syncAll();
+    expect(newFor(me, workbook, intro.id)).toBe(true);
+    me.sync.start();
+    phone.sync.start();
+    phone.store.openSong(intro.id);
+    await eventually(() => expect(newFor(me, workbook, intro.id)).toBe(false));
+  });
+
+  it('Während der Song offen ist', async () => {
+    const { me, anna, workbook, intro } = await bandWithIntro();
+    me.sync.start();
+    me.store.openSong(intro.id);
+    await annaChangesTempo(anna, 90);
+    await me.sync.syncAll();
+    await eventually(() => expect(newFor(me, workbook, intro.id)).toBe(false));
+    me.store.backToList();
+    expect(newFor(me, workbook, intro.id)).toBe(false);
+  });
+
+  it('Ohne Anmeldung und in „Meine Songs“ entsteht kein Eintrag', async () => {
+    const { me, anna, workbook, intro } = await bandWithIntro();
+    await annaChangesTempo(anna, 90);
+    await me.sync.syncAll();
+    me.sync.start();
+    const own = me.store.createSong('Skizze');
+    await me.sync.syncAll();
+    me.store.openSong(own.id);
+    const personal = me.store.getState().workbooks.find((w) => w.personal)!.id;
+    expect(me.repo.workbookOutgoing(personal).base).toEqual([]);
+    me.session.setEmail(null);
+    me.store.openSong(intro.id);
+    expect(newFor(me, workbook, intro.id)).toBe(true);
+  });
+
+  it('Erneutes Öffnen ohne Änderung schreibt nichts', async () => {
+    const { me, anna, workbook, intro } = await bandWithIntro();
+    await annaChangesTempo(anna, 90);
+    await me.sync.syncAll();
+    me.sync.start();
+    me.store.openSong(intro.id);
+    await eventually(() => expect(me.repo.workbookOutgoing(workbook).changes).toHaveLength(0));
+    const base = me.repo.workbookOutgoing(workbook).base;
+    me.store.backToList();
+    me.store.openSong(intro.id);
+    expect(me.repo.workbookOutgoing(workbook)).toEqual({ base, changes: new Uint8Array() });
   });
 });

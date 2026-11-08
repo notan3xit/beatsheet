@@ -1,6 +1,7 @@
 import * as A from '@automerge/automerge/slim';
 import { parseNotebookFile, serializeNotebook } from '../src/persistence/fileFormat.ts';
 import { initAutomerge, songOf, type SongDocument } from '../src/persistence/songDoc.ts';
+import { changesOnlyOwn, createWorkbookDoc, isValidWorkbookDoc, type WorkbookDocument } from '../src/persistence/workbookDoc.ts';
 import type { Database } from './db.ts';
 import { HttpError, type Reply } from './http.ts';
 import { SONG_OVERHEAD, type QuotaProblem } from './limits.ts';
@@ -172,4 +173,76 @@ export async function syncSongs(db: Database, workbookId: string, email: string,
     replies.push({ id, status: 'ok', ...(foreign.length > 0 ? { changes: toBase64(foreign) } : {}), heads: A.getHeads(merged) });
   }
   return { status: 200, body: { songs: replies }, changed };
+}
+
+interface ClientWorkbookDoc {
+  base: A.Heads;
+  changes?: string;
+}
+
+/** Der optionale Teil `workbook` des Abgleichs; `undefined`, wenn er fehlt (design.md D3). */
+export function parseWorkbookPart(body: Record<string, unknown>): ClientWorkbookDoc | undefined {
+  const { workbook } = body;
+  if (workbook === undefined) return undefined;
+  const part = workbook as Partial<ClientWorkbookDoc> | null;
+  const valid =
+    typeof part === 'object' &&
+    part !== null &&
+    Array.isArray(part.base) &&
+    part.base.every((head) => typeof head === 'string') &&
+    (part.changes === undefined || typeof part.changes === 'string');
+  if (!valid) throw new HttpError(400, 'invalid-body');
+  return part as ClientWorkbookDoc;
+}
+
+/** Gleicht das Workbook-Dokument ab; legt es beim ersten Mal an (design.md D2, D3). */
+export async function syncWorkbookDoc(
+  db: Database,
+  workbookId: string,
+  email: string,
+  { base, changes }: ClientWorkbookDoc,
+  quota: QuotaCheck,
+): Promise<{ reply: unknown; changed: boolean }> {
+  await initAutomerge();
+  const row = db.prepare('SELECT doc FROM workbook_docs WHERE workbook_id = ?').get(workbookId) as { doc: Uint8Array } | undefined;
+  let server: WorkbookDocument;
+  if (row) server = A.load(row.doc);
+  else {
+    server = createWorkbookDoc();
+    db.prepare('INSERT INTO workbook_docs (workbook_id, doc) VALUES (?, ?)').run(workbookId, A.save(server));
+  }
+  const stored = row?.doc ?? A.save(server);
+  const bytes = fromBase64(changes ?? '');
+  const serverHeads = A.getHeads(server);
+
+  // Ein Gerät ohne Dokument erhält es als Changes seit dem Anfang
+  if (base.length === 0 && bytes.length === 0) return { reply: { status: 'ok', changes: toBase64(A.saveSince(server, [])), heads: serverHeads }, changed: false };
+  if (!knowsHeads(server, base)) return { reply: { status: 'unrelated', doc: toBase64(stored) }, changed: false };
+
+  let merged = server;
+  let clientHeads = base;
+  if (bytes.length > 0) {
+    try {
+      if (!isChunkData(bytes)) throw new Error('keine Automerge-Daten');
+      merged = A.loadIncremental(A.clone(server), bytes);
+      clientHeads = A.getHeads(A.loadIncremental(A.clone(A.view(server, base)), bytes));
+      if (!isValidWorkbookDoc(merged) || !changesOnlyOwn(merged, serverHeads, A.getHeads(merged), email)) throw new Error('ungültig');
+    } catch {
+      return { reply: { status: 'invalid', doc: toBase64(stored) }, changed: false };
+    }
+  }
+
+  let changed = false;
+  if (A.getHeads(merged).join() !== serverHeads.join()) {
+    const saved = A.save(merged);
+    const problem = quota(saved.length - stored.length);
+    if (problem) {
+      const foreign = A.saveSince(server, base);
+      return { reply: { status: 'quota', reason: problem, ...(foreign.length > 0 ? { changes: toBase64(foreign) } : {}), heads: serverHeads }, changed: false };
+    }
+    db.prepare('UPDATE workbook_docs SET doc = ? WHERE workbook_id = ?').run(saved, workbookId);
+    changed = true;
+  }
+  const foreign = A.saveSince(merged, clientHeads);
+  return { reply: { status: 'ok', ...(foreign.length > 0 ? { changes: toBase64(foreign) } : {}), heads: A.getHeads(merged) }, changed };
 }

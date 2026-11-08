@@ -5,7 +5,7 @@ import type { Events } from './events.ts';
 import { HttpError, type Reply } from './http.ts';
 import { profileOf } from './profile.ts';
 import type { Limits, Quota } from './limits.ts';
-import { addSong, deleteSong, moveSong, syncSongs } from './songs.ts';
+import { addSong, deleteSong, moveSong, parseWorkbookPart, syncSongs, syncWorkbookDoc } from './songs.ts';
 
 export interface WorkbookDeps extends AuthDeps {
   appUrl?: string;
@@ -121,6 +121,7 @@ function remove({ db, events }: WorkbookDeps, row: WorkbookRow, email: string): 
   if (db.prepare('SELECT 1 FROM songs WHERE workbook_id = ? AND deleted = 0').get(row.id)) throw new HttpError(409, 'not-empty');
   const members = membersOf(db, row.id, row.owner);
   db.prepare('DELETE FROM songs WHERE workbook_id = ?').run(row.id);
+  db.prepare('DELETE FROM workbook_docs WHERE workbook_id = ?').run(row.id);
   db.prepare('DELETE FROM members WHERE workbook_id = ?').run(row.id);
   db.prepare('DELETE FROM workbooks WHERE id = ?').run(row.id);
   events.send(members, 'workbooks');
@@ -240,9 +241,14 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
     }
   }
   if (resource === 'sync' && item === undefined && method === 'POST') {
-    const { changed, ...reply } = await syncSongs(db, id, email, await body(), deps.now(), (growth) => deps.quota.check(row.owner, growth));
-    if (changed) songsChanged();
-    return reply;
+    const request = await body();
+    const part = parseWorkbookPart(request);
+    const check = (growth: number) => deps.quota.check(row.owner, growth);
+    const { changed, ...reply } = await syncSongs(db, id, email, request, deps.now(), check);
+    // Der eigene Bestand hat kein Workbook-Dokument (design.md D2)
+    const wb = part && !isPersonal(db, id) ? await syncWorkbookDoc(db, id, email, part, check) : undefined;
+    if (changed || wb?.changed) songsChanged();
+    return wb ? { ...reply, body: { ...(reply.body as object), workbook: wb.reply } } : reply;
   }
   throw notFound();
 }

@@ -38,6 +38,16 @@ export type SyncReply =
   | { id: string; status: 'ok'; changes?: Uint8Array; heads: string[] }
   | { id: string; status: 'quota'; reason: QuotaReason; changes?: Uint8Array; heads: string[] };
 
+/** Ausgehender Stand des Workbook-Dokuments (song-activity, design.md D3). */
+export interface OutgoingWorkbookDoc {
+  base: string[];
+  changes: Uint8Array;
+}
+
+export type WorkbookDocReply =
+  | { status: 'ok' | 'quota'; changes?: Uint8Array; heads: string[] }
+  | { status: 'unrelated' | 'invalid'; doc: Uint8Array };
+
 /** Schnittstelle zum Server (workbook-sync, design.md D3). */
 export interface SyncApi {
   listWorkbooks(): Promise<SyncResult<{ workbooks: Workbook[] }>>;
@@ -49,7 +59,7 @@ export interface SyncApi {
   addSong(workbookId: string, songId: string, doc: Uint8Array): Promise<SyncResult<{ heads: string[] }>>;
   deleteSong(workbookId: string, songId: string): Promise<SyncResult>;
   moveSong(from: string, songId: string, to: string): Promise<SyncResult>;
-  sync(workbookId: string, songs: OutgoingSong[]): Promise<SyncResult<{ songs: SyncReply[] }>>;
+  sync(workbookId: string, songs: OutgoingSong[], workbook?: OutgoingWorkbookDoc): Promise<SyncResult<{ songs: SyncReply[]; workbook?: WorkbookDocReply }>>;
 }
 
 export type SyncFetch = (path: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<Response>;
@@ -74,6 +84,15 @@ function decodeReply({ id, status, doc, changes, heads, to, reason }: RawReply):
   if (status === 'quota') return { id, status, reason: reason!, heads: heads!, ...(changes ? { changes: fromBase64(changes) } : {}) };
   return { id, status, doc: fromBase64(doc!) };
 }
+
+type RawWorkbookReply = { status: WorkbookDocReply['status']; doc?: string; changes?: string; heads?: string[] };
+
+function decodeWorkbookReply({ status, doc, changes, heads }: RawWorkbookReply): WorkbookDocReply {
+  if (status === 'ok' || status === 'quota') return { status, heads: heads!, ...(changes ? { changes: fromBase64(changes) } : {}) };
+  return { status, doc: fromBase64(doc!) };
+}
+
+const encodeOutgoing = ({ base, changes }: { base: string[]; changes: Uint8Array }) => ({ base, ...(changes.length > 0 ? { changes: toBase64(changes) } : {}) });
 
 export function createSyncApi(fetcher: SyncFetch = (path, init) => fetch(path, init)): SyncApi {
   async function request<T extends object = object>(method: string, path: string, body?: unknown): Promise<SyncResult<T>> {
@@ -105,11 +124,13 @@ export function createSyncApi(fetcher: SyncFetch = (path, init) => fetch(path, i
     addSong: (workbookId, songId, doc) => request('POST', `${workbook(workbookId)}/songs`, { id: songId, doc: toBase64(doc) }),
     deleteSong: (workbookId, songId) => request('DELETE', `${workbook(workbookId)}/songs/${encodeURIComponent(songId)}`),
     moveSong: (from, songId, to) => request('POST', `${workbook(from)}/songs/${encodeURIComponent(songId)}/move`, { to }),
-    async sync(workbookId, songs) {
-      const result = await request<{ songs: RawReply[] }>('POST', `${workbook(workbookId)}/sync`, {
-        songs: songs.map(({ id, base, changes }) => ({ id, base, ...(changes.length > 0 ? { changes: toBase64(changes) } : {}) })),
+    async sync(workbookId, songs, workbookDoc) {
+      const result = await request<{ songs: RawReply[]; workbook?: RawWorkbookReply }>('POST', `${workbook(workbookId)}/sync`, {
+        songs: songs.map(({ id, ...outgoing }) => ({ id, ...encodeOutgoing(outgoing) })),
+        ...(workbookDoc ? { workbook: encodeOutgoing(workbookDoc) } : {}),
       });
-      return result.ok ? { ok: true, songs: result.songs.map(decodeReply) } : result;
+      if (!result.ok) return result;
+      return { ok: true, songs: result.songs.map(decodeReply), ...(result.workbook ? { workbook: decodeWorkbookReply(result.workbook) } : {}) };
     },
   };
 }

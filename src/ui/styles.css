@@ -51,6 +51,9 @@
   --mark-added: color-mix(in srgb, var(--success) var(--mark-mix), var(--text));
   --mark-changed: color-mix(in srgb, var(--warning) var(--mark-mix), var(--text));
   --mark-removed: var(--muted);
+  /* Punkt für Neues seit dem letzten Ansehen (song-activity): Akzent, zum Zustandskontrast mit Text gemischt */
+  --new-mark-mix: 70%;
+  --new-mark: color-mix(in srgb, var(--accent) var(--new-mark-mix), var(--text));
   /* Schleier hinter Dialogen: crust ist in Latte hell und würde aufhellen */
   --backdrop: color-mix(in srgb, var(--ctp-text) 40%, transparent);
   --shadow: color-mix(in srgb, var(--ctp-crust) 35%, transparent);
@@ -582,10 +585,28 @@ input {
 }
 
 .tile-text h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
   margin: 0;
   min-width: 0;
   font-size: 1rem;
   font-weight: 600;
+}
+
+.new-dot {
+  flex: none;
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-right: 0.35rem;
+  border-radius: 50%;
+  background: var(--new-mark);
+  vertical-align: middle;
+}
+
+.tile-text h4 .new-dot {
+  margin-right: 0;
 }
 
 .tile-open {

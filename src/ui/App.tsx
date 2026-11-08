@@ -18,6 +18,8 @@ import { ThemeContext } from './useTheme';
 import { SongList } from './SongList';
 import { Songbook } from './Songbook';
 import { HistoryContext, SongHistory, type HistoryOf } from './SongHistory';
+import { ActivityContext, NO_ACTIVITY } from './useActivity';
+import type { SongActivity } from '../sync/songActivity';
 import { StoreContext, useNotebook, useOpenSong } from './useLibrary';
 import { SessionContext, SyncContext, useEmail } from './useWorkbooks';
 
@@ -85,6 +87,7 @@ export function App({
   session: sessionProp,
   sync,
   historyOf = NO_HISTORY,
+  activity = NO_ACTIVITY,
 }: {
   store: NotebookStore;
   storagePersisted?: boolean;
@@ -106,6 +109,8 @@ export function App({
   sync?: WorkbookActions;
   /** Historie eines Songs (song-history); in der App aus dem Repository. */
   historyOf?: HistoryOf;
+  /** Letzte Änderung und Neues je Song (song-activity); in der App aus Repository und Sitzung. */
+  activity?: SongActivity;
 }) {
   const [sound] = useState(() => soundProp ?? createDeviceSound());
   const [theme] = useState(() => themeProp ?? createThemeSetting(null));
@@ -125,6 +130,7 @@ export function App({
         <SessionContext.Provider value={session}>
         <SyncContext.Provider value={sync ?? null}>
         <HistoryContext.Provider value={historyOf}>
+        <ActivityContext.Provider value={activity}>
         <ConfirmProvider>
         <MessagesProvider>
           <div className="app">
@@ -139,6 +145,7 @@ export function App({
           </div>
         </MessagesProvider>
         </ConfirmProvider>
+        </ActivityContext.Provider>
         </HistoryContext.Provider>
         </SyncContext.Provider>
         </SessionContext.Provider>

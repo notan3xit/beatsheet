@@ -217,6 +217,14 @@ describe('Spec server-limits › Speichergrenze je Account', () => {
     await addSong(me, personal, createSongDoc(song()));
     expect((await h.api('POST', `/api/workbooks/${personal}/songs/intro/move`, { cookie: me, body: { to: band } })).status).toBe(200);
   });
+
+  it('Gesehene Stände belegen Speicher', async () => {
+    const me = await start({ accountBytes: footprint() + 50 });
+    const band = await bandOf(me);
+    const response = await h.api('POST', `/api/workbooks/${band}/sync`, { cookie: me, body: { songs: [], workbook: { base: [] } } });
+    expect(response.status).toBe(200);
+    expect((await addSong(me, band, createSongDoc(song()))).status).toBe(409);
+  });
 });
 
 describe('Spec server-limits › Gesamtgrenze für den Speicher', () => {

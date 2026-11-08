@@ -2,6 +2,7 @@ import * as A from '@automerge/automerge/slim';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Song } from '../src/domain/types.ts';
 import { applySong, createSongDoc, initAutomerge, songOf, type SongDocument } from '../src/persistence/songDoc.ts';
+import { markSeen, seenOf, type WorkbookDocument } from '../src/persistence/workbookDoc.ts';
 import { errorOf, startServer, type Harness } from './testHarness.ts';
 
 const OWNER = 'ich@example.com';
@@ -379,6 +380,130 @@ describe('Ereigniskanal', () => {
     await h.api('POST', '/api/workbooks', { cookie: owner, body: { title: 'Zweites' } });
     await waitFor(() => stream.events.length === 1);
     expect(stream.events[0]!.event).toBe('workbooks');
+    stream.close();
+  });
+});
+
+interface WorkbookEntry {
+  status: string;
+  doc?: string;
+  changes?: string;
+  heads?: string[];
+}
+
+describe('Workbook-Dokument', () => {
+  const HEADS = ['a'.repeat(64)];
+  const invite = (email: string) => h.api('POST', `/api/workbooks/${workbook}/members`, { cookie: owner, body: { email } });
+
+  const syncPart = async (part: unknown, cookie = owner, target = workbook) => {
+    const response = await h.api('POST', `/api/workbooks/${target}/sync`, { cookie, body: { songs: [], workbook: part } });
+    expect(response.status).toBe(200);
+    return ((await response.json()) as { workbook?: WorkbookEntry }).workbook;
+  };
+
+  /** Holt das Dokument wie ein Gerät, das es noch nicht hat. */
+  const fetchDoc = async (cookie = owner) => {
+    const entry = (await syncPart({ base: [] }, cookie))!;
+    expect(entry.status).toBe('ok');
+    return { doc: A.loadIncremental(A.init(), fromBase64(entry.changes!)) as WorkbookDocument, base: entry.heads! };
+  };
+
+  const push = async (doc: WorkbookDocument, base: string[], cookie = owner) => (await syncPart({ base, changes: toBase64(A.saveSince(doc, base)) }, cookie))!;
+
+  it('legt das Dokument beim ersten Abgleich an und liefert es jedem Gerät gleich', async () => {
+    const first = await fetchDoc();
+    const second = await fetchDoc();
+    expect(second.base).toEqual(first.base);
+    expect(seenOf(first.doc, OWNER)).toBeNull();
+  });
+
+  it('nimmt eigene Einträge an und gibt sie anderen Mitgliedern weiter', async () => {
+    await invite(ANNA);
+    const anna = await h.login(ANNA);
+    const { doc, base } = await fetchDoc();
+    const entry = await push(markSeen(doc, OWNER, { intro: HEADS }), base);
+    expect(entry.status).toBe('ok');
+    expect(entry.changes).toBeUndefined();
+    expect(seenOf((await fetchDoc(anna)).doc, OWNER)).toEqual({ intro: HEADS });
+  });
+
+  it('führt gleichzeitig gesehene Stände zweier Mitglieder zusammen', async () => {
+    await invite(ANNA);
+    const anna = await h.login(ANNA);
+    const mine = await fetchDoc();
+    const hers = await fetchDoc(anna);
+    await push(markSeen(mine.doc, OWNER, { intro: HEADS }), mine.base);
+    const reply = await push(markSeen(hers.doc, ANNA, { intro: HEADS }), hers.base, anna);
+    expect(reply.status).toBe('ok');
+    expect(reply.changes).toBeDefined();
+    const { doc } = await fetchDoc();
+    expect(seenOf(doc, OWNER)).toEqual({ intro: HEADS });
+    expect(seenOf(doc, ANNA)).toEqual({ intro: HEADS });
+  });
+
+  it('weist die Änderung eines fremden Eintrags zurück und behält den Stand', async () => {
+    await invite(ANNA);
+    const anna = await h.login(ANNA);
+    const mine = await fetchDoc();
+    await push(markSeen(mine.doc, OWNER, { intro: HEADS }), mine.base);
+    const hers = await fetchDoc(anna);
+    const reply = await push(markSeen(hers.doc, OWNER, { intro: ['b'.repeat(64)] }), hers.base, anna);
+    expect(reply.status).toBe('invalid');
+    expect(reply.doc).toBeDefined();
+    expect(seenOf((await fetchDoc()).doc, OWNER)).toEqual({ intro: HEADS });
+  });
+
+  it('weist ein Dokument in falscher Form ab', async () => {
+    const { doc, base } = await fetchDoc();
+    const broken = [
+      A.change(A.clone(doc), (d: Record<string, unknown>) => void ((d.seen as Record<string, unknown>)[OWNER] = { intro: 'kaputt' })),
+      A.change(A.clone(doc), (d: Record<string, unknown>) => void ((d.seen as Record<string, unknown>)[OWNER] = 'kaputt')),
+    ];
+    for (const next of broken) expect((await push(next, base)).status).toBe('invalid');
+    expect(seenOf((await fetchDoc()).doc, OWNER)).toBeNull();
+  });
+
+  it('meldet unrelated bei unbekannter base mit dem Dokument des Servers', async () => {
+    await fetchDoc();
+    const reply = (await syncPart({ base: ['c'.repeat(64)] }))!;
+    expect(reply.status).toBe('unrelated');
+    expect(reply.doc).toBeDefined();
+  });
+
+  it('weist einen Teil in falscher Form ab', async () => {
+    for (const part of ['nein', { base: 'x' }, { base: [], changes: 7 }]) {
+      const response = await h.api('POST', `/api/workbooks/${workbook}/sync`, { cookie: owner, body: { songs: [], workbook: part } });
+      expect(response.status).toBe(400);
+    }
+  });
+
+  it('antwortet ohne Teil workbook wie bisher', async () => {
+    const response = await syncRaw([]);
+    expect(Object.keys((await response.json()) as object)).toEqual(['songs']);
+  });
+
+  it('führt kein Dokument für den eigenen Bestand', async () => {
+    const list = (await (await h.api('GET', '/api/workbooks', { cookie: owner })).json()) as { workbooks: { id: string; personal?: boolean }[] };
+    const personal = list.workbooks.find((w) => w.personal)!.id;
+    expect(await syncPart({ base: [] }, owner, personal)).toBeUndefined();
+    expect(h.db.prepare('SELECT COUNT(*) AS n FROM workbook_docs').get()).toEqual({ n: 0 });
+  });
+
+  it('lässt sich mit dem Workbook löschen und sperrt das Löschen nicht', async () => {
+    await fetchDoc();
+    expect((await h.api('DELETE', `/api/workbooks/${workbook}`, { cookie: owner })).status).toBe(204);
+    expect(h.db.prepare('SELECT COUNT(*) AS n FROM workbook_docs').get()).toEqual({ n: 0 });
+  });
+
+  it('meldet den Mitgliedern das Workbook nach einer Änderung des Dokuments, nicht beim bloßen Abholen', async () => {
+    const { doc, base } = await fetchDoc();
+    const stream = await listen(owner);
+    await fetchDoc();
+    await settle();
+    expect(stream.events).toEqual([]);
+    await push(markSeen(doc, OWNER, { intro: HEADS }), base);
+    await waitFor(() => stream.events.length === 1);
+    expect(stream.events[0]).toEqual({ event: 'workbook', data: { id: workbook } });
     stream.close();
   });
 });

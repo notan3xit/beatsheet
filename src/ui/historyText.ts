@@ -10,6 +10,21 @@ export const formatDay = (time: number) => DAY.format(time * 1000);
 export const formatTime = (time: number) => TIME.format(time * 1000);
 export const formatMoment = (time: number) => `${formatDay(time)}, ${formatTime(time)}`;
 
+const SHORT_DATE = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'short' });
+const SHORT_DATE_YEAR = new Intl.DateTimeFormat('de-DE', { day: 'numeric', month: 'short', year: 'numeric' });
+const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+
+/** Zeit einer Unixzeit relativ zu `now` (Millisekunden), z. B. „vor 5 Min.“, „gestern“, „3. Nov.“ (song-activity). */
+export function formatRelative(time: number, now: number): string {
+  const then = new Date(time * 1000);
+  const seconds = (now - then.getTime()) / 1000;
+  if (seconds < 60) return 'gerade eben';
+  const today = startOfDay(new Date(now));
+  if (then.getTime() >= today) return seconds < 3600 ? `vor ${Math.floor(seconds / 60)} Min.` : `vor ${Math.floor(seconds / 3600)} Std.`;
+  if (then.getTime() >= startOfDay(new Date(today - 1))) return 'gestern';
+  return (then.getFullYear() === new Date(now).getFullYear() ? SHORT_DATE : SHORT_DATE_YEAR).format(then);
+}
+
 export const kindLabel = (pattern: Pattern) => (pattern.kind === 'fill' ? 'Fill' : 'Groove');
 export const patternLabel = (pattern: Pattern) => `${kindLabel(pattern)} „${pattern.name}“`;
 

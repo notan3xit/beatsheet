@@ -4,7 +4,7 @@ import type { Song, Workbook } from '../domain/types';
 import type { Connection, Repository } from '../persistence/repository';
 import { sameSong } from '../persistence/songDoc';
 import type { NotebookStore } from '../state/notebookStore';
-import type { EventsConnection, EventsOpener, QuotaReason, SyncApi, SyncError, SyncReply } from './api';
+import type { EventsConnection, EventsOpener, QuotaReason, SyncApi, SyncError, SyncReply, WorkbookDocReply } from './api';
 
 export type ActionResult = { ok: true } | { ok: false; error: SyncError };
 /** Ergebnis einer Aktion, die etwas anlegt: bei Erfolg mit dessen ID. */
@@ -54,10 +54,12 @@ export interface SyncDeps {
   openEvents: EventsOpener;
   pollMs?: number;
   debounceMs?: number;
+  /** Verzögerung, mit der ein offener Song nach Änderungen als gesehen gilt (song-activity, design.md D7). */
+  seenDebounceMs?: number;
 }
 
 /** Abgleich für einen angemeldeten Nutzer (workbook-sync, design.md D9, D10). */
-export function createSync({ store, repo, connection, session, api, openEvents, pollMs = 60_000, debounceMs = 500 }: SyncDeps): Sync {
+export function createSync({ store, repo, connection, session, api, openEvents, pollMs = 60_000, debounceMs = 500, seenDebounceMs = 1000 }: SyncDeps): Sync {
   let notices: Notice[] = [];
   let nextNotice = 0;
   let offline = false;
@@ -120,6 +122,9 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
 
   const personalWorkbook = () => store.getState().workbooks.find((w) => w.personal);
 
+  /** Gemeinsame Workbooks haben ein Workbook-Dokument, der eigene Bestand nicht (song-activity, design.md D2). */
+  const isShared = (workbookId: string) => store.getState().workbooks.some((w) => w.id === workbookId && !w.personal);
+
   const unplaced = () => {
     const { songs, placement } = store.getState();
     return songs.filter((s) => !placement[s.id]);
@@ -142,6 +147,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
   };
 
   const loseWorkbook = async (workbookId: string) => {
+    repo.forgetWorkbook(workbookId);
     const { workbooks } = store.getState();
     const remaining = workbooks.filter((w) => w.id !== workbookId);
     whileApplying(() => store.setWorkbooks(remaining));
@@ -231,6 +237,19 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     return quota;
   };
 
+  /** Übernimmt die Antwort zum Workbook-Dokument; ohne eigenen Eintrag gilt alles Bekannte als gesehen (song-activity, design.md D8). */
+  const applyWorkbookReply = (workbookId: string, reply: WorkbookDocReply) => {
+    if ('doc' in reply) repo.adoptWorkbook(workbookId, reply.doc);
+    else repo.receiveWorkbook(workbookId, reply);
+    const email = session.getEmail();
+    if (!email || repo.workbookSeen(workbookId, email)) return;
+    const entries = Object.fromEntries(songsIn(workbookId).flatMap((song) => {
+      const heads = repo.songHeads(song.id);
+      return heads ? [[song.id, heads]] : [];
+    }));
+    if (repo.markSeen(workbookId, email, entries)) followUps.add(workbookId);
+  };
+
   const syncWorkbook = async (workbookId: string, started: number): Promise<boolean> => {
     if (started !== generation) return false;
     await connection.flush();
@@ -248,11 +267,12 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
       const pending = repo.outgoing(song.id);
       return pending ? [{ id: song.id, ...pending }] : [];
     });
-    const result = await api.sync(workbookId, outgoing);
+    const result = await api.sync(workbookId, outgoing, isShared(workbookId) ? repo.workbookOutgoing(workbookId) : undefined);
     if (started !== generation) return false;
     if (result.ok) {
       setOffline(false);
       noteQuota(workbookId, 'sync', applyReplies(workbookId, result.songs));
+      if (result.workbook) applyWorkbookReply(workbookId, result.workbook);
       return true;
     }
     if (result.error === 'gone') await loseWorkbook(workbookId);
@@ -381,6 +401,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     for (const workbookId of new Set(Object.values(placement))) {
       if (!listed.has(workbookId)) detach(workbookId, known.find((w) => w.id === workbookId));
     }
+    for (const { id } of known) if (!listed.has(id)) repo.forgetWorkbook(id);
     // Vorgemerktes Löschen eines Workbooks, das es für dieses Konto nicht mehr gibt, hat sich erledigt
     for (const { id, workbookId } of repo.pendingDeletes()) if (!listed.has(workbookId)) repo.clearDeleted(id);
     syncAllRunning++;
@@ -471,6 +492,45 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
     };
   };
 
+  /** Der geöffnete Song eines gemeinsamen Workbooks gilt als gesehen, sofern er Neues enthält oder noch keinen Eintrag hat (design.md D7). */
+  const markOpenSeen = () => {
+    const email = session.getEmail();
+    const { openSongId, placement } = store.getState();
+    const workbookId = openSongId ? placement[openSongId] : undefined;
+    if (!email || !openSongId || !workbookId || !isShared(workbookId)) return;
+    const heads = repo.songHeads(openSongId);
+    const stored = repo.workbookSeen(workbookId, email)?.[openSongId] ?? null;
+    if (!heads || (stored && !repo.isNew(openSongId, stored, email))) return;
+    if (repo.markSeen(workbookId, email, { [openSongId]: heads })) void requestSync(workbookId);
+  };
+
+  const watchSeen = () => {
+    let opened = store.getState().openSongId;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const later = () => {
+      clearTimeout(timer);
+      timer = setTimeout(markOpenSeen, seenDebounceMs);
+    };
+    const unsubscribeStore = store.subscribe(() => {
+      const { openSongId } = store.getState();
+      if (openSongId === opened) {
+        if (openSongId) later();
+        return;
+      }
+      opened = openSongId;
+      clearTimeout(timer);
+      markOpenSeen();
+    });
+    // Das Workbook-Dokument kann nach dem Öffnen eintreffen
+    const unsubscribeActivity = repo.subscribeActivity(() => store.getState().openSongId && later());
+    if (opened) markOpenSeen();
+    return () => {
+      clearTimeout(timer);
+      unsubscribeStore();
+      unsubscribeActivity();
+    };
+  };
+
   return {
     start() {
       const onVisibility = () => document.visibilityState === 'visible' && onTrigger();
@@ -490,6 +550,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
       unsubscribes = [
         session.subscribe(onSession),
         watchStore(),
+        watchSeen(),
         () => {
           clearInterval(poll);
           document.removeEventListener('visibilitychange', onVisibility);

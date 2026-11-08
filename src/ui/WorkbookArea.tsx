@@ -2,7 +2,8 @@ import { useId, useState } from 'react';
 import type { Song, Workbook } from '../domain/types';
 import type { WorkbookActions } from '../sync/sync';
 import { useDropTarget } from './dragSong';
-import { sortedByTitle } from './SongTile';
+import { NewDot, sortedByTitle } from './SongTile';
+import { useActivity } from './useActivity';
 import { useNotebook } from './useLibrary';
 import { useEmail } from './useWorkbooks';
 import { useReportedAction, WorkbookCard } from './WorkbookCard';
@@ -20,7 +21,7 @@ function useChosenWorkbook() {
   return [chosen, choose] as const;
 }
 
-function WorkbookEntry({ workbook, songs, selected, onChoose }: { workbook: Workbook; songs: number; selected: boolean; onChoose: () => void }) {
+function WorkbookEntry({ workbook, songs, hasNew, selected, onChoose }: { workbook: Workbook; songs: number; hasNew: boolean; selected: boolean; onChoose: () => void }) {
   const description = useId();
   const target = useDropTarget() === workbook.id;
   return (
@@ -34,9 +35,13 @@ function WorkbookEntry({ workbook, songs, selected, onChoose }: { workbook: Work
         data-drop-workbook={workbook.id}
         onClick={onChoose}
       >
-        <b>{workbook.title}</b>
+        <b>
+          {hasNew && <NewDot />}
+          {workbook.title}
+        </b>
         <span id={description}>
           {count(songs, 'Song', 'Songs')} · {count(workbook.members.length, 'Mitglied', 'Mitglieder')}
+          {hasNew && <span className="visually-hidden"> · neu</span>}
         </span>
       </button>
     </li>
@@ -49,6 +54,7 @@ export function WorkbookArea({ sync, songs }: { sync: WorkbookActions; songs: re
   const email = useEmail();
   const run = useReportedAction();
   const [chosen, choose] = useChosenWorkbook();
+  const activity = useActivity();
   const list = sortedByTitle(workbooks.filter((w) => !w.personal), (w) => w.title);
   const selected = list.find((w) => w.id === chosen) ?? list[0];
   if (!email && list.length === 0) return null;
@@ -75,6 +81,7 @@ export function WorkbookArea({ sync, songs }: { sync: WorkbookActions; songs: re
                 key={workbook.id}
                 workbook={workbook}
                 songs={songsOf(workbook.id).length}
+                hasNew={songsOf(workbook.id).some((s) => activity.isNew(s.id))}
                 selected={workbook === selected}
                 onChoose={() => choose(workbook.id)}
               />

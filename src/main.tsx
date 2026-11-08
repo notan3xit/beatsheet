@@ -6,6 +6,7 @@ import { connectStore, openRepository, requestPersistentStorage, type Repository
 import { initAutomerge } from './persistence/songDoc';
 import { createNotebookStore, type NotebookStore } from './state/notebookStore';
 import { createSyncApi, openEventSource } from './sync/api';
+import { createSongActivity, type SongActivity } from './sync/songActivity';
 import { createSync, type Sync } from './sync/sync';
 import { App } from './ui/App';
 import { browserStorage } from './state/deviceSetting';
@@ -20,10 +21,18 @@ installTheme();
 connectTheme(theme, document.documentElement, browserThemeMedia());
 const root = createRoot(document.getElementById('root')!);
 
-const renderApp = (store: NotebookStore, session: AccountSession, sync: Sync, repo: Repository, storagePersisted: boolean) =>
+const renderApp = (store: NotebookStore, session: AccountSession, sync: Sync, repo: Repository, activity: SongActivity, storagePersisted: boolean) =>
   root.render(
     <StrictMode>
-      <App store={store} session={session} sync={sync} storagePersisted={storagePersisted} theme={theme} historyOf={(id) => repo.history(id)} />
+      <App
+        store={store}
+        session={session}
+        sync={sync}
+        storagePersisted={storagePersisted}
+        theme={theme}
+        historyOf={(id) => repo.history(id)}
+        activity={activity}
+      />
     </StrictMode>,
   );
 
@@ -39,9 +48,10 @@ async function start() {
     sync.start();
     // Ansicht aus der Adresse öffnen, bevor gerendert wird (kein Aufblitzen der Song-Liste)
     connectUrl(store);
-    renderApp(store, session, sync, repo, true);
+    const activity = createSongActivity({ store, repo, session });
+    renderApp(store, session, sync, repo, activity, true);
     // Manche Browser fragen den Nutzer; der Hinweis erscheint erst nach der Antwort
-    if (!(await requestPersistentStorage())) renderApp(store, session, sync, repo, false);
+    if (!(await requestPersistentStorage())) renderApp(store, session, sync, repo, activity, false);
   } catch (error) {
     console.error(error);
     root.render(<p role="alert">Der lokale Speicher konnte nicht geöffnet werden. Beatsheet kann nicht starten.</p>);
