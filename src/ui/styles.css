@@ -13,6 +13,13 @@
   --on-accent: var(--ctp-base);
   /* Schatten-Groove eines ausgewählten leeren Takts */
   --ghost: var(--ctp-overlay0);
+  /* Übetempo eingeschaltet: Fläche aus der Farbe der Wiedergabe; Überfahren ihrer Knöpfe */
+  --practice-on-mix: 22%;
+  --practice-hover-mix: 12%;
+  /* Fläche der Takte einer laufenden Teil-Schleife (song-playback) */
+  --loop-range-mix: 14%;
+  /* Rahmen dazu: --ghost verfehlt in Latte den Zustandskontrast */
+  --loop-range-edge: var(--muted);
   /* Flächen für Schaltflächen (ohne Rand) */
   --control: var(--ctp-surface0);
   --control-hover: var(--ctp-surface1);
@@ -1514,6 +1521,12 @@ select.meter-mark:hover {
   background: transparent;
 }
 
+/* Takt einer laufenden Teil-Schleife außerhalb der Auswahl: grau umrandet; der laufende Takt überdeckt das */
+.bar-frame.loop-range {
+  background: color-mix(in srgb, var(--ghost) var(--loop-range-mix), transparent);
+  box-shadow: inset 0 0 0 2px var(--loop-range-edge);
+}
+
 /* Laufender Takt der Song-Wiedergabe: getönt und umrandet, abgesetzt von Auswahl und Ablegeziel */
 .bar-frame.playing {
   background: color-mix(in srgb, var(--playhead) 12%, transparent);
@@ -2291,11 +2304,18 @@ button.meter-own.on {
   color: var(--muted);
 }
 
-/* Länge im Kopf: Label links neben dem Dropdown, kompakt */
+/* Abspielen und Übetempo im Kopf der Doppelseite: eine Gruppe, die die Auswahl stehen lässt */
+.song-transport {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Abspiel-Knöpfe im Kopf: einmal und Schleife dicht beieinander */
 .transport {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.25rem;
 }
 
 /* Knöpfe in den Kopfzeilen: gleiche Höhe, damit beim Entsperren und beim Symbolwechsel nichts springt */
@@ -2326,6 +2346,16 @@ button.meter-own.on {
 
 .play-button:hover:not(:disabled) {
   background: color-mix(in srgb, var(--playhead) 28%, transparent);
+}
+
+/* Knopf des nicht laufenden Modus während der Wiedergabe: grau, weiter bedienbar */
+.play-button.idle {
+  background: var(--control);
+  color: var(--muted);
+}
+
+.play-button.idle:hover:not(:disabled) {
+  background: var(--control-hover);
 }
 
 .play-button svg {
@@ -2361,8 +2391,86 @@ button.meter-own.on {
 
 
 .transport .hint {
-  margin: 0;
+  margin: 0 0 0 0.5rem;
   font-size: 0.8rem;
+}
+
+/* Übetempo (practice-tempo): gedämpft, eingeschaltet als Fläche in der Farbe der Wiedergabe */
+.practice {
+  display: inline-flex;
+  flex: none;
+  align-items: stretch;
+  height: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  color: var(--muted);
+}
+
+.practice.on {
+  border-color: var(--playhead);
+  background: color-mix(in srgb, var(--playhead) var(--practice-on-mix), var(--bg));
+  color: var(--text);
+}
+
+.practice button {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+}
+
+.practice button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--playhead) var(--practice-hover-mix), transparent);
+}
+
+.practice-toggle {
+  gap: 0.4rem;
+  padding: 0 0.55rem;
+  font-size: 0.85rem;
+}
+
+/* Schalterbahn mit Knopf; eingeschaltet rechts in der Farbe der Wiedergabe */
+.practice-knob {
+  position: relative;
+  width: 1.6rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.practice-knob::after {
+  content: '';
+  position: absolute;
+  top: 0.1rem;
+  left: 0.1rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--bg);
+  transition: left var(--motion-row) ease;
+}
+
+.practice.on .practice-knob {
+  background: var(--playhead);
+}
+
+.practice.on .practice-knob::after {
+  left: 0.8rem;
+}
+
+.practice-step {
+  padding: 0 0.45rem;
+}
+
+.practice .tempo-mark {
+  align-self: center;
+  color: inherit;
+}
+
+.practice .tempo-mark.editing {
+  margin: 0 0.45rem;
 }
 
 .editor-actions {
@@ -3013,6 +3121,11 @@ button.meter-own.on {
 /* Den Verlauf gibt es auf Smartphones nicht; nach den Regeln der Symbolknöpfe, damit es sie überstimmt */
 @media (max-width: 40rem) {
   .history-open {
+    display: none;
+  }
+
+  /* Übetempo ohne −/+, der Kopf hat dort keinen Platz (practice-tempo); spezifisch genug für .practice button */
+  .practice .practice-step {
     display: none;
   }
 }

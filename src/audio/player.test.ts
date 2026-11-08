@@ -69,4 +69,17 @@ describe('createWebAudioPlayer', () => {
     player.stop();
     expect(player.getState()).toEqual({ playing: false, mark: null });
   });
+
+  it('wechselt den Modus der laufenden Wiedergabe (playback-controls)', () => {
+    const player = createWebAudioPlayer({ AudioContext: FakeAudioContext as unknown as typeof globalThis.AudioContext });
+    player.setLoop(false);
+    player.start(source);
+    expect(player.getState().loop).toBe(true);
+    let notified = 0;
+    player.subscribe(() => notified++);
+    player.setLoop(false);
+    expect(player.getState().loop).toBe(false);
+    expect(notified).toBeGreaterThan(0);
+    player.stop();
+  });
 });

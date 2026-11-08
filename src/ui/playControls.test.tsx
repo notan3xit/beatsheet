@@ -43,10 +43,12 @@ describe('Spec playback-controls › Abspiel-Symbole', () => {
   it('Kopf der Doppelseite', () => {
     setup();
     expectPlayButton(button('Song abspielen'), 'play', 'Song abspielen');
+    expectPlayButton(button('Song in Schleife abspielen'), 'loop', 'Song in Schleife abspielen');
   });
 
   it('Sequencer', () => {
     setup('pattern');
+    expectPlayButton(button('Einmal abspielen'), 'play', 'Einmal abspielen');
     expectPlayButton(button('In Schleife abspielen'), 'loop', 'In Schleife abspielen');
   });
 
@@ -74,6 +76,14 @@ describe('Spec playback-controls › Abspiel-Symbole', () => {
     const { user } = setup('pattern');
     await user.click(button('In Schleife abspielen'));
     expectPlayButton(button('Stopp'), 'stop', 'Stopp');
+    expectPlayButton(button('Einmal abspielen'), 'play', 'Einmal abspielen');
+  });
+
+  it('Während der Schleife des Songs', async () => {
+    const { user } = setup();
+    await user.click(button('Song in Schleife abspielen'));
+    expectPlayButton(button('Stopp'), 'stop', 'Stopp');
+    expectPlayButton(button('Song abspielen'), 'play', 'Song abspielen');
   });
 
   it('Overlay während der Wiedergabe', async () => {
@@ -89,10 +99,11 @@ describe('Spec playback-controls › Abspiel-Symbole', () => {
 });
 
 describe('Spec playback-controls › Overlay schließt beim Abspielen', () => {
-  const nothingOpen = () => {
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-    expect(structure().querySelector('[aria-pressed="true"]')).toBeNull();
-  };
+  const nothingOpen = () => expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  const selected = () =>
+    [...structure().querySelectorAll('.bar-frame[aria-pressed="true"], .segment-select[aria-pressed="true"]')].map(
+      (el) => el.getAttribute('aria-label') ?? el.textContent,
+    );
 
   it('Aus dem Takt-Overlay', async () => {
     const { user, player, source, currentSong } = setup();
@@ -106,6 +117,7 @@ describe('Spec playback-controls › Overlay schließt beim Abspielen', () => {
     const ids = currentSong().segments.flatMap((s) => s.blocks).flatMap((b) => b.bars).map((b) => b.id);
     expect(source().timeline()!.marks.map((m) => m.mark)).toEqual(ids.slice(1, 3));
     nothingOpen();
+    expect(selected()).toEqual(['Takt 2', 'Takt 3']);
     expect(player.stop).not.toHaveBeenCalled();
   });
 
@@ -115,6 +127,21 @@ describe('Spec playback-controls › Overlay schließt beim Abspielen', () => {
     await user.click(button('Ab hier abspielen', segmentPopover('Chorus')));
     expect(player.start).toHaveBeenCalledTimes(1);
     nothingOpen();
+    expect(selected()).toEqual(['Chorus']);
+  });
+
+  it('Popover wieder öffnen', async () => {
+    const { user, player } = setup();
+    await user.click(bar(2));
+    await user.keyboard('{Shift>}');
+    await user.click(bar(3));
+    await user.keyboard('{/Shift}');
+    await user.click(button('In Schleife abspielen', barPopover()));
+    await user.click(bar(3));
+    expect(within(barPopover()).getByRole('heading', { name: 'Takte 2–3' })).toBeInTheDocument();
+    expect(selected()).toEqual(['Takt 2', 'Takt 3']);
+    expect(player.start).toHaveBeenCalledTimes(1);
+    expect(player.stop).not.toHaveBeenCalled();
   });
 
   it('Im gesperrten Song', async () => {
@@ -124,6 +151,70 @@ describe('Spec playback-controls › Overlay schließt beim Abspielen', () => {
     await user.click(button('Ab hier abspielen', barPopover()));
     expect(player.start).toHaveBeenCalledTimes(1);
     nothingOpen();
+    expect(selected()).toEqual(['Takt 1']);
+  });
+});
+
+describe('Spec playback-controls › Farbe der Wiedergabe', () => {
+  it('Nicht laufender Modus', async () => {
+    const { user } = setup('pattern');
+    expect(button('Einmal abspielen')).not.toHaveClass('idle');
+    await user.click(button('In Schleife abspielen'));
+    expect(button('Einmal abspielen')).toHaveClass('idle');
+    expect(button('Stopp')).not.toHaveClass('idle');
+  });
+});
+
+describe('Spec playback-controls › Moduswechsel während der Wiedergabe', () => {
+  it('Von Schleife zu einmal', async () => {
+    const { user, player } = setup('pattern');
+    await user.click(button('In Schleife abspielen'));
+    await user.click(button('Einmal abspielen'));
+    expect(player.setLoop).toHaveBeenLastCalledWith(false);
+    expect(player.start).toHaveBeenCalledTimes(1);
+    expect(player.stop).not.toHaveBeenCalled();
+    expectPlayButton(button('Stopp'), 'stop', 'Stopp');
+    expect(button('In Schleife abspielen')).toHaveClass('idle');
+  });
+
+  it('Von einmal zu Schleife', async () => {
+    const { user, player } = setup();
+    await user.click(button('Song abspielen'));
+    await user.click(button('Song in Schleife abspielen'));
+    expect(player.setLoop).toHaveBeenLastCalledWith(true);
+    expect(player.start).toHaveBeenCalledTimes(1);
+    expect(button('Song abspielen')).toHaveClass('idle');
+  });
+
+  it('Bereich aus dem Overlay', async () => {
+    const { user, player, source, currentSong } = setup();
+    await user.click(bar(2));
+    await user.keyboard('{Shift>}');
+    await user.click(bar(3));
+    await user.keyboard('{/Shift}');
+    await user.click(button('In Schleife abspielen', barPopover()));
+    await user.click(button('Song abspielen'));
+    expect(player.setLoop).toHaveBeenLastCalledWith(false);
+    expect(player.start).toHaveBeenCalledTimes(1);
+    const ids = currentSong().segments.flatMap((s) => s.blocks).flatMap((b) => b.bars).map((b) => b.id);
+    expect(source().timeline()!.marks.map((m) => m.mark)).toEqual(ids.slice(1, 3));
+  });
+});
+
+describe('Spec playback-controls › Anordnung im Kopf', () => {
+  const order = (root: HTMLElement, names: (string | RegExp)[]) => {
+    const elements = names.map((name) => within(root).getByRole('button', { name }));
+    elements.slice(1).forEach((el, i) => expect(elements[i]!.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy());
+  };
+
+  it('Pattern-Editor', () => {
+    setup('pattern');
+    order(screen.getByRole('region', { name: 'Pattern bearbeiten' }), [/^Song-Tempo/, 'Einmal abspielen', 'In Schleife abspielen', 'Üben']);
+  });
+
+  it('Doppelseite', () => {
+    setup();
+    order(document.querySelector('.songbook-header') as HTMLElement, [/^Song-Tempo/, 'Song abspielen', 'Song in Schleife abspielen', 'Üben']);
   });
 });
 

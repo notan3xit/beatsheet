@@ -11,6 +11,8 @@ export interface Player {
   readonly available: boolean;
   start(source: PlaybackSource): void;
   stop(): void;
+  /** Wechselt den Modus der laufenden Wiedergabe ohne Neustart. */
+  setLoop(loop: boolean): void;
   getState(): PlaybackState;
   /** Position in Beats ab Quellenanfang; für flüssige Anzeigen pro Frame abfragen. */
   getPosition(): number | null;
@@ -60,6 +62,7 @@ export function createWebAudioPlayer(win: AudioWindow = globalThis as AudioWindo
       scheduler.start(source);
     },
     stop: () => audio?.scheduler.stop(),
+    setLoop: (loop) => audio?.scheduler.setLoop(loop),
     getState: () => audio?.scheduler.getState() ?? IDLE,
     getPosition: () => audio?.scheduler.getPosition() ?? null,
     subscribe(listener) {

@@ -34,6 +34,8 @@ function setup({ available = true, structure = true } = {}) {
 
 const header = () => document.querySelector('.songbook-header') as HTMLElement;
 const songButton = () => within(header()).getByRole('button', { name: /^(Song abspielen|Stopp)$/ });
+const loopButton = () => within(header()).getByRole('button', { name: /^(Song in Schleife abspielen|Stopp)$/ });
+const headerButton = (name: string) => within(header()).getByRole('button', { name });
 const structure = () => screen.getByRole('region', { name: 'Struktur' });
 const bar = (n: number) => within(structure()).getByRole('button', { name: `Takt ${n}` });
 const barPopover = () => screen.getByRole('dialog', { name: 'Takt-Auswahl' });
@@ -62,12 +64,22 @@ describe('Spec song-playback › Song abspielen', () => {
     expect(songButton()).toHaveAccessibleName('Stopp');
   });
 
+  it('Ganzen Song in Schleife', async () => {
+    const { user, player, source, bars } = setup();
+    await user.click(loopButton());
+    expect(player.start).toHaveBeenCalledTimes(1);
+    expect(source().loop).toBe(true);
+    expect(marksOf(source())).toEqual(bars().map((b) => b.id));
+    expect(loopButton()).toHaveAccessibleName('Stopp');
+  });
+
   it('Ende des Songs', async () => {
     const { user, end, bars, reach } = setup();
     await user.click(songButton());
     reach(bars()[3]!.id, 15);
     end();
     expect(songButton()).toHaveAccessibleName('Song abspielen');
+    expect(loopButton()).toHaveAccessibleName('Song in Schleife abspielen');
     expect(document.querySelectorAll('.bar-frame.playing')).toHaveLength(0);
   });
 
@@ -79,9 +91,19 @@ describe('Spec song-playback › Song abspielen', () => {
     expect(songButton()).toHaveAccessibleName('Song abspielen');
   });
 
+  it('Stoppen einer Overlay-Wiedergabe', async () => {
+    const { user, player } = setup();
+    await selectBars(user, 2, 3);
+    await user.click(within(barPopover()).getByRole('button', { name: 'In Schleife abspielen' }));
+    expect(loopButton()).toHaveAccessibleName('Stopp');
+    await user.click(loopButton());
+    expect(player.stop).toHaveBeenCalled();
+  });
+
   it('Song ohne Takte', () => {
     setup({ structure: false });
     expect(songButton()).toBeDisabled();
+    expect(loopButton()).toBeDisabled();
   });
 });
 
@@ -112,7 +134,7 @@ describe('Spec song-playback › Auswahl in Schleife abspielen', () => {
     expect(source().loop).toBe(true);
     expect(source().timeline()!.length).toBe(8);
     expect(marksOf(source())).toEqual([bars()[1]!.id, bars()[2]!.id]);
-    expect(songButton()).toHaveAccessibleName('Stopp');
+    expect(loopButton()).toHaveAccessibleName('Stopp');
   });
 
   it('Segment in Schleife', async () => {
@@ -197,6 +219,7 @@ describe('Spec song-playback › Song-Wiedergabe ohne Audio', () => {
   it('Browser ohne Web Audio auf der Doppelseite', async () => {
     const { user } = setup({ available: false });
     expect(songButton()).toBeDisabled();
+    expect(loopButton()).toBeDisabled();
     expect(within(header()).getByRole('note')).toHaveTextContent(/Wiedergabe ist in diesem Browser nicht möglich/);
     await selectBars(user, 1);
     expect(within(barPopover()).getByRole('button', { name: 'Ab hier abspielen' })).toBeDisabled();
@@ -267,5 +290,120 @@ describe('Spec song-playback › Wiedergabeposition in der Struktur', () => {
     await user.click(songButton());
     expect(playing()).toEqual([]);
     expect(line()).toBeNull();
+  });
+});
+
+describe('Spec song-playback › Laufende Schleife in der Struktur', () => {
+  const marked = () => [...structure().querySelectorAll('.bar-frame.loop-range')].map((el) => el.getAttribute('aria-label'));
+  async function loopTwoThree() {
+    const t = setup();
+    await selectBars(t.user, 2, 3);
+    await t.user.click(within(barPopover()).getByRole('button', { name: 'In Schleife abspielen' }));
+    return t;
+  }
+
+  it('Andere Auswahl während der Schleife', async () => {
+    const { user } = await loopTwoThree();
+    await selectBars(user, 4);
+    expect(marked()).toEqual(['Takt 2', 'Takt 3']);
+    expect(bar(4)).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Auswahl entspricht dem Bereich', async () => {
+    await loopTwoThree();
+    expect(marked()).toEqual([]);
+  });
+
+  it('Einmalige Wiedergabe', async () => {
+    const { user } = setup();
+    await selectBars(user, 3);
+    await user.click(within(barPopover()).getByRole('button', { name: 'Ab hier abspielen' }));
+    await selectBars(user, 1);
+    expect(marked()).toEqual([]);
+  });
+
+  it('Ganzer Song in Schleife', async () => {
+    const { user } = setup();
+    await user.click(loopButton());
+    await user.keyboard('{Escape}');
+    expect(marked()).toEqual([]);
+  });
+
+  it('Wechsel zum einmaligen Durchlauf', async () => {
+    const { user } = await loopTwoThree();
+    await selectBars(user, 4);
+    await user.click(headerButton('Song abspielen'));
+    expect(marked()).toEqual([]);
+  });
+
+  it('Stopp beendet die Markierung', async () => {
+    const { user } = await loopTwoThree();
+    await selectBars(user, 4);
+    await user.click(loopButton());
+    expect(marked()).toEqual([]);
+  });
+});
+
+describe('Spec song-playback › Kopfknöpfe spielen die Auswahl', () => {
+  it('Ab Auswahl', async () => {
+    const { user, source, bars } = setup();
+    await selectBars(user, 2, 3);
+    await user.click(headerButton('Ab Auswahl abspielen'));
+    expect(source().loop).toBe(false);
+    expect(marksOf(source())).toEqual(bars().slice(1).map((b) => b.id));
+  });
+
+  it('Auswahl in Schleife', async () => {
+    const { user, source, bars } = setup();
+    await selectBars(user, 2, 3);
+    await user.click(headerButton('Auswahl in Schleife abspielen'));
+    expect(source().loop).toBe(true);
+    expect(marksOf(source())).toEqual([bars()[1]!.id, bars()[2]!.id]);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(bar(2)).toHaveAttribute('aria-pressed', 'true');
+    expect(bar(3)).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Segment ausgewählt', async () => {
+    const { user, source, bars } = setup();
+    await user.click(within(structure()).getByRole('button', { name: 'Chorus' }));
+    await user.click(headerButton('Auswahl in Schleife abspielen'));
+    expect(source().loop).toBe(true);
+    expect(marksOf(source())).toEqual([bars()[2]!.id, bars()[3]!.id]);
+  });
+
+  it('Üben vor dem Start', async () => {
+    const { user, source, bars } = setup();
+    await selectBars(user, 2, 3);
+    await user.click(headerButton('Üben'));
+    await user.click(headerButton('Auswahl in Schleife abspielen'));
+    expect(marksOf(source())).toEqual([bars()[1]!.id, bars()[2]!.id]);
+    expect(source().tempo()).toBe(90);
+  });
+
+  it('Ohne Auswahl', () => {
+    setup();
+    expect(headerButton('Song abspielen')).toBeInTheDocument();
+    expect(headerButton('Song in Schleife abspielen')).toBeInTheDocument();
+  });
+});
+
+describe('Spec songbook-view › Bearbeiten über die Auswahl (Kopf)', () => {
+  const pressed = () => [...structure().querySelectorAll('.bar-frame[aria-pressed="true"]')].map((el) => el.getAttribute('aria-label'));
+
+  it('Bedienung im Kopf', async () => {
+    const { user } = setup();
+    await selectBars(user, 2, 3);
+    await user.click(headerButton('Üben'));
+    await user.click(headerButton('Übetempo erhöhen'));
+    await user.click(headerButton('Übetempo verringern'));
+    expect(pressed()).toEqual(['Takt 2', 'Takt 3']);
+  });
+
+  it('Klick auf eine freie Stelle hebt die Auswahl weiter auf', async () => {
+    const { user } = setup();
+    await selectBars(user, 2, 3);
+    await user.click(within(header()).getByRole('heading'));
+    expect(pressed()).toEqual([]);
   });
 });

@@ -2,15 +2,32 @@ import { createContext, useContext, useEffect, useRef, useSyncExternalStore } fr
 import type { PlaybackSound } from '../audio/deviceSound';
 import type { Player } from '../audio/player';
 import { patternTimeline, setTempo, songTimeline, type SongRange, type Step } from '../domain/playback';
-import { DEFAULT_TEMPO, type Pattern } from '../domain/types';
+import { practiceTempo } from '../domain/practice';
+import { allBars } from '../domain/songPatterns';
+import { DEFAULT_TEMPO, type Pattern, type Song } from '../domain/types';
 import { openSongOf } from '../state/notebookStore';
+import type { PracticeStore } from '../state/practice';
 import { PlayButton } from './PlayButton';
 import { useOpenSong, useStore } from './useLibrary';
 
 export const PlayerContext = createContext<Player | null>(null);
 
+/** Tempo der Wiedergabe: bei eingeschaltetem „Üben“ das Übetempo, sonst das Song-Tempo (practice-tempo, design.md D2). */
+function playbackTempo(practice: PracticeStore, song: Song): number {
+  return practice.enabled(song.id) ? practiceTempo(practice.tempo(song.id), song.tempo) : song.tempo;
+}
+
 /** Klangwahl und Aufnahmen für das Menü (drum-samples, design.md D7). */
 export const SoundContext = createContext<PlaybackSound | null>(null);
+
+/** Übetempo je Song (practice-tempo, design.md D4). */
+export const PracticeContext = createContext<PracticeStore | null>(null);
+
+export function usePractice(): PracticeStore {
+  const practice = useContext(PracticeContext);
+  if (!practice) throw new Error('PracticeContext fehlt');
+  return practice;
+}
 
 export function useSound(): PlaybackSound {
   const sound = useContext(SoundContext);
@@ -28,24 +45,21 @@ export function usePlayer(): Player {
  * Wiedergabe des geöffneten Patterns. Die Quelle liest bei jedem Planungsschritt den aktuellen Stand,
  * damit Änderungen ohne Neustart hörbar sind. Endet beim Verlassen und beim Wechsel des Patterns.
  */
-export function usePlayback(pattern: Pattern, tempo: number) {
+export function usePlayback(pattern: Pattern, song: Song) {
   const player = usePlayer();
-  const latest = useRef({ pattern, tempo });
-  latest.current = { pattern, tempo };
+  const practice = usePractice();
+  const latest = useRef({ pattern, song });
+  latest.current = { pattern, song };
   const state = useSyncExternalStore(player.subscribe, player.getState);
   useEffect(() => () => player.stop(), [player, pattern.id]);
   return {
-    available: player.available,
-    playing: state.playing,
     step: state.mark as Step | null,
-    toggle: () =>
-      state.playing
-        ? player.stop()
-        : player.start({
-            timeline: () => patternTimeline(latest.current.pattern),
-            tempo: () => latest.current.tempo,
-            loop: true,
-          }),
+    start: (loop: boolean) =>
+      player.start({
+        timeline: () => patternTimeline(latest.current.pattern),
+        tempo: () => playbackTempo(practice, latest.current.song),
+        loop,
+      }),
   };
 }
 
@@ -56,15 +70,28 @@ export function usePlayback(pattern: Pattern, tempo: number) {
 /** Bereich der laufenden Song-Wiedergabe je Player; die Linie braucht den Taktanfang relativ dazu (design.md D4). */
 const activeRanges = new WeakMap<Player, SongRange>();
 
+const NO_BARS: ReadonlySet<string> = new Set();
+
+/** Takte des Bereichs, wenn er nicht den ganzen Song umfasst. */
+function partialRange(song: Song, range: SongRange): ReadonlySet<string> {
+  const ids = songTimeline(song, range)?.marks.map((m) => m.mark) ?? [];
+  return ids.length === allBars(song).length ? NO_BARS : new Set(ids);
+}
+
 export function useSongPlayback() {
   const player = usePlayer();
+  const practice = usePractice();
   const store = useStore();
   const state = useSyncExternalStore(player.subscribe, player.getState);
+  const range = state.playing ? activeRanges.get(player) : undefined;
+  const song = useOpenSong();
   return {
     available: player.available,
     playing: state.playing,
     /** Laufender Takt; nur Song-Marken sind Takt-IDs. */
     barId: typeof state.mark === 'string' ? state.mark : null,
+    /** Takte einer laufenden Schleife über einen Teil des Songs; leer bei einmaliger Wiedergabe und Schleife über den ganzen Song. */
+    loopRange: state.loop && range ? partialRange(song, range) : NO_BARS,
     start(range: SongRange, loop: boolean) {
       const song = () => openSongOf(store.getState());
       activeRanges.set(player, range);
@@ -73,7 +100,10 @@ export function useSongPlayback() {
           const current = song();
           return current ? songTimeline(current, range) : null;
         },
-        tempo: () => song()?.tempo ?? DEFAULT_TEMPO,
+        tempo: () => {
+          const current = song();
+          return current ? playbackTempo(practice, current) : DEFAULT_TEMPO;
+        },
         loop,
       });
     },
@@ -131,17 +161,43 @@ export function useSongTempo() {
 /** Eingabe als Tempo lesen; leer zählt als ungültig. */
 export const parseTempo = (draft: string) => (draft.trim() === '' ? Number.NaN : Number(draft));
 
-/** Abspiel-Taste im Kopf des Pattern-Editors. */
-export function Transport({ playback }: { playback: ReturnType<typeof usePlayback> }) {
+/**
+ * Abspiel-Knöpfe im Kopf von Doppelseite und Pattern-Editor (playback-controls, design.md D5): einmal und in Schleife.
+ * Während der Wiedergabe ist der Knopf des laufenden Modus „Stopp“, der andere grau und wechselt den Modus.
+ */
+export function Transport({
+  once,
+  loop,
+  canStart = true,
+  onStart,
+}: {
+  /** Namen der Knöpfe in Ruhe. */
+  once: string;
+  loop: string;
+  canStart?: boolean;
+  onStart: (loop: boolean) => void;
+}) {
+  const player = usePlayer();
+  const state = useSyncExternalStore(player.subscribe, player.getState);
+  const running = state.playing ? (state.loop ? 'loop' : 'once') : null;
+  const disabled = !player.available || (!running && !canStart);
+  const button = (mode: 'once' | 'loop') =>
+    running === mode ? (
+      <PlayButton symbol="stop" label="Stopp" disabled={disabled} onClick={() => player.stop()} />
+    ) : (
+      <PlayButton
+        symbol={mode === 'once' ? 'play' : 'loop'}
+        label={mode === 'once' ? once : loop}
+        disabled={disabled}
+        idle={running !== null}
+        onClick={() => (running ? player.setLoop(mode === 'loop') : onStart(mode === 'loop'))}
+      />
+    );
   return (
     <div className="transport">
-      <PlayButton
-        symbol={playback.playing ? 'stop' : 'loop'}
-        label={playback.playing ? 'Stopp' : 'In Schleife abspielen'}
-        disabled={!playback.available}
-        onClick={playback.toggle}
-      />
-      {!playback.available && <NoAudioNote />}
+      {button('once')}
+      {button('loop')}
+      {!player.available && <NoAudioNote />}
     </div>
   );
 }

@@ -8,22 +8,27 @@ const SYMBOLS: Record<PlaySymbol, string> = {
   loop: 'M2.5 7.5V6a2 2 0 0 1 2-2h8M10.5 2l2 2-2 2M13.5 8.5V10a2 2 0 0 1-2 2h-8M5.5 10l-2 2 2 2',
 };
 
-/** Abspiel-Knopf (playback-controls): nur Symbol, die Aktion steht im Namen und Tooltip. Ändert den Song nicht, daher freigegeben. */
+/**
+ * Abspiel-Knopf (playback-controls): nur Symbol, die Aktion steht im Namen und Tooltip. Ändert den Song nicht, daher freigegeben.
+ * `idle`: grau, weil gerade der andere Modus läuft.
+ */
 export function PlayButton({
   symbol,
   label,
   disabled,
+  idle,
   onClick,
 }: {
   symbol: PlaySymbol;
   label: string;
   disabled?: boolean;
+  idle?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
-      className="play-button"
+      className={idle ? 'play-button idle' : 'play-button'}
       data-symbol={symbol}
       data-read-safe=""
       aria-label={label}

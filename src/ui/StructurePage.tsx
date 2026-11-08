@@ -116,6 +116,9 @@ interface Selection {
   selectSegment: (segmentId: string) => void;
   /** Hebt die Auswahl auf und schließt damit das Popover. */
   clear: () => void;
+  /** Schließt das Popover beim Abspielen, die Auswahl bleibt. */
+  closePopover: () => void;
+  popoverOpen: boolean;
   /** Popover der Takt-Auswahl, wenn es in dieser Zeile verankert ist. */
   barPopover: (row: Row) => ReactNode;
   hover: Hover;
@@ -124,6 +127,8 @@ interface Selection {
   dropTargets: ReadonlySet<string>;
   /** Takt, den die Song-Wiedergabe gerade spielt. */
   playingBarId: string | null;
+  /** Takte einer laufenden Schleife über einen Teil des Songs. */
+  loopRange: ReadonlySet<string>;
   locked: boolean;
 }
 
@@ -228,8 +233,8 @@ function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
           key={bar.barId}
           type="button"
           className={`bar-frame${selection.dropTargets.has(bar.barId) ? ' drop-target' : ''}${
-            selection.playingBarId === bar.barId ? ' playing' : ''
-          }`}
+            selection.loopRange.has(bar.barId) && !barSelected(selection.current, bar.barId) ? ' loop-range' : ''
+          }${selection.playingBarId === bar.barId ? ' playing' : ''}`}
           data-bar-id={bar.barId}
           data-read-safe=""
           style={place(bar.x, bar.width)}
@@ -287,9 +292,9 @@ function SegmentView({ segment, selection }: { segment: SegmentLayout; selection
             {segment.name}
           </button>
         </h3>
-        {selected && (
+        {selected && selection.popoverOpen && (
           <Popover label={`Segment ${segment.name}`} x={0}>
-            <SegmentPopover segmentId={segment.segmentId} onSelectSegment={selection.selectSegment} onPlay={selection.clear} />
+            <SegmentPopover segmentId={segment.segmentId} onSelectSegment={selection.selectSegment} onPlay={selection.closePopover} />
           </Popover>
         )}
       </div>
@@ -339,7 +344,7 @@ function barAnchor(layout: SegmentLayout[], song: Song, barIds: readonly string[
   return { row, x };
 }
 
-/** Escape und Klick außerhalb von Struktur und Popover heben die Auswahl auf; offene Eingaben werden vorher übernommen. */
+/** Escape und Klick außerhalb von Struktur, Popover und Abspielen im Kopf heben die Auswahl auf; offene Eingaben werden vorher übernommen. */
 function useDismiss(active: boolean, inside: React.RefObject<HTMLElement | null>, clear: () => void) {
   useEffect(() => {
     if (!active) return;
@@ -350,8 +355,9 @@ function useDismiss(active: boolean, inside: React.RefObject<HTMLElement | null>
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && dismiss();
     const onPointer = (e: PointerEvent) => {
       const target = e.target as Element | null;
-      // Ziehquellen lassen die Auswahl stehen, sonst ginge „auf die Auswahl ziehen“ nicht (design.md D3)
-      if (inside.current?.contains(target) || target?.closest('.backdrop, [data-drag-source]')) return;
+      // Ziehquellen lassen die Auswahl stehen, sonst ginge „auf die Auswahl ziehen“ nicht (design.md D3);
+      // ebenso Abspielen und Übetempo im Kopf, die mit der Auswahl arbeiten (practice-playback, design.md D5)
+      if (inside.current?.contains(target) || target?.closest('.backdrop, [data-drag-source], [data-keeps-selection]')) return;
       dismiss();
     };
     document.addEventListener('keydown', onKey);
@@ -369,14 +375,14 @@ export function StructurePage({ selectionState }: { selectionState: StructureSel
   const song = useOpenSong();
   const { locked, expanded } = useNotebook();
   const layout = layoutStructure(song, { locked, expanded });
-  const { selection, selectBar, selectSegment, clear } = selectionState;
+  const { selection, selectBar, selectSegment, clear, popoverOpen, closePopover } = selectionState;
   const [hover, setHover] = useState<Hover>({ segmentId: null, rowKey: null });
   const dropTargets = useDropTargets((barId) =>
     selection.kind === 'bars' && selection.barIds.includes(barId) ? selection.barIds : [barId],
   );
   const page = useRef<HTMLElement>(null);
   useDismiss(selection.kind !== 'none', page, clear);
-  const { barId: playingBarId } = useSongPlayback();
+  const { barId: playingBarId, loopRange } = useSongPlayback();
   // Laufenden Takt sichtbar halten; nearest scrollt nur, wenn er nicht ohnehin zu sehen ist (design.md D4)
   useEffect(() => {
     if (!playingBarId) return;
@@ -385,10 +391,11 @@ export function StructurePage({ selectionState }: { selectionState: StructureSel
 
   const anchor = selection.kind === 'bars' ? barAnchor(layout, song, selection.barIds) : null;
   const barPopover = (row: Row) =>
+    popoverOpen &&
     anchor?.row === row &&
     selection.kind === 'bars' && (
       <Popover label="Takt-Auswahl" x={anchor.x}>
-        <BarPopover barIds={selection.barIds} onPlay={clear} />
+        <BarPopover barIds={selection.barIds} onPlay={closePopover} />
       </Popover>
     );
 
@@ -416,7 +423,21 @@ export function StructurePage({ selectionState }: { selectionState: StructureSel
         <SegmentView
           key={segment.segmentId}
           segment={segment}
-          selection={{ current: selection, selectBar, selectSegment, clear, barPopover, hover, setHover, dropTargets, playingBarId, locked }}
+          selection={{
+            current: selection,
+            selectBar,
+            selectSegment,
+            clear,
+            closePopover,
+            popoverOpen,
+            barPopover,
+            hover,
+            setHover,
+            dropTargets,
+            playingBarId,
+            loopRange,
+            locked,
+          }}
         />
       ))}
     </section>

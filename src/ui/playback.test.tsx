@@ -26,7 +26,10 @@ function fakePlayer(available = true) {
     available,
     start: vi.fn((s: PlaybackSource) => {
       source = s;
-      set({ playing: true, mark: null });
+      set({ playing: true, mark: null, loop: s.loop });
+    }),
+    setLoop: vi.fn((loop: boolean) => {
+      if (state.playing) set({ ...state, loop });
     }),
     stop: vi.fn(() => set({ playing: false, mark: null })),
     getState: () => state,
@@ -40,7 +43,9 @@ function fakePlayer(available = true) {
     player,
     source: () => source!,
     /** Die Wiedergabe erreicht eine Rasterposition. */
-    reach: (step: Step) => act(() => set({ playing: true, mark: step })),
+    reach: (step: Step) => act(() => set({ ...state, playing: true, mark: step })),
+    /** Die Wiedergabe endet von selbst (Einmal-Modus). */
+    end: () => act(() => set({ playing: false, mark: null })),
     /** Fortlaufende Position in Beats, wie der Scheduler sie liefert. */
     at: (beat: number | null) => (position = beat),
   };
@@ -61,6 +66,7 @@ function setup({ available = true } = {}) {
 }
 
 const playButton = () => screen.getByRole('button', { name: /^(In Schleife abspielen|Stopp)$/ });
+const onceButton = () => screen.getByRole('button', { name: /^(Einmal abspielen|Stopp)$/ });
 const tempoMark = (bpm: number) => screen.getByRole('button', { name: `Song-Tempo: ${bpm} BPM` });
 const tempoNote = () => document.querySelector('.tempo-field') as HTMLElement;
 /** Klickt die Tempoangabe an und tippt einen Wert ins Zahlenfeld. */
@@ -84,6 +90,24 @@ describe('Spec pattern-playback › Wiedergabe starten und stoppen (UI)', () => 
     await user.click(playButton());
     expect(player.stop).toHaveBeenCalled();
     expect(playButton()).toHaveAccessibleName('In Schleife abspielen');
+  });
+
+  it('Einmal starten', async () => {
+    const { user, player, source } = setup();
+    await user.click(onceButton());
+    expect(player.start).toHaveBeenCalledTimes(1);
+    expect(source().loop).toBe(false);
+    expect(onceButton()).toHaveAccessibleName('Stopp');
+  });
+
+  it('Ende eines einmaligen Durchlaufs', async () => {
+    const { user, reach, end } = setup();
+    await user.click(onceButton());
+    reach({ beat: 0, position: 0 });
+    end();
+    expect(onceButton()).toHaveAccessibleName('Einmal abspielen');
+    expect(playButton()).toHaveAccessibleName('In Schleife abspielen');
+    expect(highlighted()).toEqual([]);
   });
 
   it('Quelle liefert das geöffnete Pattern und das Tempo des Songs', async () => {
@@ -157,6 +181,7 @@ describe('Spec pattern-playback › Tempo im Pattern-Editor', () => {
   it('Kennzeichnung als Song-Tempo', () => {
     setup();
     expect(tempoNote()).toHaveTextContent('♩ = 120 (Song-Tempo)');
+    expect(tempoNote().compareDocumentPosition(onceButton()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText(/gilt für alle/)).not.toBeInTheDocument();
   });
 
@@ -191,6 +216,7 @@ describe('Spec pattern-playback › Audio nicht verfügbar (UI)', () => {
   it('Browser ohne Web Audio', async () => {
     const { user, patternsNow } = setup({ available: false });
     expect(playButton()).toBeDisabled();
+    expect(onceButton()).toBeDisabled();
     expect(within(screen.getByRole('region', { name: 'Pattern bearbeiten' })).getByRole('note')).toHaveTextContent(
       /Wiedergabe ist in diesem Browser nicht möglich/,
     );

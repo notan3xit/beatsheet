@@ -16,7 +16,10 @@ export function fakePlayer(available = true) {
     available,
     start: vi.fn((s: PlaybackSource) => {
       source = s;
-      set({ playing: true, mark: null });
+      set({ playing: true, mark: null, loop: s.loop });
+    }),
+    setLoop: vi.fn((loop: boolean) => {
+      if (state.playing) set({ ...state, loop });
     }),
     stop: vi.fn(() => {
       position = null;
@@ -36,7 +39,7 @@ export function fakePlayer(available = true) {
     reach: (mark: unknown, beat: number | null = null) =>
       act(() => {
         position = beat;
-        set({ playing: true, mark });
+        set({ ...state, playing: true, mark });
       }),
     /** Die Wiedergabe endet von selbst (Einmal-Modus). */
     end: () =>

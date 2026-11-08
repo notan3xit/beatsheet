@@ -4,7 +4,9 @@ import { createHttpProfileApi, type ProfileApi } from '../account/profile';
 import { createAccountSession, type AccountSession } from '../account/session';
 import { createDeviceSound, type PlaybackSound } from '../audio/deviceSound';
 import { createWebAudioPlayer, type Player } from '../audio/player';
+import { browserStorage } from '../state/deviceSetting';
 import type { NotebookStore } from '../state/notebookStore';
+import { createPracticeStore, type PracticeStore } from '../state/practice';
 import type { WorkbookActions } from '../sync/sync';
 import { AppHeader } from './AppHeader';
 import { ConfirmProvider } from './ConfirmDialog';
@@ -12,7 +14,7 @@ import { HitTestContext, type HitTest } from './dragPattern';
 import { useLockGuard } from './lock';
 import { MessageRow, MessagesProvider, ReportedMessages } from './messages';
 import { PatternEditor } from './PatternEditor';
-import { PlayerContext, SoundContext } from './playback';
+import { PlayerContext, PracticeContext, SoundContext } from './playback';
 import { createThemeSetting, type ThemeSetting } from './theme';
 import { ThemeContext } from './useTheme';
 import { SongList } from './SongList';
@@ -81,6 +83,7 @@ export function App({
   hitTest,
   player: playerProp,
   sound: soundProp,
+  practice: practiceProp,
   theme: themeProp,
   account: accountProp,
   profile: profileProp,
@@ -97,6 +100,8 @@ export function App({
   player?: Player;
   /** Klangwahl und Aufnahmen; Vorgabe Gerätespeicher und DRSKit vom Server, in Tests ein Nachbau. */
   sound?: PlaybackSound;
+  /** Übetempo je Song (practice-tempo); Vorgabe Gerätespeicher, in Tests ohne Speicher. */
+  practice?: PracticeStore;
   /** Wahl des Farbschemas; `main` verbindet sie vor dem ersten Rendern mit dem Dokument, in Tests ohne Speicher. */
   theme?: ThemeSetting;
   /** Anmeldeserver; Vorgabe HTTP über `/api`, in Tests ein Nachbau. */
@@ -113,6 +118,7 @@ export function App({
   activity?: SongActivity;
 }) {
   const [sound] = useState(() => soundProp ?? createDeviceSound());
+  const [practice] = useState(() => practiceProp ?? createPracticeStore(browserStorage()));
   const [theme] = useState(() => themeProp ?? createThemeSetting(null));
   const [player] = useState(() => playerProp ?? createWebAudioPlayer(undefined, sound));
   // Aufnahmen im Hintergrund laden, sobald DRSKit gewählt ist; ohne Web Audio gibt es nichts abzuspielen
@@ -126,6 +132,7 @@ export function App({
     <StoreContext.Provider value={store}>
       <PlayerContext.Provider value={player}>
         <SoundContext.Provider value={sound}>
+        <PracticeContext.Provider value={practice}>
         <ThemeContext.Provider value={theme}>
         <SessionContext.Provider value={session}>
         <SyncContext.Provider value={sync ?? null}>
@@ -150,6 +157,7 @@ export function App({
         </SyncContext.Provider>
         </SessionContext.Provider>
         </ThemeContext.Provider>
+        </PracticeContext.Provider>
         </SoundContext.Provider>
       </PlayerContext.Provider>
     </StoreContext.Provider>

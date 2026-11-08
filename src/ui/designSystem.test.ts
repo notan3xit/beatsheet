@@ -101,6 +101,8 @@ const READING: [string, string, string][] = [
   ['var(--text)', 'var(--control)', BG],
   ['var(--muted)', BG, BG],
   ['var(--muted)', SURFACE, BG],
+  // Übetempo eingeschaltet (practice-tempo)
+  ['var(--text)', 'color-mix(in srgb, var(--playhead) var(--practice-on-mix), var(--bg))', BG],
   ['var(--danger-text)', BG, BG],
   ['var(--danger-text)', 'var(--control)', BG],
   ['var(--danger-text)', soft('danger', 15), BG],
@@ -141,6 +143,20 @@ describe.each(['latte', 'mocha'] as const)('Spec design-system › Kontraste in 
 
   it('Zustandskontrast: Rahmen in Patternfarbe auf der Seitenfläche', () => {
     expect(failures(variant, toText('edge-mix'), SURFACE, BG, 3)).toEqual([]);
+  });
+
+  it('Zustandskontrast: Rahmen des eingeschalteten Übetempos', () => {
+    expect(failures(variant, 'var(--playhead)', BG, BG, 3)).toEqual([]);
+    expect(failures(variant, 'var(--playhead)', SURFACE, BG, 3)).toEqual([]);
+  });
+
+  it('Zustandskontrast: Symbol des grauen Abspiel-Knopfs', () => {
+    expect(failures(variant, 'var(--muted)', 'var(--control)', BG, 3)).toEqual([]);
+  });
+
+  it('Zustandskontrast: Rahmen der laufenden Teil-Schleife auf ihrer Fläche', () => {
+    const fill = 'color-mix(in srgb, var(--ghost) var(--loop-range-mix), transparent)';
+    expect(failures(variant, 'var(--loop-range-edge)', fill, SURFACE, 3)).toEqual([]);
   });
 
   // Markierungen im Vergleichs-Sequencer (song-history) und Punkt für Neues (song-activity), gegen die Seitenflächen

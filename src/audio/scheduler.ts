@@ -24,6 +24,8 @@ export interface PlaybackState {
   playing: boolean;
   /** Zuletzt erreichte Marke der Quelle; null, wenn nichts läuft oder die erste noch bevorsteht. */
   mark: unknown;
+  /** Während der Wiedergabe: läuft sie in Schleife (practice-playback, design.md D1). */
+  loop?: boolean;
 }
 
 export interface Voices {
@@ -45,6 +47,8 @@ export interface SchedulerDeps {
 export interface Scheduler {
   start(source: PlaybackSource): void;
   stop(): void;
+  /** Wechselt den Modus der laufenden Wiedergabe ohne Neustart; ohne Wiedergabe wirkungslos. */
+  setLoop(loop: boolean): void;
   getState(): PlaybackState;
   /** Position in Beats ab Quellenanfang zur aktuellen Audiozeit; ohne Benachrichtigung. */
   getPosition(): number | null;
@@ -64,6 +68,8 @@ export function createScheduler(voices: Voices, deps: SchedulerDeps): Scheduler 
   let state = IDLE;
   const listeners = new Set<() => void>();
   let source: PlaybackSource | null = null;
+  /** Modus der laufenden Wiedergabe; anfangs der der Quelle, danach über setLoop. */
+  let loop = false;
   let timer: unknown;
   let frame: unknown;
   /** Audiozeit, bis zu der geplant ist, und die Beat-Position in der Quelle dazu. */
@@ -112,7 +118,7 @@ export function createScheduler(voices: Voices, deps: SchedulerDeps): Scheduler 
       cursorTime = timeOf(endBeat);
       if (endBeat < length - 1e-9) {
         cursorBeat = endBeat;
-      } else if (source.loop) {
+      } else if (loop) {
         cursorBeat = 0;
       } else {
         endTime = cursorTime;
@@ -131,7 +137,7 @@ export function createScheduler(voices: Voices, deps: SchedulerDeps): Scheduler 
     }
     let current = state.mark;
     while (marks.length > 0 && marks[0]!.time <= now + 1e-9) current = marks.shift()!.mark;
-    if (current !== state.mark) setState({ playing: true, mark: current });
+    if (current !== state.mark) setState({ playing: true, mark: current, loop });
     frame = deps.requestFrame(showPosition);
   };
 
@@ -156,15 +162,27 @@ export function createScheduler(voices: Voices, deps: SchedulerDeps): Scheduler 
     start(next) {
       halt(true);
       source = next;
+      loop = next.loop;
       cursorTime = deps.clock() + START_DELAY;
       cursorBeat = 0;
-      setState({ playing: true, mark: null });
+      setState({ playing: true, mark: null, loop });
       schedule();
       if (!source) return;
       timer = deps.setInterval(schedule, TICK_MS);
       frame = deps.requestFrame(showPosition);
     },
     stop,
+    setLoop(next) {
+      if (!source || next === loop) return;
+      loop = next;
+      // Ende schon geplant: ab dort nahtlos mit Beat 0 weiter (cursorTime steht auf dem Ende)
+      if (loop && endTime !== null) {
+        endTime = null;
+        cursorBeat = 0;
+        schedule();
+      }
+      setState({ ...state, loop });
+    },
     getState: () => state,
     getPosition() {
       if (!source) return null;

@@ -10,6 +10,7 @@ import { PatternMeter } from './meter';
 import { NotationView } from './NotationView';
 import { beatsLabel } from './patternStyle';
 import { Transport, usePlayback } from './playback';
+import { PracticeControl } from './PracticeControl';
 import { Sequencer } from './Sequencer';
 import { TempoMark } from './TempoMark';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
@@ -46,7 +47,7 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
   const { canUndo, canRedo, locked } = useNotebook();
   const confirm = useConfirm();
   const song = useOpenSong();
-  const playback = usePlayback(pattern, song.tempo);
+  const playback = usePlayback(pattern, song);
   useUndoShortcuts(!locked);
 
   const changeLength = async (length: number) => {
@@ -93,10 +94,11 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
         )}
         <PatternMeter pattern={pattern} />
         <span className="kind-badge">{pattern.kind === 'groove' ? 'Groove' : 'Fill'}</span>
-        <Transport playback={playback} />
         <span className="tempo-field">
           <TempoMark /> (Song-Tempo)
         </span>
+        <Transport once="Einmal abspielen" loop="In Schleife abspielen" onStart={playback.start} />
+        <PracticeControl />
         {!locked && (
           <div className="editor-actions">
             <button type="button" disabled={!canUndo} onClick={() => store.undo()} title="Strg+Z">

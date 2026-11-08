@@ -279,3 +279,45 @@ describe('Einmal-Modus, Quelle und Position (song-playback, design.md D1)', () =
     expect(t.scheduler.getPosition()).toBeNull();
   });
 });
+
+describe('Spec playback-controls › Moduswechsel während der Wiedergabe', () => {
+  it('Von Schleife zu einmal: läuft ohne Unterbrechung bis zum Ende des Durchlaufs und endet', () => {
+    const t = setup(kickOnEveryBeat(4));
+    t.start();
+    expect(t.scheduler.getState().loop).toBe(true);
+    t.advanceTo(S + 0.6); // Beat 2
+    t.scheduler.setLoop(false);
+    expect(t.scheduler.getState().loop).toBe(false);
+    t.advanceTo(S + 4);
+    expect(t.timesOf('kick')).toEqual([S, S + 0.5, S + 1, S + 1.5].map((x) => expect.closeTo(x, 9)));
+    expect(t.scheduler.getState()).toEqual({ playing: false, mark: null });
+    expect(t.silenced()).toBe(0);
+  });
+
+  it('Von einmal zu Schleife: nach dem Ende geht es mit Beat 1 weiter', () => {
+    const t = setup(kickOnEveryBeat(2), 120, { loop: false });
+    t.start();
+    expect(t.scheduler.getState().loop).toBe(false);
+    t.advanceTo(S + 0.2);
+    t.scheduler.setLoop(true);
+    t.advanceTo(S + 2.2);
+    expect(t.scheduler.getState().playing).toBe(true);
+    expect(t.timesOf('kick').slice(0, 5)).toEqual([S, S + 0.5, S + 1, S + 1.5, S + 2].map((x) => expect.closeTo(x, 9)));
+  });
+
+  it('Von einmal zu Schleife, nachdem das Ende schon geplant ist: nahtlos weiter', () => {
+    const t = setup(kickOnEveryBeat(2), 120, { loop: false });
+    t.start();
+    t.advanceTo(S + 0.95); // Ende (S + 1) liegt im Vorlauf und ist geplant
+    t.scheduler.setLoop(true);
+    t.advanceTo(S + 2.2);
+    expect(t.scheduler.getState().playing).toBe(true);
+    expect(t.timesOf('kick').slice(0, 5)).toEqual([S, S + 0.5, S + 1, S + 1.5, S + 2].map((x) => expect.closeTo(x, 9)));
+  });
+
+  it('setLoop ohne laufende Wiedergabe bleibt wirkungslos', () => {
+    const t = setup(kickOnEveryBeat(2));
+    t.scheduler.setLoop(false);
+    expect(t.scheduler.getState()).toEqual({ playing: false, mark: null });
+  });
+});
