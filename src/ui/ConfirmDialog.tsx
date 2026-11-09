@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { NoteIcon } from './icons';
 
 /** Rückfrage als Text oder mit Titel und Inhalt (song-history, design.md D8). */
 export type ConfirmRequest =
@@ -85,5 +86,19 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         </div>
       )}
     </ConfirmContext.Provider>
+  );
+}
+
+/** Folgen einer Aktion in einer Rückfrage, je Punkt mit Notensymbol. */
+export function Consequences({ items }: { items: readonly ReactNode[] }) {
+  return (
+    <ul className="dialog-list">
+      {items.map((item, i) => (
+        <li key={i}>
+          <NoteIcon />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
   );
 }

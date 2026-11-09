@@ -397,6 +397,21 @@ describe('Spec account-auth › Stabile Anordnung: freigehaltener Platz (Stylesh
   });
 });
 
+describe('Folgen in Rückfragen (Stylesheet)', () => {
+  const rule = (selector: string) => css.match(new RegExp(`(?:^|\\n|,\\s*)${selector.replace(/[.():[\]'=]/g, (c) => `\\${c}`)}\\s*(?:,[^{]*)?\\{([^}]*)\\}`))?.[1] ?? '';
+
+  it('Dialoge mit Folgen sind so breit, dass die Punkte von Kopieren und Verschieben einzeilig bleiben', () => {
+    const dialog = rule('.dialog:has(.dialog-list)');
+    expect(dialog).toMatch(/width:\s*46rem/);
+    expect(dialog).toMatch(/max-width:\s*calc\(100vw - 2rem\)/);
+  });
+
+  it('Punkte ohne Aufzählungszeichen, Notensymbol in Akzentfarbe', () => {
+    expect(rule('.dialog-list')).toMatch(/list-style:\s*none/);
+    expect(rule('.dialog-list .icon g')).toMatch(/fill:\s*var\(--accent\)/);
+  });
+});
+
 describe('Spec workbook-sync › Hervorhebung beim Ziehen (Stylesheet)', () => {
   const rule = (selector: string) => css.match(new RegExp(`(?:^|\\n|,\\s*)${selector.replace(/[.[\]'=]/g, (c) => `\\${c}`)}\\s*(?:,[^{]*)?\\{([^}]*)\\}`))?.[1] ?? '';
 

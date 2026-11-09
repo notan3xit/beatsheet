@@ -16,7 +16,7 @@ import {
 import { DEFAULT_METER, type Pattern, type Song } from '../domain/types';
 import type { HistoryStep, SongHistory as History } from '../persistence/history';
 import { Breadcrumbs } from './Breadcrumbs';
-import { useConfirm } from './ConfirmDialog';
+import { Consequences, useConfirm } from './ConfirmDialog';
 import { HistoryMotif } from './HistoryMotif';
 import { formatDay, formatMoment, formatTime, patternLabel, subjectKind, subjectLabel, summaryText } from './historyText';
 import { LockToggle } from './lock';
@@ -454,12 +454,7 @@ function RestoreContent({
         : null;
   return (
     <>
-      <ul className="dialog-list">
-        {items.map((item, i) => (
-          <li key={i}>{text(item)}</li>
-        ))}
-        {rest && <li>{rest}</li>}
-      </ul>
+      <Consequences items={[...items.map(text), ...(rest ? [rest] : [])]} />
       {others.length > 0 && (
         <p role="note" className="message note">
           Darin enthaltene Änderungen von {others.join(', ')} seit diesem Stand werden zurückgenommen.

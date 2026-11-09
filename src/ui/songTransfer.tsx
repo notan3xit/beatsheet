@@ -1,19 +1,9 @@
 import type { Song, Workbook } from '../domain/types';
-import { useConfirm } from './ConfirmDialog';
+import { Consequences, useConfirm } from './ConfirmDialog';
 import { CopyIcon } from './icons';
 import { useNotebook, useStore } from './useLibrary';
 import { useSync } from './useWorkbooks';
 import { useReportedAction } from './WorkbookCard';
-
-function Consequences({ items }: { items: string[] }) {
-  return (
-    <ul className="dialog-list">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </ul>
-  );
-}
 
 /** Kopieren und Verschieben von Songs, jeweils erst nach Rückfrage (copy-song, design.md D2); liefern ihr Ergebnis (sort-songs, design.md D8). */
 export function useSongTransfer() {

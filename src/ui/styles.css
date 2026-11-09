@@ -3149,13 +3149,44 @@ button.meter-own.on {
   box-shadow: 0 4px 12px var(--shadow);
 }
 
+/* Rückfragen mit Folgen: breit genug, dass die Punkte von Kopieren und Verschieben einzeilig bleiben */
+.dialog:has(.dialog-list) {
+  width: 46rem;
+  max-width: calc(100vw - 2rem);
+}
+
+/* Folgen als ruhige Fläche: je Punkt eine Zeile mit Notensymbol, getrennt durch feine Linien */
 .dialog-list {
+  list-style: none;
   margin: 0 0 0.75rem;
-  padding-left: 1.25rem;
+  padding: 0.15rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
 }
 
 .dialog-list li {
-  margin: 0.25rem 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+}
+
+.dialog-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.dialog-list .icon {
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  /* mittig zur ersten Zeile, auch wenn ein Punkt umbricht */
+  margin-top: calc((1lh - 0.95rem) / 2);
+}
+
+/* Symbol, keine Schrift: Akzentfarbe als Füllung (design-system) */
+.dialog-list .icon g {
+  fill: var(--accent);
 }
 
 .dialog h2 {

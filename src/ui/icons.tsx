@@ -47,6 +47,19 @@ export function CopyIcon() {
   );
 }
 
+/** Achtelnote: Punkt einer Liste von Folgen in Rückfragen. */
+export function NoteIcon() {
+  return (
+    <Icon>
+      <g fill="currentColor" stroke="none">
+        <ellipse cx="5.6" cy="12.2" rx="3.1" ry="2.2" transform="rotate(-20 5.6 12.2)" />
+        <path d="M7.9 1.5h1.4v10.7H7.9z" />
+        <path d="M9.3 1.5c.2 2.2 3.9 2.9 3.9 6.2 0 1-.3 1.8-.8 2.4.3-2.7-1.4-3.7-3.1-4.4z" />
+      </g>
+    </Icon>
+  );
+}
+
 export function MenuIcon() {
   return (
     <Icon>
