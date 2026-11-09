@@ -44,7 +44,7 @@ Ein Pattern ohne eigene Taktart MUST dem Standard-Takt seines Songs folgen. Ein 
 - **THEN** gilt für die Bridge weiter 7/4
 
 ### Requirement: Eigene Taktart im Pattern-Editor
-Der Pattern-Editor MUST neben der Länge das Taktart-Symbol und dahinter die wirksame Taktart zeigen. Entsperrt MUST das Symbol der Umschalter „Eigene Taktart“ sein. Ohne eigene Taktart MUST die Angabe gedämpfter Text sein. Mit eigener Taktart MUST sie entsperrt eine Auswahl der Werte des Standard-Takts sein. Die Auswahl MUST keinen Eintrag „Wie Song“ enthalten; das Folgen ist allein der Zustand des Umschalters.
+Der Pattern-Editor MUST neben der Länge das Taktart-Symbol und dahinter die wirksame Taktart in der Breite ihres Texts zeigen. Entsperrt MUST das Symbol der Umschalter „Eigene Taktart“ sein. Ohne eigene Taktart MUST die Angabe gedämpfter Text sein, mit eigener Taktart entsperrt eine Auswahl der Werte des Standard-Takts ohne Rahmen und Pfeil wie die Tempoangabe, mit der Auswahlliste des Geräts. Sie MUST keinen Eintrag „Wie Song“ enthalten; das Folgen ist allein der Zustand des Umschalters.
 
 #### Scenario: Pattern folgt dem Song
 - **WHEN** der Nutzer in einem Song in 4/4 einen Groove ohne eigene Taktart öffnet
@@ -65,6 +65,10 @@ Der Pattern-Editor MUST neben der Länge das Taktart-Symbol und dahinter die wir
 #### Scenario: Rückgängig
 - **WHEN** der Nutzer dem Pattern die eigene Taktart 7/4 gibt und danach „Rückgängig“ wählt
 - **THEN** hat das Pattern wieder den Wert davor
+
+#### Scenario: Ohne Lücke
+- **WHEN** der Nutzer einen gesperrten Groove in 6/4 ansieht
+- **THEN** folgt auf „6/4“ die Kennzeichnung „Groove“ im üblichen Abstand der Kopfzeile, ohne zusätzlichen Leerraum
 
 ### Requirement: Taktart ändert nur die Darstellung
 Eine Änderung des Standard-Takts oder einer eigenen Taktart MUST Länge, Schläge und Wiedergabe der Patterns und die Länge vorhandener Takte unverändert lassen. Es MUST dabei keine Nachfrage erscheinen.
