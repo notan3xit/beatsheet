@@ -40,7 +40,7 @@ Das System MUST das Löschen eines Songs nach Bestätigung ermöglichen. Die Nac
 - **THEN** bleibt der Song unverändert
 
 ### Requirement: Song-Liste
-Oben auf der Startseite MUST „Meine Songs“ die lokalen und die zum Account gehörenden Songs zeigen (`account-songs`), darunter angemeldet die Workbooks (`workbooks`). Songs MUST als umbrechende Kacheln erscheinen, alphabetisch nach Titel, jede mit Motiv (`song-motif`), Titel, Taktzahl, Tempo und letzter Änderung (`song-activity`). Ein leeres „Meine Songs“ MUST zeigen, wie man den ersten Song anlegt. Die Auswahl einer Kachel MUST die Doppelseite des Songs öffnen.
+Oben auf der Startseite MUST „Meine Songs“ die lokalen und die zum Account gehörenden Songs zeigen (`account-songs`), darunter angemeldet die Workbooks (`workbooks`). Songs MUST als umbrechende Kacheln in der Reihenfolge nach `song-order` erscheinen, jede mit Motiv (`song-motif`), Titel, Taktzahl, Tempo und letzter Änderung (`song-activity`). Ein leeres „Meine Songs“ MUST zeigen, wie man den ersten Song anlegt. Die Auswahl einer Kachel MUST die Doppelseite des Songs öffnen.
 
 #### Scenario: Sortierte Liste
 - **WHEN** die Songs „Uprising“ (32 Takte, Tempo 128) und „Hysteria“ (0 Takte, Tempo 120) in „Meine Songs“ existieren

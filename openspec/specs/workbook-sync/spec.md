@@ -108,7 +108,7 @@ Beim Abmelden MUST die App noch nicht übertragene Änderungen an Workbook-Songs
 - **AND** lehnt er ab, bleibt er angemeldet und die Änderung bleibt erhalten
 
 ### Requirement: Song in ein Workbook ziehen
-Eine Kachel aus „Meine Songs“ MUST sich auf einen Eintrag der Seitenleiste oder in den Bereich des gewählten Workbooks ziehen lassen; Loslassen dort MUST nach bestätigter Rückfrage den Song in dieses Workbook verschieben. Während des Ziehens MUST die Kachel dem Zeiger folgen. Loslassen außerhalb eines Ziels, Escape und Abbrechen der Rückfrage MUST nichts ändern.
+Eine Kachel aus „Meine Songs“ MUST sich auf einen Eintrag der Seitenleiste oder in den Bereich des gewählten Workbooks ziehen lassen; Loslassen dort MUST nach bestätigter Rückfrage den Song in dieses Workbook verschieben, im Bereich an den Platz der Einfügemarke (`song-order`). Während des Ziehens MUST die Kachel dem Zeiger folgen. Loslassen außerhalb eines Ziels, Escape und Abbrechen der Rückfrage MUST nichts ändern.
 
 #### Scenario: Auf einen Eintrag ziehen
 - **GIVEN** „Band“ ist gewählt
@@ -121,7 +121,7 @@ Eine Kachel aus „Meine Songs“ MUST sich auf einen Eintrag der Seitenleiste o
 - **THEN** steht „Skizze“ in „Band“
 
 #### Scenario: Abbrechen
-- **WHEN** der Nutzer „Skizze“ zieht und über „Meine Songs“ loslässt oder Escape drückt
+- **WHEN** der Nutzer „Skizze“ zieht und außerhalb eines Ziels loslässt oder Escape drückt
 - **THEN** bleibt „Skizze“ in „Meine Songs“ und nichts wird übertragen
 
 #### Scenario: Rückfrage nach dem Ziehen abgebrochen
@@ -137,7 +137,7 @@ Eine Kachel aus „Meine Songs“ MUST sich auf einen Eintrag der Seitenleiste o
 - **THEN** bleibt „Uprising“ in „Band“ und steht nicht in „Proberaum“
 
 ### Requirement: Hervorhebung beim Ziehen
-Während des Ziehens MUST nur das Ziel unter dem Zeiger hervorgehoben sein, andere Flächen wie „+ Song“ MUST unverändert bleiben. Ist das Ziel das gewählte Workbook, MUST sein Eintrag mit dem Bereich zusammen eine hervorgehobene Fläche bilden. Ist das Ziel „Meine Songs“, MUST der Bereich „Meine Songs“ hervorgehoben sein.
+Während des Ziehens MUST nur das Ziel unter dem Zeiger hervorgehoben sein, andere Flächen wie „+ Song“ MUST unverändert bleiben. Ist das Ziel das gewählte Workbook, MUST sein Eintrag mit dem Bereich zusammen eine hervorgehobene Fläche bilden. Ist das Ziel „Meine Songs“, MUST der Bereich „Meine Songs“ hervorgehoben sein. Beim Sortieren innerhalb eines Bereichs MUST nur die Einfügemarke erscheinen (`song-order`), der Bereich MUST unverändert bleiben.
 
 #### Scenario: Ziel hervorgehoben
 - **WHEN** der Nutzer „Skizze“ über den Eintrag „Proberaum“ zieht
@@ -154,8 +154,12 @@ Während des Ziehens MUST nur das Ziel unter dem Zeiger hervorgehoben sein, ande
 - **THEN** ist „Meine Songs“ als Ziel hervorgehoben
 - **AND** „+ Song“ in „Meine Songs“ ist nicht hervorgehoben
 
+#### Scenario: Sortieren
+- **WHEN** der Nutzer „Uprising“ innerhalb von „Band“ zieht
+- **THEN** zeigt „Band“ die Einfügemarke, und weder Eintrag noch Bereich von „Band“ sind hervorgehoben
+
 ### Requirement: Gesehene Stände abgleichen
-Die gesehenen Stände (`song-activity`) aller Mitglieder eines gemeinsamen Workbooks MUST in einem gemeinsamen Dokument des Workbooks liegen, das wie die Songs abgeglichen und nach den Regeln von `song-merge` zusammengeführt wird, auch nach Offline-Arbeit. Jedes Mitglied MUST es lesen können. Der eigene Bestand MUST kein solches Dokument haben. Das Dokument MUST weder als Song erscheinen noch zur Anzahl der Songs oder zur Frage zählen, ob sich das Workbook löschen lässt.
+Die gesehenen Stände (`song-activity`) aller Mitglieder und die Reihenfolge (`song-order`) eines Workbooks MUST in einem gemeinsamen Dokument des Workbooks liegen, das wie die Songs abgeglichen und nach den Regeln von `song-merge` zusammengeführt wird, auch nach Offline-Arbeit. Jedes Mitglied MUST es lesen können. Beim eigenen Bestand MUST es keine gesehenen Stände enthalten. Es MUST weder als Song erscheinen noch zur Anzahl der Songs oder zur Frage zählen, ob sich das Workbook löschen lässt.
 
 #### Scenario: Gleichzeitig gesehen
 - **GIVEN** Artjom und Max sind offline
@@ -167,12 +171,20 @@ Die gesehenen Stände (`song-activity`) aller Mitglieder eines gemeinsamen Workb
 - **WHEN** ein Mitglied einen Song von „Band“ geöffnet hat
 - **THEN** zeigt der Eintrag „Band“ weiterhin „3 Songs“
 
+#### Scenario: Eigener Bestand
+- **WHEN** der Nutzer „Meine Songs“ sortiert und einen Song daraus öffnet
+- **THEN** enthält das Dokument seines eigenen Bestands die Reihenfolge und keinen gesehenen Stand
+
 ### Requirement: Nur eigene gesehene Stände
-Der Server MUST eine Übertragung des Workbook-Dokuments zurückweisen, wenn sie Einträge eines anderen Mitglieds ändert oder das Dokument nicht seiner Form entspricht. Das gespeicherte Dokument MUST dann unverändert bleiben, und das Gerät MUST die Fassung des Servers übernehmen.
+Der Server MUST eine Übertragung des Workbook-Dokuments zurückweisen, wenn sie gesehene Stände eines anderen Mitglieds ändert oder das Dokument nicht seiner Form entspricht. Das gespeicherte Dokument MUST dann unverändert bleiben, und das Gerät MUST die Fassung des Servers übernehmen. Änderungen der Reihenfolge MUST der Server von jedem Mitglied annehmen.
 
 #### Scenario: Fremden Eintrag ändern
 - **WHEN** ein Client von max@example.org den gesehenen Stand von artjom@example.org ändert
 - **THEN** weist der Server die Übertragung zurück und der gesehene Stand von artjom@example.org bleibt unverändert
+
+#### Scenario: Reihenfolge ändern
+- **WHEN** ein Client von max@example.org die Position eines Songs ändert, den artjom@example.org zuletzt verschoben hat
+- **THEN** nimmt der Server die Übertragung an
 
 ### Requirement: Abgleich nur mit aktueller App-Version
 Die App MUST beim Abgleich und beim Anlegen eines Songs in einem Workbook ihre Version mitsenden. Der Server MUST solche Anfragen zurückweisen, wenn die Version fehlt oder älter ist als seine eigene, und die gespeicherten Songs MUST dann unverändert bleiben. Eine gleiche oder neuere Version MUST er annehmen.
@@ -225,7 +237,7 @@ Vor dem Verschieben in ein Workbook MUST die App fragen „„<Titel>“ nach �
 - **THEN** fragt die App „„Uprising“ nach „Band“ verschieben?“ mit den Knöpfen „Abbrechen“ und „Verschieben“
 
 ### Requirement: Song aus einem Workbook ziehen
-Eine Kachel eines Workbooks MUST sich auf den Bereich „Meine Songs“ ziehen lassen; Loslassen dort MUST nach bestätigter Rückfrage eine Kopie in „Meine Songs“ anlegen (siehe `song-library`, „Song kopieren“). Einträge der Seitenleiste und das eigene Workbook MUST dabei kein Ziel sein. Loslassen außerhalb von „Meine Songs“, Escape und Abbrechen der Rückfrage MUST nichts ändern.
+Eine Kachel eines Workbooks MUST sich auf den Bereich „Meine Songs“ ziehen lassen; Loslassen dort MUST nach bestätigter Rückfrage eine Kopie an den Platz der Einfügemarke legen (`song-library`, „Song kopieren“; `song-order`). Einträge der Seitenleiste MUST kein Ziel sein; Loslassen im eigenen Workbook MUST sortieren (`song-order`). Loslassen außerhalb dieser Ziele, Escape und Abbrechen der Rückfrage MUST nichts ändern.
 
 #### Scenario: Nach „Meine Songs“ ziehen
 - **WHEN** der Nutzer die Kachel „Uprising“ aus „Band“ auf „Meine Songs“ zieht, loslässt und die Rückfrage bestätigt
@@ -238,7 +250,7 @@ Eine Kachel eines Workbooks MUST sich auf den Bereich „Meine Songs“ ziehen l
 
 #### Scenario: Im eigenen Workbook loslassen
 - **WHEN** der Nutzer die Kachel „Uprising“ innerhalb von „Band“ zieht und loslässt
-- **THEN** fragt die App nichts, und nichts ändert sich
+- **THEN** fragt die App nichts, und „Uprising“ steht an der Einfügemarke
 
 #### Scenario: Escape beim Ziehen
 - **WHEN** der Nutzer „Uprising“ aus „Band“ über „Meine Songs“ zieht und Escape drückt
