@@ -6,6 +6,7 @@ import { EditableHeading } from './EditableHeading';
 import { useReport } from './messages';
 import { useIsDropTarget } from './dragSong';
 import { SongTiles } from './SongTile';
+import { useActivity } from './useActivity';
 import { CopyButton } from './songTransfer';
 import { useDismiss } from './useDismiss';
 import { MemberAvatar } from './MemberAvatar';
@@ -139,6 +140,7 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
   const run = useReportedAction();
   const isOwner = workbook.owner === email;
   const target = useIsDropTarget({ kind: 'workbook', id: workbook.id });
+  const activity = useActivity();
 
   const rename = (draft: string) => {
     const title = draft.trim();
@@ -187,7 +189,14 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
           {membersOpen && <MembersPopover workbook={workbook} sync={sync} />}
         </div>
       </div>
-      <SongTiles songs={songs} action={(song) => <CopyButton song={song} />} draggable onAdd={() => void addSong()} />
+      <SongTiles
+        songs={songs}
+        action={(song) => <CopyButton song={song} />}
+        draggable
+        positions={activity.order(workbook.id)}
+        area={{ kind: 'workbook', id: workbook.id }}
+        onAdd={() => void addSong()}
+      />
       {isOwner && songs.length === 0 && (
         <div className="card-actions">
           <button type="button" className="danger" onClick={() => void remove()}>

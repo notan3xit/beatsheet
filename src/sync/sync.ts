@@ -1,5 +1,6 @@
 import type { AccountSession } from '../account/session';
 import { newId } from '../domain/id';
+import type { Positions } from '../domain/songOrder';
 import type { Song, Workbook } from '../domain/types';
 import type { Connection, Repository } from '../persistence/repository';
 import { sameSong } from '../persistence/songDoc';
@@ -26,6 +27,8 @@ export interface WorkbookActions {
   moveSong(songId: string, workbookId: string): Promise<ActionResult>;
   createSongIn(workbookId: string): Promise<CreatedResult>;
   deleteSong(songId: string): Promise<ActionResult>;
+  /** Setzt Positionen im Workbook-Dokument und überträgt sie, auch offline vorgemerkt (song-order, design.md D8). */
+  reorder(workbookId: string, positions: Positions): void;
   /** Überträgt alles Offene; `false`, wenn danach noch Änderungen nur auf diesem Gerät liegen. */
   prepareLogout(): Promise<boolean>;
   /** Entfernt die Songs vom Gerät, die auf dem Server liegen, nach erfolgreichem Abmelden. */
@@ -141,7 +144,7 @@ export function createSync({
 
   const personalWorkbook = () => store.getState().workbooks.find((w) => w.personal);
 
-  /** Gemeinsame Workbooks haben ein Workbook-Dokument, der eigene Bestand nicht (song-activity, design.md D2). */
+  /** Gesehene Stände gibt es nur in gemeinsamen Workbooks (song-activity, design.md D2; sort-songs, design.md D3). */
   const isShared = (workbookId: string) => store.getState().workbooks.some((w) => w.id === workbookId && !w.personal);
 
   const unplaced = () => {
@@ -269,7 +272,7 @@ export function createSync({
     if ('doc' in reply) repo.adoptWorkbook(workbookId, reply.doc);
     else repo.receiveWorkbook(workbookId, reply);
     const email = session.getEmail();
-    if (!email || repo.workbookSeen(workbookId, email)) return;
+    if (!email || !isShared(workbookId) || repo.workbookSeen(workbookId, email)) return;
     const entries = Object.fromEntries(songsIn(workbookId).flatMap((song) => {
       const heads = repo.songHeads(song.id);
       return heads ? [[song.id, heads]] : [];
@@ -295,7 +298,7 @@ export function createSync({
       const pending = repo.outgoing(song.id);
       return pending ? [{ id: song.id, ...pending }] : [];
     });
-    const result = await api.sync(workbookId, outgoing, isShared(workbookId) ? repo.workbookOutgoing(workbookId) : undefined);
+    const result = await api.sync(workbookId, outgoing, repo.workbookOutgoing(workbookId));
     if (started !== generation) return false;
     if (result.ok) {
       setOffline(false);
@@ -675,6 +678,10 @@ export function createSync({
       });
       if (!result.ok) noteFailure(result.error);
       return result;
+    },
+
+    reorder(workbookId, positions) {
+      if (repo.setPositions(workbookId, positions)) void requestSync(workbookId);
     },
 
     async prepareLogout() {

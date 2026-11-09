@@ -255,8 +255,7 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
     const part = parseWorkbookPart(request);
     const check = (growth: number) => deps.quota.check(row.owner, growth);
     const { changed, ...reply } = await syncSongs(db, id, email, request, deps.now(), check);
-    // Der eigene Bestand hat kein Workbook-Dokument (design.md D2)
-    const wb = part && !isPersonal(db, id) ? await syncWorkbookDoc(db, id, email, part, check) : undefined;
+    const wb = part ? await syncWorkbookDoc(db, id, email, part, check, isPersonal(db, id)) : undefined;
     if (changed || wb?.changed) songsChanged();
     return wb ? { ...reply, body: { ...(reply.body as object), workbook: wb.reply } } : reply;
   }

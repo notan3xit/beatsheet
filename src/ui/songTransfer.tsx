@@ -15,7 +15,7 @@ function Consequences({ items }: { items: string[] }) {
   );
 }
 
-/** Kopieren und Verschieben von Songs, jeweils erst nach Rückfrage (copy-song, design.md D2). */
+/** Kopieren und Verschieben von Songs, jeweils erst nach Rückfrage (copy-song, design.md D2); liefern ihr Ergebnis (sort-songs, design.md D8). */
 export function useSongTransfer() {
   const store = useStore();
   const confirm = useConfirm();
@@ -23,7 +23,8 @@ export function useSongTransfer() {
   const sync = useSync();
   const run = useReportedAction();
 
-  const copy = async (song: Song) => {
+  /** Die Kopie; `null`, wenn abgebrochen. */
+  const copy = async (song: Song): Promise<Song | null> => {
     const workbook = workbooks.find((w) => w.id === placement[song.id] && !w.personal);
     const ok = await confirm(
       workbook
@@ -46,12 +47,12 @@ export function useSongTransfer() {
             confirmLabel: 'Kopieren',
           },
     );
-    if (ok) store.copySong(song.id);
+    return ok ? store.copySong(song.id) : null;
   };
 
-  /** Nur angemeldet, mit Abgleich. */
-  const move = async (song: Song, workbook: Workbook) => {
-    if (!sync) return;
+  /** Nur angemeldet, mit Abgleich; `true`, wenn der Song verschoben ist. */
+  const move = async (song: Song, workbook: Workbook): Promise<boolean> => {
+    if (!sync) return false;
     const ok = await confirm({
       title: `„${song.title}“ nach „${workbook.title}“ verschieben?`,
       content: (
@@ -65,7 +66,7 @@ export function useSongTransfer() {
       ),
       confirmLabel: 'Verschieben',
     });
-    if (ok) await run(() => sync.moveSong(song.id, workbook.id));
+    return ok && (await run(() => sync.moveSong(song.id, workbook.id)));
   };
 
   return { copy, move };

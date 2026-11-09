@@ -16,6 +16,7 @@
     "@automerge/automerge": "^3.5.0",
     "@catppuccin/palette": "^1.8.0",
     "@fontsource/comfortaa": "^5.3.0",
+    "fractional-indexing": "^4.0.0",
     "idb": "^8.0.4",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

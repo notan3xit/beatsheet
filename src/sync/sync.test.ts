@@ -593,13 +593,18 @@ describe('Spec workbook-sync › Abmelden mit Workbook-Songs', () => {
 });
 
 describe('Spec workbook-sync › Gesehene Stände abgleichen', () => {
-  it('Beide Mitglieder erhalten das Workbook-Dokument, der eigene Bestand keines', async () => {
+  it('Beide Mitglieder erhalten das Workbook-Dokument, der eigene Bestand eines ohne gesehene Stände', async () => {
     const { me, anna, workbook } = await band();
     expect(me.repo.workbookSeen(workbook, OWNER)).not.toBeNull();
     expect(anna.repo.workbookSeen(workbook, ANNA)).not.toBeNull();
     const personal = me.store.getState().workbooks.find((w) => w.personal)!.id;
-    expect(me.repo.workbookOutgoing(personal).base).toEqual([]);
-    expect(h.db.prepare('SELECT COUNT(*) AS n FROM workbook_docs').get()).toEqual({ n: 1 });
+    me.store.openSong(me.store.createSong('Skizze').id);
+    await me.sync.syncAll();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await me.sync.syncAll();
+    expect(me.repo.workbookOrder(personal)).toEqual({});
+    expect(me.repo.workbookSeen(personal, OWNER)).toBeNull();
+    expect(me.repo.workbookOutgoing(personal).changes).toHaveLength(0);
   });
 
   it('Gleichzeitig gesehen', async () => {
@@ -657,6 +662,55 @@ describe('Spec workbook-sync › Gesehene Stände abgleichen', () => {
   });
 });
 
+describe('Spec song-order › Gemeinsame Reihenfolge', () => {
+  const personalOf = (d: Device) => d.store.getState().workbooks.find((w) => w.personal)!.id;
+
+  it('Ein Mitglied sortiert', async () => {
+    const { me, anna, workbook, intro } = await bandWithIntro({ live: true });
+    me.sync.start();
+    anna.sync.start();
+    anna.sync.reorder(workbook, { [intro.id]: 'a0' });
+    await eventually(() => expect(me.repo.workbookOrder(workbook)).toEqual({ [intro.id]: 'a0' }));
+  });
+
+  it('Offline sortiert', async () => {
+    const { me, anna, workbook, intro } = await bandWithIntro();
+    me.setOnline(false);
+    me.sync.reorder(workbook, { [intro.id]: 'a0' });
+    await me.sync.syncAll();
+    me.setOnline(true);
+    await me.sync.syncAll();
+    await anna.sync.syncAll();
+    expect(anna.repo.workbookOrder(workbook)).toEqual({ [intro.id]: 'a0' });
+  });
+
+  it('Kein Eintrag im Verlauf', async () => {
+    const { me, workbook, intro } = await bandWithIntro();
+    const heads = me.repo.songHeads(intro.id);
+    const song = me.store.getState().songs[0];
+    me.sync.reorder(workbook, { [intro.id]: 'a0' });
+    await me.sync.syncAll();
+    expect(me.repo.songHeads(intro.id)).toEqual(heads);
+    expect(me.store.getState().songs[0]).toBe(song);
+  });
+
+  it('„Meine Songs“ gilt auf allen Geräten des Kontos und nach dem Abmelden nicht mehr', async () => {
+    h = await startServer();
+    const laptop = await device(OWNER, { live: false });
+    await laptop.sync.syncAll();
+    const skizze = laptop.store.createSong('Skizze');
+    await laptop.sync.syncAll();
+    laptop.sync.reorder(personalOf(laptop), { [skizze.id]: 'a0' });
+    await laptop.sync.syncAll();
+    const phone = await device(OWNER, { live: false, cookie: await h.login(OWNER) });
+    await phone.sync.syncAll();
+    expect(phone.repo.workbookOrder(personalOf(phone))).toEqual({ [skizze.id]: 'a0' });
+    expect(await laptop.sync.prepareLogout()).toBe(true);
+    await laptop.sync.afterLogout();
+    expect(laptop.repo.workbookOrder(personalOf(phone))).toBeNull();
+  });
+});
+
 describe('Spec song-activity › Gesehen', () => {
   /** Neues in „Intro“ für den Besitzer, nach seinem gesehenen Stand. */
   const newFor = (d: Device, workbook: string, id: string) => d.repo.isNew(id, d.repo.workbookSeen(workbook, OWNER)?.[id] ?? null, OWNER);
@@ -710,7 +764,7 @@ describe('Spec song-activity › Gesehen', () => {
     await me.sync.syncAll();
     me.store.openSong(own.id);
     const personal = me.store.getState().workbooks.find((w) => w.personal)!.id;
-    expect(me.repo.workbookOutgoing(personal).base).toEqual([]);
+    expect(me.repo.workbookSeen(personal, OWNER)).toBeNull();
     me.session.setEmail(null);
     me.store.openSong(intro.id);
     expect(newFor(me, workbook, intro.id)).toBe(true);

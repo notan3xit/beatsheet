@@ -2,7 +2,7 @@ import * as A from '@automerge/automerge/slim';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Song } from '../src/domain/types.ts';
 import { applySong, createSongDoc, initAutomerge, songOf, type SongDocument } from '../src/persistence/songDoc.ts';
-import { markSeen, seenOf, type WorkbookDocument } from '../src/persistence/workbookDoc.ts';
+import { markSeen, orderOf, seenOf, setPositions, type WorkbookDocument } from '../src/persistence/workbookDoc.ts';
 import { errorOf, startServer, type Harness } from './testHarness.ts';
 
 const OWNER = 'ich@example.com';
@@ -482,11 +482,43 @@ describe('Workbook-Dokument', () => {
     expect(Object.keys((await response.json()) as object)).toEqual(['songs']);
   });
 
-  it('führt kein Dokument für den eigenen Bestand', async () => {
+  const personalId = async () => {
     const list = (await (await h.api('GET', '/api/workbooks', { cookie: owner })).json()) as { workbooks: { id: string; personal?: boolean }[] };
-    const personal = list.workbooks.find((w) => w.personal)!.id;
-    expect(await syncPart({ base: [] }, owner, personal)).toBeUndefined();
-    expect(h.db.prepare('SELECT COUNT(*) AS n FROM workbook_docs').get()).toEqual({ n: 0 });
+    return list.workbooks.find((w) => w.personal)!.id;
+  };
+
+  it('führt ein Dokument mit Reihenfolge auch für den eigenen Bestand', async () => {
+    const personal = await personalId();
+    const entry = (await syncPart({ base: [] }, owner, personal))!;
+    expect(entry.status).toBe('ok');
+    const doc = A.loadIncremental(A.init(), fromBase64(entry.changes!)) as WorkbookDocument;
+    expect(orderOf(doc)).toEqual({});
+    const reply = (await syncPart({ base: entry.heads!, changes: toBase64(A.saveSince(setPositions(doc, { intro: 'a0' }), entry.heads!)) }, owner, personal))!;
+    expect(reply.status).toBe('ok');
+  });
+
+  it('weist gesehene Stände im eigenen Bestand zurück', async () => {
+    const personal = await personalId();
+    const entry = (await syncPart({ base: [] }, owner, personal))!;
+    const doc = A.loadIncremental(A.init(), fromBase64(entry.changes!)) as WorkbookDocument;
+    const reply = (await syncPart({ base: entry.heads!, changes: toBase64(A.saveSince(markSeen(doc, OWNER, { intro: HEADS }), entry.heads!)) }, owner, personal))!;
+    expect(reply.status).toBe('invalid');
+  });
+
+  it('ergänzt die Reihenfolge in einem bestehenden Dokument', async () => {
+    const old = A.change(A.init<{ v: number }>(), (d) => void Object.assign(d, { v: 1, seen: {} }));
+    h.db.prepare('INSERT INTO workbook_docs (workbook_id, doc) VALUES (?, ?)').run(workbook, A.save(old));
+    expect(orderOf((await fetchDoc()).doc)).toEqual({});
+  });
+
+  it('nimmt Positionen jedes Mitglieds an, auch für fremd gesetzte', async () => {
+    await invite(ANNA);
+    const anna = await h.login(ANNA);
+    const mine = await fetchDoc();
+    expect((await push(setPositions(mine.doc, { intro: 'a0' }), mine.base)).status).toBe('ok');
+    const hers = await fetchDoc(anna);
+    expect((await push(setPositions(hers.doc, { intro: 'a1' }), hers.base, anna)).status).toBe('ok');
+    expect(orderOf((await fetchDoc()).doc)).toEqual({ intro: 'a1' });
   });
 
   it('lässt sich mit dem Workbook löschen und sperrt das Löschen nicht', async () => {

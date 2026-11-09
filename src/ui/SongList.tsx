@@ -8,6 +8,7 @@ import { useNotebook, useStore } from './useLibrary';
 import { useEmail, useSync } from './useWorkbooks';
 import { SongDragProvider, useIsDropTarget } from './dragSong';
 import { CopyButton, useSongTransfer } from './songTransfer';
+import { useActivity } from './useActivity';
 import { WorkbookArea } from './WorkbookArea';
 
 function MoveMenu({ song }: { song: Song }) {
@@ -56,6 +57,10 @@ function MySongs({ songs, sync }: { songs: readonly Song[]; sync: WorkbookAction
   const email = useEmail();
   const canMove = sync && email && workbooks.some((w) => !w.personal);
   const target = useIsDropTarget({ kind: 'mine' });
+  const activity = useActivity();
+  const personalId = workbooks.find((w) => w.personal)?.id;
+  // Abgemeldet gibt es keinen eigenen Bestand und damit keine Positionen (song-order)
+  const positions = sync && email && personalId ? activity.order(personalId) : null;
 
   return (
     <section aria-label="Meine Songs" className={`overview-section${target ? ' drop-target' : ''}`} data-drop-mine>
@@ -69,7 +74,9 @@ function MySongs({ songs, sync }: { songs: readonly Song[]; sync: WorkbookAction
             {canMove && <MoveMenu song={song} />}
           </>
         )}
-        draggable={Boolean(canMove)}
+        draggable={Boolean(sync && email)}
+        positions={positions}
+        area={{ kind: 'mine' }}
         onAdd={() => store.openSong(store.createSong('').id)}
       />
     </section>

@@ -54,6 +54,7 @@ function fakeSync(store: NotebookStore, overrides: Partial<WorkbookActions> = {}
       return ok;
     }),
     createSongIn: vi.fn(async (workbookId: string): Promise<CreatedResult> => ({ ok: true, id: store.createSong('', workbookId).id })),
+    reorder: vi.fn(),
     deleteSong: vi.fn(async (songId: string) => {
       store.deleteSong(songId);
       return ok;

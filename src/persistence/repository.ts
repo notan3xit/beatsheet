@@ -6,7 +6,8 @@ import { songFromV1Patterns } from './fileFormat';
 import { isNew, lastChange, type LastChange } from './activity';
 import { readHistory, type SongHistory } from './history';
 import { applySong, changeMessage, createSongDoc, songOf, type SongDocument } from './songDoc';
-import { markSeen, seenOf, type WorkbookDocument } from './workbookDoc';
+import type { Positions } from '../domain/songOrder';
+import { markSeen, orderOf, seenOf, setPositions, type WorkbookDocument } from './workbookDoc';
 
 /** Ein Datensatz pro Song: das gespeicherte Automerge-Dokument (design.md D8). */
 interface DocumentRecord {
@@ -84,12 +85,16 @@ export interface Repository {
   workbookSeen(workbookId: string, email: string): Record<string, A.Heads> | null;
   /** Setzt eigene Einträge; `false`, wenn sich nichts ändert oder das Dokument fehlt. */
   markSeen(workbookId: string, email: string, entries: Record<string, A.Heads>): boolean;
+  /** Positionen im Workbook-Dokument; `null` ohne Dokument oder Reihenfolge (song-order). */
+  workbookOrder(workbookId: string): Positions | null;
+  /** Setzt Positionen; `false`, wenn sich nichts ändert oder Dokument bzw. Reihenfolge fehlen. */
+  setPositions(workbookId: string, entries: Positions): boolean;
   /** Ohne Dokument `base: []`: Der Server liefert es dann vollständig. */
   workbookOutgoing(workbookId: string): { base: A.Heads; changes: Uint8Array };
   receiveWorkbook(workbookId: string, response: ServerResponse): void;
   adoptWorkbook(workbookId: string, bytes: Uint8Array): void;
   forgetWorkbook(workbookId: string): void;
-  /** Meldet Änderungen an Song- und Workbook-Dokumenten, für letzte Änderung und Neues (song-activity). */
+  /** Meldet Änderungen an Song- und Workbook-Dokumenten, für letzte Änderung, Neues (song-activity) und Reihenfolge (song-order). */
   subscribeActivity(listener: () => void): () => void;
   /** Abgeschlossen, sobald alle bisher angestoßenen Speicherungen durch sind. */
   settled(): Promise<void>;
@@ -318,6 +323,18 @@ export async function openRepository(name = 'beatsheet', { author = () => null }
       const entry = workbookDocs.get(workbookId);
       if (!entry) return false;
       const doc = markSeen(entry.doc, email, entries);
+      if (doc === entry.doc) return false;
+      setWorkbookDoc(workbookId, doc, entry.serverHeads);
+      return true;
+    },
+    workbookOrder(workbookId) {
+      const entry = workbookDocs.get(workbookId);
+      return entry ? orderOf(entry.doc) : null;
+    },
+    setPositions(workbookId, entries) {
+      const entry = workbookDocs.get(workbookId);
+      if (!entry) return false;
+      const doc = setPositions(entry.doc, entries);
       if (doc === entry.doc) return false;
       setWorkbookDoc(workbookId, doc, entry.serverHeads);
       return true;

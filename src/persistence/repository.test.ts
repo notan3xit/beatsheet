@@ -680,6 +680,44 @@ describe('Spec workbook-sync › Gesehene Stände abgleichen', () => {
   });
 });
 
+describe('Spec song-order › Gemeinsame Reihenfolge', () => {
+  const serverDoc = () => {
+    const doc = createWorkbookDoc();
+    return { changes: A.saveSince(doc, []), heads: A.getHeads(doc) };
+  };
+
+  it('setzt Positionen, meldet sie, behält sie über ein Neuladen und überträgt sie', async () => {
+    const name = uniqueDb();
+    const repo = await openRepository(name);
+    expect(repo.workbookOrder('wb')).toBeNull();
+    expect(repo.setPositions('wb', { intro: 'a0' })).toBe(false);
+    repo.receiveWorkbook('wb', serverDoc());
+    const listener = vi.fn();
+    repo.subscribeActivity(listener);
+    expect(repo.setPositions('wb', { intro: 'a0' })).toBe(true);
+    expect(repo.setPositions('wb', { intro: 'a0' })).toBe(false);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(repo.workbookOrder('wb')).toEqual({ intro: 'a0' });
+    expect(repo.workbookOutgoing('wb').changes.length).toBeGreaterThan(0);
+    await repo.settled();
+    repo.close();
+
+    const reopened = await openRepository(name);
+    await reopened.loadAll();
+    expect(reopened.workbookOrder('wb')).toEqual({ intro: 'a0' });
+  });
+
+  it('ändert beim Sortieren keinen Song', async () => {
+    const repo = await openRepository(uniqueDb());
+    const song = songWith({ title: 'Intro' });
+    await repo.write({ put: [song], remove: [] });
+    const heads = repo.songHeads(song.id);
+    repo.receiveWorkbook('wb', serverDoc());
+    repo.setPositions('wb', { [song.id]: 'a0' });
+    expect(repo.songHeads(song.id)).toEqual(heads);
+  });
+});
+
 describe('Spec song-activity › Letzte Änderung und Neues', () => {
   it('liefert die letzte Änderung und Neues aus dem Song-Dokument', async () => {
     const repo = await openRepository(uniqueDb(), { author: () => 'max@example.org' });

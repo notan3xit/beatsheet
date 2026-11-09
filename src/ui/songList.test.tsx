@@ -57,6 +57,14 @@ describe('Spec song-library › Song-Liste (UI)', () => {
     expect(within(mine()).queryByRole('table')).not.toBeInTheDocument();
   });
 
+  it('Abgemeldet nach Titel, auch wenn Positionen bekannt sind (song-order)', () => {
+    const uprising = songWith({ title: 'Uprising' });
+    const store = createNotebookStore([uprising, songWith({ title: 'Hysteria' })]);
+    const activity = { lastChange: () => null, isNew: () => false, order: () => ({ [uprising.id]: 'a0' }), subscribe: () => () => {}, getVersion: () => 0 };
+    render(<App store={store} activity={activity} />);
+    expect(tileTitles(mine())).toEqual(['Hysteria', 'Uprising']);
+  });
+
   it('Leere Liste', () => {
     setup();
     expect(within(mine()).getByText(/Noch keine Songs/)).toBeInTheDocument();

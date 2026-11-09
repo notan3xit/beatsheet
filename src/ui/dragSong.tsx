@@ -1,9 +1,12 @@
 import { createContext, useCallback, useContext, useMemo, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { placeAt, slotAt } from '../domain/songOrder';
 import type { Song } from '../domain/types';
 import { HitTestContext } from './dragPattern';
 import { SongMotif } from './SongMotif';
 import { useSongTransfer } from './songTransfer';
+import { useActivity } from './useActivity';
 import { useNotebook } from './useLibrary';
+import { useSync } from './useWorkbooks';
 
 /** Ab dieser Bewegung (px) wird aus einem Klick ein Ziehen, wie bei den Pattern-Karten. */
 const DRAG_THRESHOLD = 5;
@@ -11,13 +14,22 @@ const DRAG_THRESHOLD = 5;
 /** Herkunft einer gezogenen Kachel: „Meine Songs“ oder die ID ihres Workbooks. */
 export type DragSource = 'mine' | (string & {});
 
-/** Fläche unter dem Zeiger, auf der sich etwas ablegen lässt (copy-song, design.md D4). */
-export type DropTarget = { kind: 'workbook'; id: string } | { kind: 'mine' };
+/** Bereich mit Kacheln: „Meine Songs“ oder ein Workbook. */
+export type DropArea = { kind: 'workbook'; id: string } | { kind: 'mine' };
 
-/** Wirkung des Loslassens; `null`: kein Ziel. */
-export function dropEffect(source: DragSource, target: DropTarget): 'move' | 'copy' | null {
-  if (source === 'mine') return target.kind === 'workbook' ? 'move' : null;
-  return target.kind === 'mine' ? 'copy' : null;
+/** Fläche unter dem Zeiger; über Kacheln mit dem Platz der Einfügemarke (sort-songs, design.md D6). */
+export type DropTarget = DropArea & { slot?: number };
+
+export type DropEffect = 'move' | 'copy' | 'reorder';
+
+/** Wirkung des Loslassens; `null`: kein Ziel (sort-songs, design.md D6). */
+export function dropEffect(source: DragSource, target: DropTarget): DropEffect | null {
+  if (source === 'mine') {
+    if (target.kind === 'workbook') return 'move';
+    return target.slot === undefined ? null : 'reorder';
+  }
+  if (target.kind === 'mine') return 'copy';
+  return target.id === source && target.slot !== undefined ? 'reorder' : null;
 }
 
 interface Drag {
@@ -27,6 +39,7 @@ interface Drag {
   y: number;
   /** Ziel unter dem Zeiger, nur wenn Loslassen dort wirkt. */
   target: DropTarget | null;
+  effect: DropEffect | null;
 }
 
 interface SongDragValue {
@@ -36,21 +49,44 @@ interface SongDragValue {
 
 const SongDragContext = createContext<SongDragValue | null>(null);
 
-/** Ziehen von Kacheln: aus „Meine Songs“ auf Workbooks, aus Workbooks auf „Meine Songs“ (copy-song, design.md D4). */
+/** Kacheln eines Bereichs in Anzeigereihenfolge, ohne „+ Song“. */
+const tilesIn = (area: Element) => [...(area.querySelector('.tiles')?.querySelectorAll<HTMLElement>(':scope > [data-song-id]') ?? [])];
+
+const sameArea = (a: DropArea, b: DropArea) => a.kind === b.kind && (a.kind === 'mine' || (b.kind === 'workbook' && a.id === b.id));
+
+/** Ziehen von Kacheln: zwischen „Meine Songs“ und Workbooks und innerhalb eines Bereichs (copy-song D4, sort-songs D6, D8). */
 export function SongDragProvider({ children }: { children: ReactNode }) {
   const hitTest = useContext(HitTestContext);
   const { copy, move } = useSongTransfer();
   const { workbooks } = useNotebook();
+  const sync = useSync();
+  const activity = useActivity();
   const [drag, setDrag] = useState<Drag | null>(null);
 
   const targetAt = useCallback(
-    (source: DragSource, x: number, y: number): DropTarget | null => {
+    (source: DragSource, x: number, y: number) => {
       const element = hitTest(x, y)?.closest('[data-drop-workbook], [data-drop-mine]');
-      const id = element?.getAttribute('data-drop-workbook');
-      const target: DropTarget | null = id ? { kind: 'workbook', id } : element ? { kind: 'mine' } : null;
-      return target && dropEffect(source, target) ? target : null;
+      if (!element) return null;
+      const id = element.getAttribute('data-drop-workbook');
+      const area: DropArea = id ? { kind: 'workbook', id } : { kind: 'mine' };
+      const hasTiles = element.querySelector('.tiles') !== null;
+      const target: DropTarget = hasTiles ? { ...area, slot: slotAt(tilesIn(element).map((tile) => tile.getBoundingClientRect()), x, y) } : area;
+      const effect = dropEffect(source, target);
+      return effect ? { target, effect, element } : null;
     },
     [hitTest],
+  );
+
+  /** Stellt `songId` an den Platz des Ziels; `ids` ist die Anzeige beim Loslassen (sort-songs, design.md D8). */
+  const placeIn = useCallback(
+    (workbookId: string | undefined, ids: string[], songId: string, slot: number) => {
+      const positions = workbookId ? activity.order(workbookId) : null;
+      if (!sync || !workbookId || !positions) return;
+      const from = ids.indexOf(songId);
+      const list = ids.filter((id) => id !== songId);
+      sync.reorder(workbookId, placeAt(list, positions, songId, from !== -1 && slot > from ? slot - 1 : slot));
+    },
+    [activity, sync],
   );
 
   const begin = useCallback(
@@ -91,7 +127,8 @@ export function SongDragProvider({ children }: { children: ReactNode }) {
           document.body.classList.add('dragging-pattern');
           window.getSelection()?.removeAllRanges();
         }
-        state = { song, source, x: ev.clientX, y: ev.clientY, target: targetAt(source, ev.clientX, ev.clientY) };
+        const hit = targetAt(source, ev.clientX, ev.clientY);
+        state = { song, source, x: ev.clientX, y: ev.clientY, target: hit?.target ?? null, effect: hit?.effect ?? null };
         setDrag(state);
       };
       const onUp = (ev: PointerEvent) => {
@@ -99,11 +136,29 @@ export function SongDragProvider({ children }: { children: ReactNode }) {
         finish();
         if (!dragged) return;
         swallowClick();
-        const target = targetAt(source, ev.clientX, ev.clientY);
-        if (!target) return;
-        if (dropEffect(source, target) === 'copy') void copy(song);
+        const hit = targetAt(source, ev.clientX, ev.clientY);
+        if (!hit) return;
+        const { target, effect, element } = hit;
+        const ids = tilesIn(element).map((tile) => tile.dataset.songId!);
+        const slot = target.slot;
+        const personalId = workbooks.find((w) => w.personal)?.id;
+        if (effect === 'reorder') {
+          const from = ids.indexOf(song.id);
+          if (slot === undefined || slot === from || slot === from + 1) return;
+          placeIn(target.kind === 'mine' ? personalId : target.id, ids, song.id, slot);
+          return;
+        }
+        if (effect === 'copy') {
+          void copy(song).then((created) => {
+            if (created && slot !== undefined) placeIn(personalId, ids, created.id, slot);
+          });
+          return;
+        }
         const workbook = target.kind === 'workbook' && workbooks.find((w) => w.id === target.id);
-        if (workbook) void move(song, workbook);
+        if (!workbook) return;
+        void move(song, workbook).then((moved) => {
+          if (moved && slot !== undefined) placeIn(workbook.id, ids, song.id, slot);
+        });
       };
       const onCancel = () => {
         if (state) swallowClick();
@@ -117,7 +172,7 @@ export function SongDragProvider({ children }: { children: ReactNode }) {
       document.addEventListener('pointercancel', onCancel);
       document.addEventListener('keydown', onKey);
     },
-    [targetAt, copy, move, workbooks],
+    [targetAt, placeIn, copy, move, workbooks],
   );
 
   const value = useMemo(() => ({ drag, begin }), [drag, begin]);
@@ -148,9 +203,16 @@ export function useSongDragSource(song: Song, source: DragSource) {
   };
 }
 
-/** Ob gerade über diesem Ziel gezogen wird und Loslassen dort wirkt. */
-export function useIsDropTarget(target: DropTarget): boolean {
-  const current = useContext(SongDragContext)?.drag?.target;
-  if (!current || current.kind !== target.kind) return false;
-  return current.kind === 'mine' || (target.kind === 'workbook' && current.id === target.id);
+/** Ob gerade über diesem Ziel gezogen wird und Loslassen dort verschiebt oder kopiert; Sortieren hebt nichts hervor. */
+export function useIsDropTarget(area: DropArea): boolean {
+  const drag = useContext(SongDragContext)?.drag;
+  if (!drag?.target || (drag.effect !== 'move' && drag.effect !== 'copy')) return false;
+  return sameArea(drag.target, area);
+}
+
+/** Platz der Einfügemarke in diesem Bereich; `null` ohne wirksames Ziel mit Platz (sort-songs, design.md D7). */
+export function useDropSlot(area: DropArea | undefined): number | null {
+  const target = useContext(SongDragContext)?.drag?.target;
+  if (!area || !target || target.slot === undefined || !sameArea(target, area)) return null;
+  return target.slot;
 }

@@ -5,6 +5,7 @@ import type { SongActivity } from '../sync/songActivity';
 export const NO_ACTIVITY: SongActivity = {
   lastChange: () => null,
   isNew: () => false,
+  order: () => null,
   subscribe: () => () => {},
   getVersion: () => 0,
 };

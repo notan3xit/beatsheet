@@ -414,6 +414,14 @@ describe('Spec workbook-sync › Hervorhebung beim Ziehen (Stylesheet)', () => {
     expect(target).toMatch(/var\(--accent\)/);
   });
 
+  it('Einfügemarke: Balken in der Lücke vor der Kachel, ohne Layoutsprung (sort-songs, design.md D7)', () => {
+    const marker = rule('.drop-before::before');
+    expect(marker).toMatch(/position:\s*absolute/);
+    expect(marker).toMatch(/background:\s*var\(--accent\)/);
+    expect(marker).toMatch(/z-index:\s*var\(--z-local-\d\)/);
+    expect(marker).toMatch(/left:\s*calc\(/);
+  });
+
   it('Beim Ziehen hebt nichts außer dem Ziel sich hervor', () => {
     expect(css).toMatch(/body\.dragging-pattern \.tile-add:hover[^{]*\{[^}]*background:\s*none/);
     expect(css).toMatch(/body\.dragging-pattern \.tile:hover[^{]*\{[^}]*border-color:\s*var\(--border\)/);

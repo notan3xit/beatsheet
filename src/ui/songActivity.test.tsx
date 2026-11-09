@@ -26,6 +26,7 @@ function fakeActivity(entries: Record<string, LastChange & { isNew?: boolean }>)
   const activity: SongActivity = {
     lastChange: (id) => (entries[id] ? { time: entries[id].time, author: entries[id].author } : null),
     isNew: (id) => entries[id]?.isNew ?? false,
+    order: () => null,
     subscribe: (listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -43,6 +44,7 @@ function fakeActivity(entries: Record<string, LastChange & { isNew?: boolean }>)
 const NO_NOTICES: ReturnType<WorkbookActions['getNotices']> = [];
 const noSync = (): WorkbookActions => ({
   createWorkbook: vi.fn(),
+  reorder: vi.fn(),
   renameWorkbook: vi.fn(),
   deleteWorkbook: vi.fn(),
   invite: vi.fn(),

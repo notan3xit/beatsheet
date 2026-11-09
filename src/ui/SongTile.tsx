@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
+import { ordered, type Positions } from '../domain/songOrder';
 import { allBars } from '../domain/songPatterns';
 import type { Song, Workbook } from '../domain/types';
-import { useSongDragSource } from './dragSong';
+import { useDropSlot, useSongDragSource, type DropArea } from './dragSong';
 import { formatRelative } from './historyText';
 import { SongMotif } from './SongMotif';
 import { useActivity, useMinute } from './useActivity';
@@ -21,8 +22,23 @@ export function NewDot() {
  * Kachel eines Songs (song-overview-tiles, design.md D3): ganze Fläche klickbar,
  * der Knopf im Titel dient Tastatur und Bildschirmleser. `action` öffnet den Song nicht.
  * `shared`: das gemeinsame Workbook des Songs; nur dort erscheinen Autor und Punkt (song-activity).
+ * `marked`: Die Einfügemarke steht vor der Kachel (sort-songs, design.md D7).
  */
-export function SongTile({ song, action, draggable = false, now, shared }: { song: Song; action?: ReactNode; draggable?: boolean; now: number; shared?: Workbook }) {
+export function SongTile({
+  song,
+  action,
+  draggable = false,
+  now,
+  shared,
+  marked = false,
+}: {
+  song: Song;
+  action?: ReactNode;
+  draggable?: boolean;
+  now: number;
+  shared?: Workbook;
+  marked?: boolean;
+}) {
   const store = useStore();
   const source = useSongDragSource(song, shared?.id ?? 'mine');
   const activity = useActivity();
@@ -30,7 +46,8 @@ export function SongTile({ song, action, draggable = false, now, shared }: { son
   const author = shared && last?.author ? (shared.profiles?.[last.author]?.name ?? last.author) : null;
   return (
     <article
-      className={`tile${source.dragging ? ' dragging' : ''}`}
+      className={`tile${source.dragging ? ' dragging' : ''}${marked ? ' drop-before' : ''}`}
+      data-song-id={song.id}
       onClick={() => store.openSong(song.id)}
       {...(draggable ? source.props : {})}
     >
@@ -64,36 +81,44 @@ export function SongTile({ song, action, draggable = false, now, shared }: { son
 }
 
 /** Letzte Kachel eines Bereichs: legt einen Song an. */
-export function AddSongTile({ onClick }: { onClick: () => void }) {
+export function AddSongTile({ onClick, marked = false }: { onClick: () => void; marked?: boolean }) {
   return (
-    <button type="button" className="tile tile-add" onClick={onClick}>
+    <button type="button" className={`tile tile-add${marked ? ' drop-before' : ''}`} onClick={onClick}>
       + Song
     </button>
   );
 }
 
-/** Kacheln eines Bereichs, alphabetisch, gefolgt von „+ Song“. */
+/** Kacheln eines Bereichs nach `song-order`, gefolgt von „+ Song“; ohne Positionen alphabetisch. */
 export function SongTiles({
   songs,
   action,
   onAdd,
   draggable = false,
+  positions = null,
+  area,
 }: {
   songs: readonly Song[];
   action?: (song: Song) => ReactNode;
   onAdd: () => void;
   /** Kacheln lassen sich ziehen (copy-song, design.md D4, D5). */
   draggable?: boolean;
+  /** Positionen des Bereichs (sort-songs, design.md D9). */
+  positions?: Positions | null;
+  /** Bereich als Ziel des Ziehens, für die Einfügemarke. */
+  area?: DropArea;
 }) {
   const now = useMinute();
   const { placement, workbooks } = useNotebook();
   const sharedOf = (song: Song) => workbooks.find((w) => w.id === placement[song.id] && !w.personal);
+  const slot = useDropSlot(area);
+  const shown = ordered(songs, positions);
   return (
     <div className="tiles">
-      {sortedByTitle(songs, (s) => s.title).map((song) => (
-        <SongTile key={song.id} song={song} action={action?.(song)} draggable={draggable} now={now} shared={sharedOf(song)} />
+      {shown.map((song, index) => (
+        <SongTile key={song.id} song={song} action={action?.(song)} draggable={draggable} now={now} shared={sharedOf(song)} marked={slot === index} />
       ))}
-      <AddSongTile onClick={onAdd} />
+      <AddSongTile onClick={onAdd} marked={slot === shown.length} />
     </div>
   );
 }

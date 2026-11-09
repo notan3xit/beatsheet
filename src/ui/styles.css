@@ -711,6 +711,20 @@ input {
     0 0 0 calc(0.75rem + 1px) var(--accent);
 }
 
+/* Einfügemarke: Balken mitten in der Lücke (gap 1rem) vor der Kachel; die Kacheln bleiben stehen */
+.drop-before::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(-0.5rem - 2px);
+  width: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+  z-index: var(--z-local-1);
+  pointer-events: none;
+}
+
 /* Beim Ziehen reagieren Kacheln und „+ Song“ nicht auf den Zeiger */
 body.dragging-pattern .tile:hover {
   border-color: var(--border);
