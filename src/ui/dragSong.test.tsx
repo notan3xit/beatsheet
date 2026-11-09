@@ -8,6 +8,7 @@ import type { ActionResult, WorkbookActions } from '../sync/sync';
 import { fakePlayer } from '../test/fakePlayer';
 import { songWith } from '../test/songs';
 import { App } from './App';
+import { dropEffect } from './dragSong';
 
 const ME = 'ich@example.com';
 const workbook = (title: string): Workbook => ({ id: `wb-${title}`, title, owner: ME, members: [ME] });
@@ -58,6 +59,9 @@ function setup() {
 
 const mine = () => screen.getByRole('region', { name: 'Meine Songs' });
 const tile = (area: HTMLElement, title: string) => within(area).getByText(title).closest('article')!;
+/** Bestätigt bzw. bricht die Rückfrage ab, die nach dem Loslassen erscheint. */
+const answer = async (button: 'Verschieben' | 'Kopieren' | 'Abbrechen') =>
+  fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: button }));
 const entry = (title: string) => within(screen.getByRole('navigation', { name: 'Workbooks' })).getByRole('button', { name: title });
 
 /** Zieht von der Kachel über das Ziel; ohne `release` bleibt das Ziehen offen. */
@@ -75,6 +79,8 @@ describe('Spec workbook-sync › Song in ein Workbook ziehen (UI)', () => {
   it('Auf einen Eintrag ziehen', async () => {
     const { moveSong, skizze, aim } = setup();
     drag(tile(mine(), 'Skizze'), aim, entry('Proberaum'));
+    expect(moveSong).not.toHaveBeenCalled();
+    await answer('Verschieben');
     await waitFor(() => expect(moveSong).toHaveBeenCalledWith(skizze.id, 'wb-Proberaum'));
     expect(within(mine()).queryByText('Skizze')).not.toBeInTheDocument();
   });
@@ -83,6 +89,7 @@ describe('Spec workbook-sync › Song in ein Workbook ziehen (UI)', () => {
     const { moveSong, skizze, aim } = setup();
     const band = screen.getByRole('region', { name: 'Band' });
     drag(tile(mine(), 'Skizze'), aim, within(band).getByText('Uprising'));
+    await answer('Verschieben');
     await waitFor(() => expect(moveSong).toHaveBeenCalledWith(skizze.id, 'wb-Band'));
     expect(within(band).getByText('Skizze')).toBeInTheDocument();
   });
@@ -129,6 +136,15 @@ describe('Spec workbook-sync › Song in ein Workbook ziehen (UI)', () => {
     expect(entry('Proberaum')).not.toHaveClass('drop-target');
   });
 
+  it('Rückfrage nach dem Ziehen abgebrochen', async () => {
+    const { moveSong, aim } = setup();
+    drag(tile(mine(), 'Skizze'), aim, entry('Band'));
+    await answer('Abbrechen');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(moveSong).not.toHaveBeenCalled();
+    expect(within(mine()).getByText('Skizze')).toBeInTheDocument();
+  });
+
   it('Klick statt Ziehen', () => {
     const { store, skizze } = setup();
     const source = tile(mine(), 'Skizze');
@@ -148,12 +164,21 @@ describe('Spec workbook-sync › Song in ein Workbook ziehen (UI)', () => {
   });
 
   it('Workbook-Kachel', () => {
-    const { moveSong, aim } = setup();
+    const { moveSong, uprising, store, aim } = setup();
     const band = screen.getByRole('region', { name: 'Band' });
     drag(tile(band, 'Uprising'), aim, entry('Proberaum'), false);
-    expect(document.querySelector('.drag-tile')).not.toBeInTheDocument();
+    expect(entry('Proberaum')).not.toHaveClass('drop-target');
     fireEvent.pointerUp(document, { ...mouse, clientX: 60, clientY: 80 });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(moveSong).not.toHaveBeenCalled();
+    expect(store.getState().placement[uprising.id]).toBe('wb-Band');
+  });
+
+  it('Meine Songs ist für eigene Kacheln kein Ziel', () => {
+    const { aim } = setup();
+    drag(tile(mine(), 'Skizze'), aim, mine(), false);
+    expect(mine()).not.toHaveClass('drop-target');
+    fireEvent.keyDown(document, { key: 'Escape' });
   });
 
   it('Touch startet kein Ziehen', () => {
@@ -162,5 +187,56 @@ describe('Spec workbook-sync › Song in ein Workbook ziehen (UI)', () => {
     aim(entry('Proberaum'));
     fireEvent.pointerMove(document, { pointerType: 'touch', clientX: 60, clientY: 80 });
     expect(document.querySelector('.drag-tile')).not.toBeInTheDocument();
+  });
+});
+
+describe('Spec workbook-sync › Song aus einem Workbook ziehen (UI)', () => {
+  const band = () => screen.getByRole('region', { name: 'Band' });
+
+  it('Nach „Meine Songs“ ziehen', async () => {
+    const { moveSong, aim } = setup();
+    drag(tile(band(), 'Uprising'), aim, within(mine()).getByText('Skizze'));
+    await answer('Kopieren');
+    expect(within(mine()).getByText('Uprising (Kopie)')).toBeInTheDocument();
+    expect(within(band()).getByText('Uprising')).toBeInTheDocument();
+    expect(moveSong).not.toHaveBeenCalled();
+  });
+
+  it('„Meine Songs“ als Ziel hervorgehoben, „+ Song“ nicht', () => {
+    const { aim } = setup();
+    drag(tile(band(), 'Uprising'), aim, within(mine()).getByRole('button', { name: '+ Song' }), false);
+    expect(mine()).toHaveClass('drop-target');
+    expect(within(mine()).getByRole('button', { name: '+ Song' })).not.toHaveClass('drop-target');
+    expect(document.querySelector('.drag-tile')).toHaveTextContent('Uprising');
+    fireEvent.keyDown(document, { key: 'Escape' });
+  });
+
+  it('Im eigenen Workbook loslassen', () => {
+    const { store, aim } = setup();
+    drag(tile(band(), 'Uprising'), aim, band(), false);
+    expect(band()).not.toHaveClass('drop-target');
+    expect(entry('Band')).not.toHaveClass('drop-target');
+    fireEvent.pointerUp(document, { ...mouse, clientX: 60, clientY: 80 });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(store.getState().songs).toHaveLength(2);
+  });
+
+  it('Escape beim Ziehen', () => {
+    const { store, aim } = setup();
+    drag(tile(band(), 'Uprising'), aim, mine(), false);
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.pointerUp(document, { ...mouse, clientX: 60, clientY: 80 });
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(store.getState().songs).toHaveLength(2);
+  });
+});
+
+describe('dropEffect (copy-song, design.md D4)', () => {
+  it('Wirkung aus Quelle und Ziel', () => {
+    expect(dropEffect('mine', { kind: 'workbook', id: 'wb-Band' })).toBe('move');
+    expect(dropEffect('mine', { kind: 'mine' })).toBeNull();
+    expect(dropEffect('wb-Band', { kind: 'mine' })).toBe('copy');
+    expect(dropEffect('wb-Band', { kind: 'workbook', id: 'wb-Band' })).toBeNull();
+    expect(dropEffect('wb-Band', { kind: 'workbook', id: 'wb-Proberaum' })).toBeNull();
   });
 });

@@ -24,7 +24,7 @@ export function NewDot() {
  */
 export function SongTile({ song, action, draggable = false, now, shared }: { song: Song; action?: ReactNode; draggable?: boolean; now: number; shared?: Workbook }) {
   const store = useStore();
-  const source = useSongDragSource(song);
+  const source = useSongDragSource(song, shared?.id ?? 'mine');
   const activity = useActivity();
   const last = activity.lastChange(song.id);
   const author = shared && last?.author ? (shared.profiles?.[last.author]?.name ?? last.author) : null;
@@ -82,7 +82,7 @@ export function SongTiles({
   songs: readonly Song[];
   action?: (song: Song) => ReactNode;
   onAdd: () => void;
-  /** Kacheln lassen sich auf Workbooks ziehen (nur „Meine Songs“). */
+  /** Kacheln lassen sich ziehen (copy-song, design.md D4, D5). */
   draggable?: boolean;
 }) {
   const now = useMinute();

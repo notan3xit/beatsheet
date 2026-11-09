@@ -642,19 +642,23 @@ input {
   top: 0.35rem;
   right: 0.35rem;
   z-index: var(--z-local-1);
+  display: flex;
 }
 
+.tile-copy,
 .tile-move {
   width: 1.75rem;
   height: 1.75rem;
   color: var(--muted);
 }
 
+.tile-copy .icon,
 .tile-move .icon {
   width: 1rem;
   height: 1rem;
 }
 
+.tile:not(:hover, :focus-within) .tile-copy,
 .tile:not(:hover, :focus-within) .tile-move[aria-expanded='false'] {
   opacity: 0;
 }
@@ -696,6 +700,15 @@ input {
 .workbook-entry[aria-pressed='true'].drop-target {
   border-right-color: var(--drop-fill);
   background: var(--drop-fill);
+}
+
+/* „Meine Songs“ hat keinen Rahmen: Fläche und Rand als Schatten, damit nichts verrutscht */
+.overview-section.drop-target {
+  border-radius: 10px;
+  background: var(--drop-fill);
+  box-shadow:
+    0 0 0 0.75rem var(--drop-fill),
+    0 0 0 calc(0.75rem + 1px) var(--accent);
 }
 
 /* Beim Ziehen reagieren Kacheln und „+ Song“ nicht auf den Zeiger */

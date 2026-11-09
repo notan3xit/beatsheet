@@ -1,7 +1,7 @@
 import { useId, useState } from 'react';
 import type { Song, Workbook } from '../domain/types';
 import type { WorkbookActions } from '../sync/sync';
-import { useDropTarget } from './dragSong';
+import { useIsDropTarget } from './dragSong';
 import { NewDot, sortedByTitle } from './SongTile';
 import { useActivity } from './useActivity';
 import { useNotebook } from './useLibrary';
@@ -23,7 +23,7 @@ function useChosenWorkbook() {
 
 function WorkbookEntry({ workbook, songs, hasNew, selected, onChoose }: { workbook: Workbook; songs: number; hasNew: boolean; selected: boolean; onChoose: () => void }) {
   const description = useId();
-  const target = useDropTarget() === workbook.id;
+  const target = useIsDropTarget({ kind: 'workbook', id: workbook.id });
   return (
     <li>
       <button

@@ -550,6 +550,27 @@ describe('Spec song-history › Wiederherstellung als neue Änderung', () => {
   });
 });
 
+describe('Spec song-library › Song kopieren', () => {
+  it('Kopie ohne Verlauf', async () => {
+    const repo = await openRepository(uniqueDb(), { author: () => 'ich@example.com' });
+    const store = createNotebookStore();
+    const connection = connectStore(store, repo, { debounceMs: 10_000 });
+    const song = store.createSong('Uprising');
+    await connection.flush();
+    store.openSong(song.id);
+    store.updateSong((s) => ({ ...s, tempo: 90 }));
+    await connection.flush();
+    store.updateSong((s) => ({ ...s, tempo: 100 }));
+    await connection.flush();
+
+    const copy = store.copySong(song.id);
+    await connection.flush();
+    const steps = repo.history(copy.id)!.steps;
+    expect(steps).toHaveLength(1);
+    expect(repo.history(copy.id)!.songAt(0)).toMatchObject({ title: 'Uprising (Kopie)', tempo: 100 });
+  });
+});
+
 describe('Spec song-history › Verlauf öffnen', () => {
   it('Beim Öffnen des Verlaufs werden ausstehende Änderungen sofort geschrieben', async () => {
     const repo = await openRepository(uniqueDb());

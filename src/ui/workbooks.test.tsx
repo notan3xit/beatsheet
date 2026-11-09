@@ -557,6 +557,7 @@ describe('Spec workbook-sync › Song in ein Workbook verschieben (UI)', () => {
     const { user, sync, store } = setup({ songs: [uprising], workbooks: [workbook('Band')] });
     await user.click(within(row('Uprising')).getByRole('button', { name: 'Zu Workbook …' }));
     await user.click(screen.getByRole('menuitem', { name: 'Band' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Verschieben' }));
     expect(sync.moveSong).toHaveBeenCalledWith(uprising.id, 'wb-Band');
     expect(store.getState().openSongId).toBeNull();
     expect(within(card('Band')).getByText('Uprising')).toBeInTheDocument();
@@ -568,7 +569,22 @@ describe('Spec workbook-sync › Song in ein Workbook verschieben (UI)', () => {
     const { user } = setup({ songs: [uprising], workbooks: [workbook('Band')], overrides: { moveSong: vi.fn(async () => unreachable) } });
     await user.click(within(row('Uprising')).getByRole('button', { name: 'Zu Workbook …' }));
     await user.click(screen.getByRole('menuitem', { name: 'Band' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Verschieben' }));
     expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Server ist nicht erreichbar.');
+    expect(within(card('Meine Songs')).getByText('Uprising')).toBeInTheDocument();
+  });
+
+  it('Verschieben abgebrochen', async () => {
+    const uprising = songWith({ title: 'Uprising' });
+    const { user, sync } = setup({ songs: [uprising], workbooks: [workbook('Band')] });
+    await user.click(within(row('Uprising')).getByRole('button', { name: 'Zu Workbook …' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Band' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Abbrechen' }));
+    await user.click(within(row('Uprising')).getByRole('button', { name: 'Zu Workbook …' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Band' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(sync.moveSong).not.toHaveBeenCalled();
     expect(within(card('Meine Songs')).getByText('Uprising')).toBeInTheDocument();
   });
 
@@ -723,6 +739,54 @@ describe('Spec library-persistence › Workbook-Songs im Import (UI)', () => {
   });
 });
 
+describe('Spec song-library › Song kopieren (UI)', () => {
+  const copyIn = (area: string, title: string) => within(tileOf(area, title)).getByRole('button', { name: 'Kopieren' });
+  const dialog = () => screen.getByRole('alertdialog');
+  const titles = (area: string) => within(card(area)).queryAllByRole('article').map((t) => within(t).getByRole('heading').textContent);
+
+  function withBand() {
+    const skizze = songWith({ title: 'Skizze' });
+    const uprising = songWith({ title: 'Uprising' });
+    return { skizze, uprising, ...setup({ songs: [skizze, uprising], workbooks: [workbook('Band')], placement: { [uprising.id]: 'wb-Band' } }) };
+  }
+
+  it('Eigenen Song kopieren', async () => {
+    const { user, store } = withBand();
+    await user.click(copyIn('Meine Songs', 'Skizze'));
+    await user.click(within(dialog()).getByRole('button', { name: 'Kopieren' }));
+    expect(titles('Meine Songs')).toEqual(['Skizze', 'Skizze (Kopie)']);
+    expect(store.getState().openSongId).toBeNull();
+  });
+
+  it('Song aus einem Workbook kopieren', async () => {
+    const { user, sync } = withBand();
+    await user.click(copyIn('Band', 'Uprising'));
+    await user.click(within(dialog()).getByRole('button', { name: 'Kopieren' }));
+    expect(titles('Meine Songs')).toEqual(['Skizze', 'Uprising (Kopie)']);
+    expect(titles('Band')).toEqual(['Uprising']);
+    expect(sync.moveSong).not.toHaveBeenCalled();
+  });
+
+  it('Kopieren abgebrochen', async () => {
+    const { user } = withBand();
+    await user.click(copyIn('Band', 'Uprising'));
+    await user.click(within(dialog()).getByRole('button', { name: 'Abbrechen' }));
+    await user.click(copyIn('Meine Songs', 'Skizze'));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(titles('Meine Songs')).toEqual(['Skizze']);
+  });
+
+  it('Rückfragen für Workbook-Songs und eigene Songs unterscheiden sich', async () => {
+    const { user } = withBand();
+    await user.click(copyIn('Band', 'Uprising'));
+    const fromWorkbook = dialog().textContent;
+    await user.click(within(dialog()).getByRole('button', { name: 'Abbrechen' }));
+    await user.click(copyIn('Meine Songs', 'Skizze'));
+    expect(dialog().textContent?.replace('Skizze', 'Uprising')).not.toBe(fromWorkbook);
+  });
+});
+
 describe('Spec account-songs › „Meine Songs“ im Account (UI)', () => {
   const personal: Workbook = { id: 'wb-me', title: 'Meine Songs', owner: ME, members: [ME], personal: true };
   const placed = (title: string) => {
@@ -744,6 +808,7 @@ describe('Spec account-songs › „Meine Songs“ im Account (UI)', () => {
     await user.click(within(row('Skizze')).getByRole('button', { name: 'Zu Workbook …' }));
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual(['Band']);
     await user.click(screen.getByRole('menuitem', { name: 'Band' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Verschieben' }));
     expect(sync.moveSong).toHaveBeenCalledWith(song.id, 'wb-Band');
   });
 
@@ -936,6 +1001,7 @@ describe('Spec server-limits › Meldungen (UI)', () => {
     const { user } = setup({ songs: [song], workbooks: [workbook('Band')], overrides: { moveSong: vi.fn(async () => fail('quota-exceeded')) } });
     await user.click(within(tileOf('Meine Songs', 'Eigen')).getByRole('button', { name: 'Zu Workbook …' }));
     await user.click(screen.getByRole('menuitem', { name: 'Band' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Verschieben' }));
     expect(within(stack()).getByRole('alert')).toHaveTextContent('Der Speicher dieses Workbooks ist voll.');
     expect(within(card('Meine Songs')).getByText('Eigen')).toBeInTheDocument();
   });

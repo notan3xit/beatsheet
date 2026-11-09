@@ -92,6 +92,15 @@ describe('Spec song-library › Song-Liste (UI)', () => {
   });
 });
 
+describe('Spec song-library › Song kopieren (UI)', () => {
+  it('Ohne Anmeldung', async () => {
+    const { user } = setup([songWith({ title: 'Skizze' })]);
+    await user.click(within(mine()).getByRole('button', { name: 'Kopieren' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Kopieren' }));
+    expect(tileTitles(mine())).toEqual(['Skizze', 'Skizze (Kopie)']);
+  });
+});
+
 describe('Spec song-library › Song über die Kachel „+ Song“ anlegen (UI)', () => {
   it('Doppelseite des neuen Songs', async () => {
     const { user } = setup([songWith({ title: 'Alt' })]);

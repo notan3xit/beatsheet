@@ -4,8 +4,9 @@ import type { ActionResult, WorkbookActions } from '../sync/sync';
 import { useConfirm } from './ConfirmDialog';
 import { EditableHeading } from './EditableHeading';
 import { useReport } from './messages';
-import { useDropTarget } from './dragSong';
+import { useIsDropTarget } from './dragSong';
 import { SongTiles } from './SongTile';
+import { CopyButton } from './songTransfer';
 import { useDismiss } from './useDismiss';
 import { MemberAvatar } from './MemberAvatar';
 import { useStore } from './useLibrary';
@@ -137,7 +138,7 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
   useDismiss(membersOpen, membersArea, useCallback(() => setMembersOpen(false), []));
   const run = useReportedAction();
   const isOwner = workbook.owner === email;
-  const target = useDropTarget() === workbook.id;
+  const target = useIsDropTarget({ kind: 'workbook', id: workbook.id });
 
   const rename = (draft: string) => {
     const title = draft.trim();
@@ -186,7 +187,7 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
           {membersOpen && <MembersPopover workbook={workbook} sync={sync} />}
         </div>
       </div>
-      <SongTiles songs={songs} onAdd={() => void addSong()} />
+      <SongTiles songs={songs} action={(song) => <CopyButton song={song} />} draggable onAdd={() => void addSong()} />
       {isOwner && songs.length === 0 && (
         <div className="card-actions">
           <button type="button" className="danger" onClick={() => void remove()}>

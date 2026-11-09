@@ -34,6 +34,8 @@ export interface NotebookStore {
 
   // Songs und Navigation
   createSong(title: string, workbookId?: string): Song;
+  /** Kopie in „Meine Songs“: neue ID, ohne Zuordnung, Revision 1 (song-library, copy-song design.md D1). */
+  copySong(id: string): Song;
   renameSong(id: string, title: string): void;
   deleteSong(id: string): void;
   openSong(id: string): void;
@@ -199,6 +201,15 @@ export function createNotebookStore(
       if (workbookId) placement = { ...placement, [song.id]: workbookId };
       emit();
       return song;
+    },
+    copySong(id) {
+      const original = songs.find((s) => s.id === id);
+      if (!original) throw new Error(`Song ${id} nicht gefunden`);
+      const timestamp = now().toISOString();
+      const copy: Song = { ...original, id: nextId(), title: `${original.title} (Kopie)`, createdAt: timestamp, updatedAt: timestamp, revision: 1 };
+      songs = [...songs, copy];
+      emit();
+      return copy;
     },
     renameSong(id, title) {
       const trimmed = title.trim();

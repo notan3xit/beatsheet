@@ -408,6 +408,12 @@ describe('Spec workbook-sync › Hervorhebung beim Ziehen (Stylesheet)', () => {
     expect(rule(".workbook-entry[aria-pressed='true'].drop-target")).toMatch(/border-right-color:\s*var\(--drop-fill\)/);
   });
 
+  it('„Meine Songs“ als Ziel: Fläche und Rand wie beim Workbook', () => {
+    const target = rule('.overview-section.drop-target');
+    expect(target).toMatch(/background:\s*var\(--drop-fill\)/);
+    expect(target).toMatch(/var\(--accent\)/);
+  });
+
   it('Beim Ziehen hebt nichts außer dem Ziel sich hervor', () => {
     expect(css).toMatch(/body\.dragging-pattern \.tile-add:hover[^{]*\{[^}]*background:\s*none/);
     expect(css).toMatch(/body\.dragging-pattern \.tile:hover[^{]*\{[^}]*border-color:\s*var\(--border\)/);

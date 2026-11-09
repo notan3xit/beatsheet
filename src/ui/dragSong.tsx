@@ -1,41 +1,60 @@
 import { createContext, useCallback, useContext, useMemo, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import type { Song } from '../domain/types';
-import type { WorkbookActions } from '../sync/sync';
 import { HitTestContext } from './dragPattern';
 import { SongMotif } from './SongMotif';
-import { useReportedAction } from './WorkbookCard';
+import { useSongTransfer } from './songTransfer';
+import { useNotebook } from './useLibrary';
 
 /** Ab dieser Bewegung (px) wird aus einem Klick ein Ziehen, wie bei den Pattern-Karten. */
 const DRAG_THRESHOLD = 5;
 
+/** Herkunft einer gezogenen Kachel: „Meine Songs“ oder die ID ihres Workbooks. */
+export type DragSource = 'mine' | (string & {});
+
+/** Fläche unter dem Zeiger, auf der sich etwas ablegen lässt (copy-song, design.md D4). */
+export type DropTarget = { kind: 'workbook'; id: string } | { kind: 'mine' };
+
+/** Wirkung des Loslassens; `null`: kein Ziel. */
+export function dropEffect(source: DragSource, target: DropTarget): 'move' | 'copy' | null {
+  if (source === 'mine') return target.kind === 'workbook' ? 'move' : null;
+  return target.kind === 'mine' ? 'copy' : null;
+}
+
 interface Drag {
   song: Song;
+  source: DragSource;
   x: number;
   y: number;
-  /** Workbook unter dem Zeiger, falls dort ein Ziel liegt. */
-  target: string | null;
+  /** Ziel unter dem Zeiger, nur wenn Loslassen dort wirkt. */
+  target: DropTarget | null;
 }
 
 interface SongDragValue {
   drag: Drag | null;
-  begin: (song: Song, e: ReactPointerEvent) => void;
+  begin: (song: Song, source: DragSource, e: ReactPointerEvent) => void;
 }
 
 const SongDragContext = createContext<SongDragValue | null>(null);
 
-/** Ziehen von Kacheln aus „Meine Songs“ auf Workbooks (song-overview-tiles, design.md D6). */
-export function SongDragProvider({ sync, children }: { sync: WorkbookActions; children: ReactNode }) {
+/** Ziehen von Kacheln: aus „Meine Songs“ auf Workbooks, aus Workbooks auf „Meine Songs“ (copy-song, design.md D4). */
+export function SongDragProvider({ children }: { children: ReactNode }) {
   const hitTest = useContext(HitTestContext);
-  const run = useReportedAction();
+  const { copy, move } = useSongTransfer();
+  const { workbooks } = useNotebook();
   const [drag, setDrag] = useState<Drag | null>(null);
 
   const targetAt = useCallback(
-    (x: number, y: number) => hitTest(x, y)?.closest('[data-drop-workbook]')?.getAttribute('data-drop-workbook') ?? null,
+    (source: DragSource, x: number, y: number): DropTarget | null => {
+      const element = hitTest(x, y)?.closest('[data-drop-workbook], [data-drop-mine]');
+      const id = element?.getAttribute('data-drop-workbook');
+      const target: DropTarget | null = id ? { kind: 'workbook', id } : element ? { kind: 'mine' } : null;
+      return target && dropEffect(source, target) ? target : null;
+    },
     [hitTest],
   );
 
   const begin = useCallback(
-    (song: Song, e: ReactPointerEvent) => {
+    (song: Song, source: DragSource, e: ReactPointerEvent) => {
       if (e.button !== 0 || e.pointerType === 'touch') return;
       // Knöpfe der Kachel („Zu Workbook …“) starten kein Ziehen, der Titel schon
       const button = (e.target as Element).closest('button');
@@ -72,7 +91,7 @@ export function SongDragProvider({ sync, children }: { sync: WorkbookActions; ch
           document.body.classList.add('dragging-pattern');
           window.getSelection()?.removeAllRanges();
         }
-        state = { song, x: ev.clientX, y: ev.clientY, target: targetAt(ev.clientX, ev.clientY) };
+        state = { song, source, x: ev.clientX, y: ev.clientY, target: targetAt(source, ev.clientX, ev.clientY) };
         setDrag(state);
       };
       const onUp = (ev: PointerEvent) => {
@@ -80,8 +99,11 @@ export function SongDragProvider({ sync, children }: { sync: WorkbookActions; ch
         finish();
         if (!dragged) return;
         swallowClick();
-        const target = targetAt(ev.clientX, ev.clientY);
-        if (target) void run(() => sync.moveSong(song.id, target));
+        const target = targetAt(source, ev.clientX, ev.clientY);
+        if (!target) return;
+        if (dropEffect(source, target) === 'copy') void copy(song);
+        const workbook = target.kind === 'workbook' && workbooks.find((w) => w.id === target.id);
+        if (workbook) void move(song, workbook);
       };
       const onCancel = () => {
         if (state) swallowClick();
@@ -95,7 +117,7 @@ export function SongDragProvider({ sync, children }: { sync: WorkbookActions; ch
       document.addEventListener('pointercancel', onCancel);
       document.addEventListener('keydown', onKey);
     },
-    [targetAt, run, sync],
+    [targetAt, copy, move, workbooks],
   );
 
   const value = useMemo(() => ({ drag, begin }), [drag, begin]);
@@ -116,17 +138,19 @@ export function SongDragProvider({ sync, children }: { sync: WorkbookActions; ch
   );
 }
 
-/** Ziehquelle einer Kachel; ohne Provider (keine Workbooks) bleibt sie eine gewöhnliche Kachel. */
-export function useSongDragSource(song: Song) {
+/** Ziehquelle einer Kachel; ohne Provider (abgemeldet) bleibt sie eine gewöhnliche Kachel. */
+export function useSongDragSource(song: Song, source: DragSource) {
   const context = useContext(SongDragContext);
   if (!context) return { dragging: false, props: {} };
   return {
     dragging: context.drag?.song.id === song.id,
-    props: { onPointerDown: (e: ReactPointerEvent) => context.begin(song, e) },
+    props: { onPointerDown: (e: ReactPointerEvent) => context.begin(song, source, e) },
   };
 }
 
-/** Workbook, über dem gerade gezogen wird. */
-export function useDropTarget(): string | null {
-  return useContext(SongDragContext)?.drag?.target ?? null;
+/** Ob gerade über diesem Ziel gezogen wird und Loslassen dort wirkt. */
+export function useIsDropTarget(target: DropTarget): boolean {
+  const current = useContext(SongDragContext)?.drag?.target;
+  if (!current || current.kind !== target.kind) return false;
+  return current.kind === 'mine' || (target.kind === 'workbook' && current.id === target.id);
 }

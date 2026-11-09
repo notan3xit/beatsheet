@@ -6,12 +6,13 @@ import { MoveIcon } from './icons';
 import { useDismiss } from './useDismiss';
 import { useNotebook, useStore } from './useLibrary';
 import { useEmail, useSync } from './useWorkbooks';
-import { SongDragProvider } from './dragSong';
+import { SongDragProvider, useIsDropTarget } from './dragSong';
+import { CopyButton, useSongTransfer } from './songTransfer';
 import { WorkbookArea } from './WorkbookArea';
-import { useReportedAction } from './WorkbookCard';
 
-function MoveMenu({ song, sync, run }: { song: Song; sync: WorkbookActions; run: ReturnType<typeof useReportedAction> }) {
+function MoveMenu({ song }: { song: Song }) {
   const { workbooks } = useNotebook();
+  const { move } = useSongTransfer();
   const [open, setOpen] = useState(false);
   const area = useRef<HTMLDivElement>(null);
   useDismiss(open, area, useCallback(() => setOpen(false), []));
@@ -37,7 +38,7 @@ function MoveMenu({ song, sync, run }: { song: Song; sync: WorkbookActions; run:
               role="menuitem"
               onClick={() => {
                 setOpen(false);
-                void run(() => sync.moveSong(song.id, workbook.id));
+                void move(song, workbook);
               }}
             >
               {workbook.title}
@@ -53,16 +54,21 @@ function MySongs({ songs, sync }: { songs: readonly Song[]; sync: WorkbookAction
   const store = useStore();
   const { workbooks } = useNotebook();
   const email = useEmail();
-  const run = useReportedAction();
   const canMove = sync && email && workbooks.some((w) => !w.personal);
+  const target = useIsDropTarget({ kind: 'mine' });
 
   return (
-    <section aria-label="Meine Songs" className="overview-section">
+    <section aria-label="Meine Songs" className={`overview-section${target ? ' drop-target' : ''}`} data-drop-mine>
       <h2>Meine Songs</h2>
       {songs.length === 0 && <p className="hint">Noch keine Songs. Lege mit „+ Song“ deinen ersten an.</p>}
       <SongTiles
         songs={songs}
-        action={canMove ? (song) => <MoveMenu song={song} sync={sync} run={run} /> : undefined}
+        action={(song) => (
+          <>
+            <CopyButton song={song} />
+            {canMove && <MoveMenu song={song} />}
+          </>
+        )}
         draggable={Boolean(canMove)}
         onAdd={() => store.openSong(store.createSong('').id)}
       />
@@ -79,7 +85,7 @@ export function SongList() {
   return (
     <main className="song-list" aria-label="Songs">
       {sync ? (
-        <SongDragProvider sync={sync}>
+        <SongDragProvider>
           <MySongs songs={mine} sync={sync} />
           <WorkbookArea sync={sync} songs={songs} />
         </SongDragProvider>

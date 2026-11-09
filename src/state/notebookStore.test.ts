@@ -5,6 +5,7 @@ import { appendSegment } from '../domain/structure';
 import type { Workbook } from '../domain/types';
 import { notebookWith } from '../test/notebook';
 import { emptyBeats, patternOf } from '../test/patterns';
+import { songWith } from '../test/songs';
 import { createNotebookStore } from './notebookStore';
 
 describe('Spec song-library › Song anlegen', () => {
@@ -19,6 +20,32 @@ describe('Spec song-library › Song anlegen', () => {
     const store = createNotebookStore();
     expect(store.createSong('').title).toBe('Neuer Song');
     expect(store.createSong('   ').title).toBe('Neuer Song');
+  });
+});
+
+describe('Spec song-library › Song kopieren', () => {
+  const band: Workbook = { id: 'wb', title: 'Band', owner: 'ich@example.com', members: ['ich@example.com'] };
+  const original = () =>
+    appendSegment({ ...songWith({ title: 'Uprising', tempo: 128, patterns: [patternOf(emptyBeats(4))] }), meter: 3 }, { name: 'V', bars: 4 });
+
+  it('legt eine Kopie ohne Zuordnung mit neuer ID an und lässt das Original unverändert', () => {
+    const song = original();
+    const store = createNotebookStore([song], undefined, { placement: { [song.id]: band.id }, workbooks: [band] });
+    const copy = store.copySong(song.id);
+    expect(copy.id).not.toBe(song.id);
+    expect(copy).toMatchObject({ title: 'Uprising (Kopie)', tempo: 128, meter: 3, revision: 1, patterns: song.patterns, segments: song.segments });
+    expect(store.getState().songs).toEqual([song, copy]);
+    expect(store.getState().placement).toEqual({ [song.id]: band.id });
+    expect(store.getState().openSongId).toBeNull();
+  });
+
+  it('Kopie ist unabhängig', () => {
+    const song = original();
+    const store = createNotebookStore([song]);
+    const copy = store.copySong(song.id);
+    store.openSong(copy.id);
+    store.updateSong((s) => setTempo(s, 90));
+    expect(store.getState().songs.find((s) => s.id === song.id)).toBe(song);
   });
 });
 
