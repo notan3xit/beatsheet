@@ -74,14 +74,16 @@ function SongHeader({ selectionState }: { selectionState: StructureSelectionStat
         <TempoMark />
         <MeterMark />
         <SongTransport selectionState={selectionState} />
-        {!locked && (
-          <button type="button" className="danger" onClick={() => void remove()}>
-            Song löschen
-          </button>
-        )}
-        <HistoryButton />
-        <StructureToggle />
-        <LockToggle />
+        <div className="header-end">
+          {!locked && (
+            <button type="button" className="danger" onClick={() => void remove()}>
+              Song löschen
+            </button>
+          )}
+          <HistoryButton />
+          <StructureToggle />
+          <LockToggle />
+        </div>
       </div>
     </header>
   );

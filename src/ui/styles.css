@@ -1083,12 +1083,26 @@ body.dragging-pattern .tile-add:hover {
 .page-title {
   margin-top: 0.25rem;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
 }
 
-.page-title .danger {
+/* Aktionen am rechten Rand samt Schloss: eine Gruppe, die nur als Ganzes umbricht und rechtsbündig steht */
+.header-end {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 1rem;
   margin-left: auto;
+}
+
+/* Werte und Knöpfe der Kopfzeilen brechen nie in sich um */
+.page-title button,
+.editor-header button,
+.tempo-field,
+.tempo-mark {
+  white-space: nowrap;
 }
 
 .breadcrumbs ol {
@@ -1141,12 +1155,6 @@ body.dragging-pattern .tile-add:hover {
   background: var(--control-hover);
 }
 
-/* Schalter und Schloss stehen beieinander; vor dem Schalter steht entsperrt „Song löschen“ */
-.structure-toggle + .lock-toggle,
-.page-title .danger + .structure-toggle {
-  margin-left: 0;
-}
-
 .structure-toggle.expanded {
   background: var(--control);
   color: var(--text);
@@ -1165,11 +1173,6 @@ body.dragging-pattern .tile-add:hover {
 .history-open svg {
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.page-title .danger + .lock-toggle,
-.editor-actions + .lock-toggle {
-  margin-left: 0;
 }
 
 .lock-toggle.unlocked {
@@ -1263,6 +1266,8 @@ button.tempo-mark:hover {
   display: inline-block;
   width: 3ch;
   font-variant-numeric: tabular-nums;
+  /* Knöpfe zentrieren, Eingabefelder nicht: links, damit zweistellige Werte beim Klick nicht springen */
+  text-align: left;
 }
 
 .tempo-mark.editing {
@@ -1281,7 +1286,7 @@ button.tempo-mark:hover {
   margin: 0;
 }
 
-/* Standard-Takt neben dem Tempo: Symbol und Wert, gesperrt Text, entsperrt eine Auswahl gleichen Aussehens */
+/* Standard-Takt neben dem Tempo: Symbol und Wert */
 .song-meter {
   display: inline-flex;
   align-items: center;
@@ -1290,30 +1295,9 @@ button.tempo-mark:hover {
 }
 
 .meter-mark {
-  display: inline-block;
-  width: 3ch;
-  /* Feste Höhe: Auswahl und Text hätten sonst verschiedene Zeilenhöhen */
-  height: 1.375rem;
-  box-sizing: content-box;
-  font: inherit;
   font-size: 1rem;
-  line-height: 1.375rem;
   font-variant-numeric: tabular-nums;
-  padding: 0;
-  border: none;
-  border-bottom: 1px dashed transparent;
-  border-radius: 0;
-  background: none;
   color: var(--muted);
-}
-
-select.meter-mark {
-  appearance: none;
-  cursor: pointer;
-}
-
-select.meter-mark:hover {
-  border-bottom-color: var(--muted);
 }
 
 /* Doppelseite: untereinander in voller Breite, nebeneinander ab der Summe der Basisbreiten (unten) */
@@ -2205,7 +2189,7 @@ button.link {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem 1rem;
   margin-bottom: 1rem;
 }
 
@@ -2237,19 +2221,53 @@ span.value-control {
   border: 1px solid transparent;
 }
 
-.value-length {
-  width: 5.5rem;
+/* Wert mit unsichtbarer Auswahl darüber: Der Text bestimmt die Breite, gesperrt wie entsperrt */
+.value-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  border-bottom: 1px dashed transparent;
 }
 
-/* Taktart im Pattern-Editor: Umschalter und Wert auf festem Platz */
+/* Im Kopf in der Schriftgröße von Tempo und Standard-Takt */
+.value-select.value-control {
+  height: auto;
+  padding: 0;
+  font-size: 1rem;
+  border: none;
+  border-bottom: 1px dashed transparent;
+}
+
+/* Jedes Gerät öffnet seine eigene Auswahlliste; 16px, damit iOS beim Antippen nicht vergrößert */
+.value-select select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  font-size: 16px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.value-select:has(select):hover {
+  border-bottom-color: var(--muted);
+}
+
+.value-select:has(select:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Taktart im Pattern-Editor: Umschalter und Wert */
 .pattern-meter {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-}
-
-.value-meter {
-  width: 3.75rem;
 }
 
 .value-meter.follows {
@@ -2469,14 +2487,18 @@ button.meter-own.on {
   color: inherit;
 }
 
-.practice .tempo-mark.editing {
-  margin: 0 0.45rem;
+/* Wie die Tempoangabe des Songs: Text im Fluss (inline-flex verschluckte das Leerzeichen vor der Zahl), nur der Unterstrich beim Überfahren */
+.practice button.tempo-mark {
+  display: inline-block;
+}
+
+.practice button.tempo-mark:hover {
+  background: none;
 }
 
 .editor-actions {
   display: flex;
   gap: 0.5rem;
-  margin-left: auto;
 }
 
 .sequencer-scroll {
@@ -2806,11 +2828,6 @@ button.meter-own.on {
   padding: 1rem 1.25rem;
 }
 
-.page-title .danger + .history-open,
-.history-open + .structure-toggle {
-  margin-left: 0;
-}
-
 .history-layout {
   display: grid;
   grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
@@ -3127,6 +3144,11 @@ button.meter-own.on {
   /* Übetempo ohne −/+, der Kopf hat dort keinen Platz (practice-tempo); spezifisch genug für .practice button */
   .practice .practice-step {
     display: none;
+  }
+
+  /* Ohne „+“ hält das Übetempo rechts selbst den Abstand zur Box, wie der Schalter links */
+  .practice .tempo-mark {
+    margin-right: 0.55rem;
   }
 }
 

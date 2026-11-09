@@ -2,3 +2,4 @@ node_modules
 dist
 *.tsbuildinfo
 server-data
+browser-check

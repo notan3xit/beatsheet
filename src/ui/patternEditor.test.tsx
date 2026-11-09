@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createPattern } from '../domain/pattern';
@@ -83,6 +83,30 @@ describe('Spec pattern-library › Länge eines Patterns ändern (UI)', () => {
     const { user, patternsNow } = setup(seed({ kind: 'groove', name: 'Verse' }));
     await user.selectOptions(screen.getByLabelText('Länge (Beats)'), '8');
     expect(patternsNow()[0]!.beats).toHaveLength(8);
+  });
+});
+
+describe('Spec pattern-library › Länge im Pattern-Editor', () => {
+  /** Sichtbarer Text der Länge, ohne die Einträge der Auswahl. */
+  const lengthText = (label: string) => screen.getByText(label, { ignore: 'option, script, style' });
+
+  it('Länge wählen', async () => {
+    const { user, patternsNow } = setup(seed({ kind: 'groove', name: 'Verse' }));
+    expect(screen.getByRole('combobox', { name: 'Länge (Beats)' })).toHaveDisplayValue('4 Beats');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Länge (Beats)' }), '6 Beats');
+    expect(patternsNow()[0]!.beats).toHaveLength(6);
+    expect(lengthText('6 Beats')).toBeInTheDocument();
+  });
+
+  it('Derselbe Text gesperrt und entsperrt, entsperrt trägt die Auswahl den Wert', () => {
+    const { store } = setup(seed({ kind: 'groove', name: 'Verse' }));
+    act(() => store.setLocked(true));
+    const text = lengthText('4 Beats');
+    expect(text).not.toHaveAttribute('aria-hidden');
+    expect(screen.queryByRole('combobox', { name: 'Länge (Beats)' })).not.toBeInTheDocument();
+    act(() => store.setLocked(false));
+    expect(lengthText('4 Beats')).toBe(text);
+    expect(text).toHaveAttribute('aria-hidden', 'true');
   });
 });
 

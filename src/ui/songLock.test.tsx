@@ -516,16 +516,15 @@ describe('Spec song-lock › Gleiche Anordnung beim Entsperren', () => {
 
   it('Text und Bedienelement teilen sich die Maße', async () => {
     const { user } = openEditor();
-    const pairs = [
-      { text: () => within(editor()).getByText('4 Beats'), control: () => screen.getByRole('combobox', { name: 'Länge (Beats)' }) },
-      { text: () => within(screen.getByRole('grid')).getAllByText('16tel')[0]!, control: () => screen.getByRole('combobox', { name: 'Unterteilung Beat 1' }) },
-    ];
-    const classes = pairs.map((p) => p.text().className);
+    const length = within(editor()).getByText('4 Beats');
+    const subdivision = within(screen.getByRole('grid')).getAllByText('16tel')[0]!;
+    const subdivisionClass = subdivision.className;
     await user.click(unlockButton());
-    pairs.forEach((p, i) => {
-      expect(classes[i]).toContain('value-control');
-      expect(p.control().className).toBe(classes[i]);
-    });
+    // Länge: derselbe Text bleibt stehen, die Auswahl liegt darüber
+    expect(within(editor()).getByText('4 Beats', { ignore: 'option, script, style' })).toBe(length);
+    expect(length.parentElement).toContainElement(screen.getByRole('combobox', { name: 'Länge (Beats)' }));
+    expect(subdivisionClass).toContain('value-control');
+    expect(screen.getByRole('combobox', { name: 'Unterteilung Beat 1' }).className).toBe(subdivisionClass);
   });
 });
 

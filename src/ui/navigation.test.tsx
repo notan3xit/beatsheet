@@ -118,3 +118,34 @@ describe('Spec navigation › Breadcrumbs (Verlauf)', () => {
     expect(store.getState().view).toEqual({ kind: 'book' });
   });
 });
+
+describe('Spec navigation › Umbruch der Kopfzeile', () => {
+  /** Gruppe am rechten Rand: letztes Element der Kopfzeile, mit den Namen ihrer Knöpfe. */
+  function end(header: string) {
+    const row = document.querySelector(header)!;
+    const group = row.querySelector('.header-end');
+    expect(group).not.toBeNull();
+    expect(row.lastElementChild).toBe(group);
+    return [...group!.querySelectorAll('button')].map((b) => b.getAttribute('aria-label') ?? b.textContent);
+  }
+  const songWithGrooveOpen = () => setup([songWithGroove('Hysteria', 'Verse')], { song: 0, pattern: 0 });
+
+  it('Pattern-Editor in mittlerer Breite', () => {
+    songWithGrooveOpen();
+    expect(end('.editor-header')).toEqual(['Rückgängig', 'Wiederherstellen', 'Duplizieren', 'Löschen', 'Song sperren']);
+  });
+
+  it('Doppelseite in mittlerer Breite', () => {
+    setup([songWith({ title: 'Hysteria' })], { song: 0 });
+    expect(end('.songbook-header .page-title')).toEqual(['Song löschen', 'Verlauf', 'Struktur ausklappen', 'Song sperren']);
+  });
+
+  it('Gesperrt', () => {
+    const { store } = songWithGrooveOpen();
+    act(() => store.setLocked(true));
+    expect(end('.editor-header')).toEqual(['Song entsperren']);
+    act(() => store.openSong(store.getState().songs[0]!.id));
+    expect(end('.songbook-header .page-title').at(-1)).toBe('Song entsperren');
+    expect(end('.songbook-header .page-title')).not.toContain('Song löschen');
+  });
+});

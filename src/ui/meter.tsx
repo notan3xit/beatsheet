@@ -1,14 +1,10 @@
 import { meterLabel, patternMeter, setPatternMeter, setSongMeter, songMeter } from '../domain/meter';
 import { METERS, type Pattern } from '../domain/types';
 import { MeterIcon } from './icons';
+import { ValueSelect } from './ValueSelect';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
 
-const MeterOptions = () =>
-  METERS.map((m) => (
-    <option key={m} value={m}>
-      {meterLabel(m)}
-    </option>
-  ));
+const METER_OPTIONS = METERS.map((m) => ({ value: m, label: meterLabel(m) }));
 
 /** Standard-Takt im Kopf der Doppelseite; entsperrt eine Auswahl, die wie die Tempoangabe aussieht. */
 export function MeterMark() {
@@ -17,31 +13,24 @@ export function MeterMark() {
   const { locked } = useNotebook();
   const meter = songMeter(song);
 
-  if (locked) {
-    return (
-      <span className="song-meter" role="img" aria-label={`Standard-Takt: ${meterLabel(meter)}`}>
-        <MeterIcon />
-        <span className="meter-mark">{meterLabel(meter)}</span>
-      </span>
-    );
-  }
   return (
-    <span className="song-meter">
+    <span className="song-meter" {...(locked ? { role: 'img', 'aria-label': `Standard-Takt: ${meterLabel(meter)}` } : {})}>
       <MeterIcon />
-      <select
+      <ValueSelect
         className="meter-mark"
-        aria-label="Standard-Takt"
-        title="Standard-Takt des Songs"
+        text={meterLabel(meter)}
+        name="Standard-Takt"
+        title={locked ? undefined : 'Standard-Takt des Songs'}
         value={meter}
-        onChange={(e) => store.updateSong((s) => setSongMeter(s, Number(e.target.value)))}
-      >
-        <MeterOptions />
-      </select>
+        options={METER_OPTIONS}
+        readOnly={locked}
+        onChange={(m) => store.updateSong((s) => setSongMeter(s, m))}
+      />
     </span>
   );
 }
 
-/** Taktart im Pattern-Editor: Symbol (entsperrt der Umschalter „Eigene Taktart“) und Wert, beide auf festem Platz. */
+/** Taktart im Pattern-Editor: Symbol (entsperrt der Umschalter „Eigene Taktart“) und Wert in Textbreite. */
 export function PatternMeter({ pattern }: { pattern: Pattern }) {
   const store = useStore();
   const song = useOpenSong();
@@ -71,20 +60,16 @@ export function PatternMeter({ pattern }: { pattern: Pattern }) {
           <MeterIcon />
         </button>
       )}
-      {own && !locked ? (
-        <select
-          className="value-control value-meter"
-          aria-label="Taktart"
-          value={pattern.meter}
-          onChange={(e) => set(Number(e.target.value))}
-        >
-          <MeterOptions />
-        </select>
-      ) : (
-        <span className={own ? 'value-control value-meter' : 'value-control value-meter follows'} title={own ? undefined : 'Taktart des Songs'}>
-          {label}
-        </span>
-      )}
+      <ValueSelect
+        className={own ? 'value-control value-meter' : 'value-control value-meter follows'}
+        text={label}
+        name="Taktart"
+        title={own ? undefined : 'Taktart des Songs'}
+        value={patternMeter(pattern, song)}
+        options={METER_OPTIONS}
+        readOnly={locked || !own}
+        onChange={set}
+      />
     </span>
   );
 }

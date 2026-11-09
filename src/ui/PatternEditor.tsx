@@ -14,8 +14,9 @@ import { PracticeControl } from './PracticeControl';
 import { Sequencer } from './Sequencer';
 import { TempoMark } from './TempoMark';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
+import { ValueSelect } from './ValueSelect';
 
-const LENGTHS = Array.from({ length: MAX_LENGTH - MIN_LENGTH + 1 }, (_, i) => i + MIN_LENGTH);
+const LENGTH_OPTIONS = Array.from({ length: MAX_LENGTH - MIN_LENGTH + 1 }, (_, i) => i + MIN_LENGTH).map((n) => ({ value: n, label: beatsLabel(n) }));
 
 function NameHeading({ pattern, readOnly }: { pattern: Pattern; readOnly: boolean }) {
   const store = useStore();
@@ -76,22 +77,15 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
       </header>
       <div className="editor-header">
         <NameHeading key={pattern.id} pattern={pattern} readOnly={locked} />
-        {locked ? (
-          <span className="value-control value-length">{beatsLabel(pattern.beats.length)}</span>
-        ) : (
-          <select
-            className="value-control value-length"
-            aria-label="Länge (Beats)"
-            value={pattern.beats.length}
-            onChange={(e) => void changeLength(Number(e.target.value))}
-          >
-            {LENGTHS.map((n) => (
-              <option key={n} value={n}>
-                {beatsLabel(n)}
-              </option>
-            ))}
-          </select>
-        )}
+        <ValueSelect
+          className="value-control value-length"
+          text={beatsLabel(pattern.beats.length)}
+          name="Länge (Beats)"
+          value={pattern.beats.length}
+          options={LENGTH_OPTIONS}
+          readOnly={locked}
+          onChange={(n) => void changeLength(n)}
+        />
         <PatternMeter pattern={pattern} />
         <span className="kind-badge">{pattern.kind === 'groove' ? 'Groove' : 'Fill'}</span>
         <span className="tempo-field">
@@ -99,23 +93,25 @@ export function PatternEditor({ pattern }: { pattern: Pattern }) {
         </span>
         <Transport once="Einmal abspielen" loop="In Schleife abspielen" onStart={playback.start} />
         <PracticeControl />
-        {!locked && (
-          <div className="editor-actions">
-            <button type="button" disabled={!canUndo} onClick={() => store.undo()} title="Strg+Z">
-              Rückgängig
-            </button>
-            <button type="button" disabled={!canRedo} onClick={() => store.redo()} title="Strg+Y">
-              Wiederherstellen
-            </button>
-            <button type="button" onClick={() => store.duplicate(pattern.id)}>
-              Duplizieren
-            </button>
-            <button type="button" className="danger" onClick={() => void remove()}>
-              Löschen
-            </button>
-          </div>
-        )}
-        <LockToggle />
+        <div className="header-end">
+          {!locked && (
+            <div className="editor-actions">
+              <button type="button" disabled={!canUndo} onClick={() => store.undo()} title="Strg+Z">
+                Rückgängig
+              </button>
+              <button type="button" disabled={!canRedo} onClick={() => store.redo()} title="Strg+Y">
+                Wiederherstellen
+              </button>
+              <button type="button" onClick={() => store.duplicate(pattern.id)}>
+                Duplizieren
+              </button>
+              <button type="button" className="danger" onClick={() => void remove()}>
+                Löschen
+              </button>
+            </div>
+          )}
+          <LockToggle />
+        </div>
       </div>
       <div className="sequencer-scroll">
         <Sequencer pattern={pattern} playhead={playback.step} readOnly={locked} />

@@ -457,6 +457,59 @@ describe('Spec song-lock › Gleiche Anordnung beim Entsperren', () => {
   });
 });
 
+/** Deklarationen aller Regeln, deren Selektor die Klasse enthält. */
+const rulesWith = (cls: string) => [...topLevel.matchAll(new RegExp(`(?:^|[}{])([^{}]*\\.${cls}\\b[^{}]*)\\{([^}]*)\\}`, 'g'))].map((m) => m[2]!);
+const widthless = (cls: string) => rulesWith(cls).every((body) => decl(body, 'width') === undefined && decl(body, 'min-width') === undefined);
+
+describe('Spec pattern-library › Länge im Pattern-Editor (Stylesheet)', () => {
+  it('Ohne Lücke: keine feste Breite für die Länge', () => {
+    expect(widthless('value-length')).toBe(true);
+  });
+
+  it('Die Auswahl liegt unsichtbar über dem Text, mit Schrift 16px', () => {
+    const body = ruleBody('.value-select select');
+    expect(decl(body, 'position')).toBe('absolute');
+    expect(decl(body, 'inset')).toBe('0');
+    expect(decl(body, 'opacity')).toBe('0');
+    expect(decl(body, 'font-size')).toBe('16px');
+    expect(decl(ruleBody('.value-select'), 'position')).toBe('relative');
+    expect(decl(ruleBody('.value-select'), 'white-space')).toBe('nowrap');
+  });
+
+  it('Länge und Taktart in der Schriftgröße der Tempoangabe', () => {
+    expect(decl(ruleBody('.value-select.value-control'), 'font-size')).toBe(decl(ruleBody('.meter-mark'), 'font-size'));
+    expect(decl(ruleBody('.meter-mark'), 'font-size')).toBe(decl(ruleBody('.tempo-mark,\n.tempo-mark-input'), 'font-size'));
+  });
+});
+
+describe('Spec song-meter › Eigene Taktart im Pattern-Editor (Stylesheet)', () => {
+  it('Ohne Lücke: keine feste Breite für die Taktart und den Standard-Takt', () => {
+    expect(widthless('value-meter')).toBe(true);
+    expect(widthless('meter-mark')).toBe(true);
+  });
+});
+
+describe('Spec navigation › Umbruch der Kopfzeile (Stylesheet)', () => {
+  it('Beide Kopfzeilen brechen um', () => {
+    expect(decl(ruleBody('.page-title'), 'flex-wrap')).toBe('wrap');
+    expect(decl(ruleBody('.editor-header'), 'flex-wrap')).toBe('wrap');
+  });
+
+  it('Die Gruppe am rechten Rand bricht nur als Ganzes um und steht rechtsbündig', () => {
+    const body = ruleBody('.header-end');
+    expect(decl(body, 'margin-left')).toBe('auto');
+    expect(decl(body, 'flex')).toBe('none');
+    expect(decl(body, 'flex-wrap') ?? 'nowrap').toBe('nowrap');
+  });
+
+  it('Kein Wert und kein Knopf der Kopfzeile bricht in sich um', () => {
+    const body = topLevel.match(/(?:^|[}{])\s*([^{}]*\.page-title button[^{}]*)\{([^}]*)\}/);
+    const selectors = body?.[1]!.split(',').map((s) => s.trim()) ?? [];
+    expect(selectors).toEqual(expect.arrayContaining(['.page-title button', '.editor-header button', '.tempo-field', '.tempo-mark']));
+    expect(decl(body?.[2] ?? '', 'white-space')).toBe('nowrap');
+  });
+});
+
 describe('Spec design-system › Farben ausschließlich aus der Palette: Mischfarbe im Logo', () => {
   const logoTokens = [...css.matchAll(/--(logo-[a-z0-9-]+):\s*([^;]+);/g)].map((m) => [m[1]!, m[2]!.trim()] as const);
   const palette = /^var\(--ctp-(?!red\b)[a-z0-9]+\)$/;
@@ -569,9 +622,27 @@ describe('Spec song-history › Gestaltung (Stylesheet)', () => {
   });
 });
 
+describe('Spec practice-tempo › Übetempo ändern (Stylesheet)', () => {
+  it('Wie die Tempoangabe des Songs: Text im Fluss, keine Hover-Fläche, beim Bearbeiten kein eigener Rand', () => {
+    const mark = ruleBody('.practice button.tempo-mark');
+    expect(decl(mark, 'display')).toBe('inline-block');
+    expect(decl(ruleBody('.practice button.tempo-mark:hover'), 'background')).toBe('none');
+    expect(decl(ruleBody('.practice .tempo-mark.editing'), 'margin')).toBeUndefined();
+  });
+
+  it('Zahl als Text und im Eingabefeld gleich ausgerichtet, auch zweistellig', () => {
+    expect(decl(ruleBody('.tempo-value'), 'text-align')).toBe('left');
+  });
+});
+
 describe('Spec practice-tempo › Übetempo in Schritten (Stylesheet)', () => {
   it('Smartphone: Knöpfe zum Verringern und Erhöhen unter 40rem ausgeblendet', () => {
     const narrow = [...css.matchAll(/@media \(max-width: 40rem\)\s*\{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n');
     expect(narrow).toMatch(/\.practice-step\s*\{[^}]*display:\s*none/);
+  });
+  it('Smartphone: Das Übetempo hält rechts denselben Abstand zur Box wie der Schalter links', () => {
+    const narrow = [...css.matchAll(/@media \(max-width: 40rem\)\s*\{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n');
+    const toggle = decl(ruleBody('.practice-toggle'), 'padding')?.split(/\s+/)[1];
+    expect(decl(ruleBody('.practice .tempo-mark', narrow), 'margin-right')).toBe(toggle);
   });
 });

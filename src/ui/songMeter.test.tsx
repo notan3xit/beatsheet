@@ -59,6 +59,7 @@ describe('Spec song-meter › Standard-Takt auf der Doppelseite', () => {
     expect(current().meter).toBe(3);
     expect(current().revision).toBe(5);
     expect(songSelect()).toHaveDisplayValue('3/4');
+    expect(within(header()).getByText('3/4', { ignore: 'option, script, style' })).toHaveAttribute('aria-hidden', 'true');
   });
 });
 
@@ -110,6 +111,7 @@ describe('Spec song-meter › Eigene Taktart im Pattern-Editor', () => {
     const { user, pattern } = setup(songIn(undefined, groove(4)), 'pattern', false);
     await user.selectOptions(meterSelect()!, '7/4');
     expect(pattern().meter).toBe(7);
+    expect(within(meterValue()).getByText('7/4', { ignore: 'option, script, style' })).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('Eigene Taktart ausschalten', async () => {
@@ -182,10 +184,12 @@ describe('Spec song-lock › Gleiche Anordnung beim Entsperren (Taktart des Patt
 
   it('Eigene Taktart', async () => {
     const { user } = setup(songIn(undefined, groove(7)), 'pattern', true);
-    expect(meterValue().tagName).toBe('SPAN');
-    expect(meterValue()).toHaveTextContent('7/4');
+    const text = within(meterValue()).getByText('7/4');
+    expect(text).not.toHaveAttribute('aria-hidden');
     await unlock(user);
-    expect(meterValue().tagName).toBe('SELECT');
+    expect(within(meterValue()).getByText('7/4', { ignore: 'option, script, style' })).toBe(text);
+    expect(text).toHaveAttribute('aria-hidden', 'true');
+    expect(meterValue()).toContainElement(meterSelect());
     expect(meterSelect()).toHaveDisplayValue('7/4');
   });
 
