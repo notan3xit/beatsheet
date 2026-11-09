@@ -5,10 +5,12 @@ import type { Events } from './events.ts';
 import { HttpError, type Reply } from './http.ts';
 import { profileOf } from './profile.ts';
 import type { Limits, Quota } from './limits.ts';
+import { isOutdated } from './version.ts';
 import { addSong, deleteSong, moveSong, parseWorkbookPart, syncSongs, syncWorkbookDoc } from './songs.ts';
 
 export interface WorkbookDeps extends AuthDeps {
   appUrl?: string;
+  version: string;
   events: Events;
   limits: Limits;
   quota: Quota;
@@ -18,6 +20,8 @@ export interface WorkbookRequest {
   /** Adresse der Sitzung. */
   email: string;
   method: string;
+  /** Version der App aus dem Header, falls gesendet. */
+  version?: string;
   /** Pfadteile nach `/api/workbooks`, noch URL-kodiert. */
   path: string[];
   body: () => Promise<Record<string, unknown>>;
@@ -216,6 +220,10 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
     if (item !== undefined && method === 'DELETE') return removeMember(deps, row, email, item);
   }
   const songsChanged = () => events.send(membersOf(db, id, row.owner), 'workbook', { id });
+  /** Song-Inhalte nur von einer App, die nicht älter ist als der Server (design.md D2). */
+  const requireCurrent = () => {
+    if (isOutdated(request.version, deps.version)) throw new HttpError(409, 'outdated');
+  };
   if (resource === 'songs') {
     if (item !== undefined && action === 'move' && method === 'POST') {
       const { to } = await body();
@@ -230,6 +238,7 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
       return reply;
     }
     if (item === undefined && method === 'POST') {
+      requireCurrent();
       const reply = await addSong(db, id, await body(), deps.now(), (growth) => deps.quota.check(row.owner, growth));
       songsChanged();
       return reply;
@@ -241,6 +250,7 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
     }
   }
   if (resource === 'sync' && item === undefined && method === 'POST') {
+    requireCurrent();
     const request = await body();
     const part = parseWorkbookPart(request);
     const check = (growth: number) => deps.quota.check(row.owner, growth);

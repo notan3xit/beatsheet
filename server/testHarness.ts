@@ -4,6 +4,7 @@ import { createApp } from './app.ts';
 import type { Limits } from './limits.ts';
 import { openDatabase } from './db.ts';
 import type { Mail } from './mail.ts';
+import { PACKAGE_VERSION, VERSION_HEADER } from './version.ts';
 
 const SECRET = Buffer.alloc(32, 7);
 
@@ -14,13 +15,15 @@ export interface Harness {
   advance(ms: number): void;
   /** Meldet die Adresse an (Code anfordern und bestätigen); liefert das Sitzungs-Cookie. */
   login(email: string): Promise<string>;
-  /** JSON-Anfrage an die API; ohne `cookie` ohne Sitzung. */
-  api(method: string, path: string, options?: { cookie?: string; body?: unknown }): Promise<Response>;
+  /** Version des Servers. */
+  version: string;
+  /** JSON-Anfrage an die API; ohne `cookie` ohne Sitzung. Sendet die Version des Servers als App-Version, `version: null` keine. */
+  api(method: string, path: string, options?: { cookie?: string; body?: unknown; version?: string | null }): Promise<Response>;
   close(): Promise<void>;
 }
 
 /** Server mit In-Memory-Datenbank, fester Uhr und gesammelten Mails auf einem freien Port. */
-export async function startServer({ appUrl, limits, staticDir }: { appUrl?: string; limits?: Partial<Limits>; staticDir?: string } = {}): Promise<Harness> {
+export async function startServer({ appUrl, limits, staticDir, version = PACKAGE_VERSION }: { appUrl?: string; limits?: Partial<Limits>; staticDir?: string; version?: string } = {}): Promise<Harness> {
   let time = Date.parse('2026-11-04T12:00:00.000Z');
   const mails: Mail[] = [];
   const db = openDatabase(':memory:');
@@ -36,21 +39,27 @@ export async function startServer({ appUrl, limits, staticDir }: { appUrl?: stri
       appUrl,
       limits,
       staticDir,
+      version,
     }),
   );
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const { port } = server.address() as AddressInfo;
   const url = `http://127.0.0.1:${port}`;
 
-  const api: Harness['api'] = (method, path, { cookie, body } = {}) =>
+  const api: Harness['api'] = (method, path, { cookie, body, version: sent = version } = {}) =>
     fetch(`${url}${path}`, {
       method,
-      headers: { ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(cookie ? { Cookie: cookie } : {}) },
+      headers: {
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...(cookie ? { Cookie: cookie } : {}),
+        ...(sent === null ? {} : { [VERSION_HEADER]: sent }),
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
   return {
     url,
+    version,
     mails,
     db,
     advance: (ms) => void (time += ms),

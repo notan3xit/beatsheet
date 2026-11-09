@@ -34,6 +34,10 @@ export interface WorkbookActions {
   dismissNotice(id: number): void;
   /** Der Server ist zuletzt nicht erreichbar gewesen. */
   isOffline(): boolean;
+  /** Der Server ist neuer als die App; der Abgleich ruht bis zum Neuladen (outdated-app, design.md D3). */
+  isOutdated(): boolean;
+  /** Speichert Ausstehendes und lädt die App neu. */
+  reload(): Promise<void>;
   /** Meldet Änderungen an Hinweisen und Verbindungsstatus. */
   subscribe(listener: () => void): () => void;
 }
@@ -56,13 +60,28 @@ export interface SyncDeps {
   debounceMs?: number;
   /** Verzögerung, mit der ein offener Song nach Änderungen als gesehen gilt (song-activity, design.md D7). */
   seenDebounceMs?: number;
+  /** Lädt die Seite neu, für Tests ersetzbar. */
+  reload?: () => void;
 }
 
 /** Abgleich für einen angemeldeten Nutzer (workbook-sync, design.md D9, D10). */
-export function createSync({ store, repo, connection, session, api, openEvents, pollMs = 60_000, debounceMs = 500, seenDebounceMs = 1000 }: SyncDeps): Sync {
+export function createSync({
+  store,
+  repo,
+  connection,
+  session,
+  api,
+  openEvents,
+  pollMs = 60_000,
+  debounceMs = 500,
+  seenDebounceMs = 1000,
+  reload = () => location.reload(),
+}: SyncDeps): Sync {
   let notices: Notice[] = [];
   let nextNotice = 0;
   let offline = false;
+  /** Der Server hat die App als veraltet abgewiesen; endet erst mit dem Neuladen. */
+  let outdated = false;
   const listeners = new Set<() => void>();
   let events: EventsConnection | undefined;
   /** Während der Sync selbst den Store ändert, löst das keinen weiteren Abgleich aus. */
@@ -157,6 +176,14 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
 
   /** Eine abgelaufene Sitzung lässt die Songs stehen; der Sync ruht bis zur nächsten Anmeldung. */
   const noteFailure = (error: SyncError) => {
+    if (error === 'outdated') {
+      if (outdated) return;
+      outdated = true;
+      // Laufende Antworten bringen nichts mehr zurück
+      generation++;
+      changed();
+      return;
+    }
     setOffline(error === 'unreachable');
     if (error === 'unauthenticated') {
       announcing = true;
@@ -251,6 +278,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
   };
 
   const syncWorkbook = async (workbookId: string, started: number): Promise<boolean> => {
+    if (outdated) return false;
     if (started !== generation) return false;
     await connection.flush();
     for (const { id, workbookId: from } of repo.pendingDeletes()) {
@@ -313,6 +341,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
 
   /** Bringt Songs ohne Zugehörigkeit ins persönliche Workbook (account-songs, design.md D3); `false`, wenn der Server fehlt. */
   const uploadLocal = async (personalId: string, started: number): Promise<{ done: boolean; uploaded: number }> => {
+    if (outdated) return { done: false, uploaded: 0 };
     let uploaded = 0;
     let quota: QuotaReason | undefined;
     const queue = unplaced();
@@ -383,7 +412,7 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
   };
 
   const syncAll = async (): Promise<boolean> => {
-    if (!session.getEmail()) return false;
+    if (outdated || !session.getEmail()) return false;
     const started = generation;
     const result = await api.listWorkbooks();
     if (started !== generation) return false;
@@ -676,6 +705,12 @@ export function createSync({ store, repo, connection, session, api, openEvents, 
       changed();
     },
     isOffline: () => offline,
+    isOutdated: () => outdated,
+    async reload() {
+      await connection.flush();
+      await repo.settled();
+      reload();
+    },
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

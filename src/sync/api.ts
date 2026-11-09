@@ -1,4 +1,5 @@
 import type { Workbook } from '../domain/types';
+import { CHANGELOG } from '../ui/changelog';
 
 /** Fehler einer Aktion; `unreachable` steht für Netzwerkfehler und jede unerwartete Antwort. */
 export type SyncError =
@@ -18,7 +19,9 @@ export type SyncError =
   | 'not-personal'
   | QuotaReason
   | 'too-many-workbooks'
-  | 'too-many-members';
+  | 'too-many-members'
+  /** Der Server ist neuer als die App (outdated-app). */
+  | 'outdated';
 
 /** Warum der Server Speicher verweigert: Grenze des Workbook-Besitzers oder aller Accounts. */
 export type QuotaReason = 'quota-exceeded' | 'server-full';
@@ -64,7 +67,7 @@ export interface SyncApi {
 
 export type SyncFetch = (path: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<Response>;
 
-const KNOWN_ERRORS = new Set<SyncError>(['invalid-title', 'invalid-email', 'already-member', 'rate-limited', 'not-owner', 'not-empty', 'exists', 'invalid-song', 'too-large', 'personal', 'not-personal', 'quota-exceeded', 'server-full', 'too-many-workbooks', 'too-many-members']);
+const KNOWN_ERRORS = new Set<SyncError>(['invalid-title', 'invalid-email', 'already-member', 'rate-limited', 'not-owner', 'not-empty', 'exists', 'invalid-song', 'too-large', 'personal', 'not-personal', 'quota-exceeded', 'server-full', 'too-many-workbooks', 'too-many-members', 'outdated']);
 
 function toBase64(bytes: Uint8Array): string {
   const CHUNK = 0x8000;
@@ -94,12 +97,14 @@ function decodeWorkbookReply({ status, doc, changes, heads }: RawWorkbookReply):
 
 const encodeOutgoing = ({ base, changes }: { base: string[]; changes: Uint8Array }) => ({ base, ...(changes.length > 0 ? { changes: toBase64(changes) } : {}) });
 
-export function createSyncApi(fetcher: SyncFetch = (path, init) => fetch(path, init)): SyncApi {
+/** Jede Anfrage trägt die Version der App; der Server weist Song-Inhalte älterer Versionen ab (outdated-app, design.md D2). */
+export function createSyncApi(fetcher: SyncFetch = (path, init) => fetch(path, init), version = CHANGELOG[0]!.version): SyncApi {
   async function request<T extends object = object>(method: string, path: string, body?: unknown): Promise<SyncResult<T>> {
     try {
       const response = await fetcher(`/api/${path}`, {
         method,
-        ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+        headers: { 'Beatsheet-Version': version, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
       if (response.ok) return { ok: true, ...(response.status === 204 ? {} : ((await response.json()) as T)) } as SyncResult<T>;
       if (response.status === 401) return { ok: false, error: 'unauthenticated' };

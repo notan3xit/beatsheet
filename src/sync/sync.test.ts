@@ -11,6 +11,7 @@ import { songWith } from '../test/songs';
 import { startServer, type Harness } from '../../server/testHarness';
 import { createSyncApi, type EventsOpener, type SyncFetch } from './api';
 import { createSync, type Sync } from './sync';
+import { CHANGELOG } from '../ui/changelog';
 
 const OWNER = 'ich@example.com';
 const ANNA = 'anna@example.com';
@@ -26,6 +27,9 @@ interface Device {
   concurrency: { current: Map<string, number>; max: number };
   dbName: string;
   session: ReturnType<typeof createAccountSession>;
+  /** Pfade aller Anfragen an den Server mit ihren Headern. */
+  requests: { path: string; headers: Record<string, string> }[];
+  reload: ReturnType<typeof vi.fn>;
 }
 
 let h: Harness;
@@ -41,12 +45,17 @@ afterEach(async () => {
 const unreachable = () => new TypeError('fetch failed');
 
 /** Ein Gerät mit eigener Datenbank und Sitzung gegen den echten Server. */
-async function device(email: string, { live = true, dbName = `sync-test-${crypto.randomUUID()}`, cookie }: { live?: boolean; dbName?: string; cookie?: string } = {}): Promise<Device> {
+async function device(
+  email: string,
+  { live = true, dbName = `sync-test-${crypto.randomUUID()}`, cookie, appVersion }: { live?: boolean; dbName?: string; cookie?: string; appVersion?: string } = {},
+): Promise<Device> {
   const sessionCookie = cookie ?? (await h.login(email));
   const concurrency = { current: new Map<string, number>(), max: 0 };
   let online = true;
+  const requests: Device['requests'] = [];
   const fetcher: SyncFetch = async (path, init = {}) => {
     if (!online) throw unreachable();
+    requests.push({ path, headers: init.headers ?? {} });
     const isSync = path.endsWith('/sync');
     if (isSync) {
       concurrency.current.set(path, (concurrency.current.get(path) ?? 0) + 1);
@@ -99,6 +108,7 @@ async function device(email: string, { live = true, dbName = `sync-test-${crypto
     logout: vi.fn(async () => ({ ok: true as const })),
   };
   const session = createAccountSession(api);
+  const reload = vi.fn();
   const repo = await openRepository(dbName);
   const songs = await repo.loadAll();
   const store = createNotebookStore(songs, undefined, await repo.loadSyncState());
@@ -108,14 +118,15 @@ async function device(email: string, { live = true, dbName = `sync-test-${crypto
     repo,
     connection,
     session,
-    api: createSyncApi(fetcher),
+    api: createSyncApi(fetcher, appVersion),
     openEvents: live ? openEvents : () => ({ close: () => {}, isClosed: () => false }),
     pollMs: 3_600_000,
     debounceMs: 10,
     seenDebounceMs: 10,
+    reload,
   });
   session.setEmail(email);
-  const result: Device = { store, repo, connection, sync, setOnline: (v) => void (online = v), concurrency, dbName, session };
+  const result: Device = { store, repo, connection, sync, setOnline: (v) => void (online = v), concurrency, dbName, session, requests, reload };
   devices.push(result);
   return result;
 }
@@ -716,5 +727,63 @@ describe('Spec song-activity › Gesehen', () => {
     me.store.backToList();
     me.store.openSong(intro.id);
     expect(me.repo.workbookOutgoing(workbook)).toEqual({ base, changes: new Uint8Array() });
+  });
+});
+
+describe('Spec workbook-sync › Abgleich pausiert bei veralteter App', () => {
+  const syncRequests = (d: Device) => d.requests.filter((r) => r.path.endsWith('/sync')).length;
+
+  /** „Intro“ in „Band“; danach läuft auf dem Gerät des Besitzers eine App, die älter ist als der Server. */
+  async function outdated() {
+    const ctx = await bandWithIntro({ live: true });
+    ctx.me.sync.stop();
+    const old = await device(OWNER, { dbName: ctx.me.dbName, appVersion: '0.0.1' });
+    old.sync.start();
+    await old.sync.syncAll();
+    await eventually(() => expect(old.sync.isOutdated()).toBe(true));
+    return { ...ctx, old };
+  }
+
+  it('Die App sendet ihre Version', async () => {
+    const { me } = await bandWithIntro();
+    expect(me.requests.find((r) => r.path.endsWith('/sync'))!.headers['Beatsheet-Version']).toBe(CHANGELOG[0]!.version);
+  });
+
+  it('Neue Version veröffentlicht', async () => {
+    const { old } = await outdated();
+    expect(old.sync.isOffline()).toBe(false);
+  });
+
+  it('Weiterarbeiten während der Pause', async () => {
+    const { old } = await outdated();
+    const before = syncRequests(old);
+    edit(old, 'Intro', (s) => appendSegment(s, { name: 'Bridge', bars: 1 }));
+    await old.connection.flush();
+    await old.sync.syncAll();
+    document.dispatchEvent(new Event('visibilitychange'));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(syncRequests(old)).toBe(before);
+    expect(songNamed(old, 'Intro').segments.map((s) => s.name)).toContain('Bridge');
+  });
+
+  it('Änderungen eines anderen Mitglieds während der Pause', async () => {
+    const { old, anna } = await outdated();
+    edit(anna, 'Intro', (s) => appendSegment(s, { name: 'Solo', bars: 1 }));
+    await anna.connection.flush();
+    await anna.sync.syncAll();
+    await new Promise((r) => setTimeout(r, 200));
+    expect(songNamed(old, 'Intro').segments.map((s) => s.name)).not.toContain('Solo');
+  });
+
+  it('Neu laden', async () => {
+    const { old, anna } = await outdated();
+    edit(old, 'Intro', (s) => appendSegment(s, { name: 'Bridge', bars: 1 }));
+    await old.sync.reload();
+    expect(old.reload).toHaveBeenCalledOnce();
+    old.sync.stop();
+    const fresh = await device(OWNER, { dbName: old.dbName });
+    await fresh.sync.syncAll();
+    await anna.sync.syncAll();
+    await eventually(() => expect(songNamed(anna, 'Intro').segments.map((s) => s.name)).toContain('Bridge'));
   });
 });

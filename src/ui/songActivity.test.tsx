@@ -55,6 +55,8 @@ const noSync = (): WorkbookActions => ({
   getNotices: () => NO_NOTICES,
   dismissNotice: vi.fn(),
   isOffline: () => false,
+  isOutdated: () => false,
+  reload: vi.fn(),
   subscribe: () => () => {},
 });
 

@@ -245,10 +245,52 @@ function plain(value: unknown): Json {
 
 const idOf = (item: unknown) => (isObject(item) ? String(item.id) : undefined);
 
-function syncList(list: A.List<unknown>, target: Json[], byId: boolean) {
+/**
+ * Welche Schlüssel eines Objekts der Dokumentform diese Version besitzt und wie seine Kinder beschrieben sind
+ * (outdated-app, design.md D1). Nur besessene Schlüssel werden gelöscht; Felder neuerer Versionen bleiben stehen.
+ * Bei Listen beschreibt `child` die Elemente.
+ */
+interface Owned {
+  owns(key: string): boolean;
+  child(key: string): Owned;
+}
+
+/** Wörterbuch mit Daten als Schlüsseln, etwa Positionen oder Akzente; auch für Werte ohne Kinder. */
+const DATA: Owned = { owns: () => true, child: () => DATA };
+
+/** Objekt mit festen Feldern; `extra` besitzt zusätzlich Datenschlüssel neben den Feldern. */
+function fields(children: Record<string, Owned>, extra: (key: string) => boolean = () => false): Owned {
+  return { owns: (key) => key in children || extra(key), child: (key) => children[key] ?? DATA };
+}
+
+const plainFields = (...keys: string[]) => Object.fromEntries(keys.map((key) => [key, DATA]));
+const isInstrument = (value: string) => (INSTRUMENTS as readonly string[]).includes(value);
+
+const BEAT_OWNED = fields(
+  {
+    subdivision: DATA,
+    hits: fields(Object.fromEntries(INSTRUMENTS.map((i) => [i, DATA]))),
+    articulations: fields(
+      Object.fromEntries(ARTICULATION_CONTAINERS.map((i) => [i, DATA])),
+      (key) => key.includes(':') && isInstrument(key.split(':')[0]!),
+    ),
+  },
+  (key) => key.startsWith(EMPHASIS_PREFIX),
+);
+
+const SONG_OWNED = fields({
+  ...plainFields('v', 'id', 'title', 'tempo', 'meter', 'createdAt', 'updatedAt', 'revision'),
+  patterns: fields({ ...plainFields('id', 'kind', 'name', 'color', 'meter', 'createdAt', 'updatedAt', 'revision'), beats: BEAT_OWNED }),
+  segments: fields({
+    ...plainFields('id', 'name'),
+    blocks: fields({ id: DATA, bars: fields({ ...plainFields('id', 'beats', 'grooveId', 'fillId'), accents: DATA }) }),
+  }),
+});
+
+function syncList(list: A.List<unknown>, target: Json[], byId: boolean, owned: Owned) {
   if (!byId) {
     const common = Math.min(list.length, target.length);
-    for (let i = 0; i < common; i++) syncValue(list as unknown as Record<number, unknown>, i, target[i]!);
+    for (let i = 0; i < common; i++) syncValue(list as unknown as Record<number, unknown>, i, target[i]!, owned);
     if (list.length > target.length) list.deleteAt(target.length, list.length - target.length);
     for (let i = list.length; i < target.length; i++) list.insertAt(i, toAutomerge(target[i]!));
     return;
@@ -258,7 +300,7 @@ function syncList(list: A.List<unknown>, target: Json[], byId: boolean) {
   target.forEach((item, i) => {
     const id = idOf(item);
     if (i < list.length && idOf(list[i]) === id) {
-      syncMap(list[i] as Record<string, unknown>, item as JsonObject);
+      syncMap(list[i] as Record<string, unknown>, item as JsonObject, owned);
       return;
     }
     // Verschoben: an der alten Stelle löschen und neu einfügen (Automerge kennt kein Verschieben)
@@ -272,23 +314,24 @@ function syncList(list: A.List<unknown>, target: Json[], byId: boolean) {
   });
 }
 
-function syncValue(parent: Record<string | number, unknown>, key: string | number, target: Json) {
+/** `owned` beschreibt den Wert unter `key`. */
+function syncValue(parent: Record<string | number, unknown>, key: string | number, target: Json, owned: Owned) {
   const current = parent[key];
   if (key === 'revision' && A.isCounter(current) && typeof target === 'number') {
     const delta = target - current.value;
     if (delta !== 0) current.increment(delta);
   } else if (Array.isArray(target) && Array.isArray(current)) {
-    syncList(current as A.List<unknown>, target, ID_LISTS.has(String(key)));
+    syncList(current as A.List<unknown>, target, ID_LISTS.has(String(key)), owned);
   } else if (isObject(target) && isObject(current)) {
-    syncMap(current, target as JsonObject);
+    syncMap(current, target as JsonObject, owned);
   } else if (plain(current) !== target || current === undefined) {
     parent[key] = toAutomerge(target, String(key));
   }
 }
 
-function syncMap(current: Record<string, unknown>, target: JsonObject) {
-  for (const key of Object.keys(current)) if (!(key in target)) delete current[key];
-  for (const [key, value] of Object.entries(target)) syncValue(current, key, value);
+function syncMap(current: Record<string, unknown>, target: JsonObject, owned: Owned) {
+  for (const key of Object.keys(current)) if (owned.owns(key) && !(key in target)) delete current[key];
+  for (const [key, value] of Object.entries(target)) syncValue(current, key, value, owned.child(key));
 }
 
 /** Neues Dokument für einen Song; mit Nachricht trägt schon das Anlegen den Autor (song-history, design.md D1). */
@@ -303,7 +346,7 @@ export function createSongDoc(song: Song, message?: string): SongDocument {
 /** Überträgt einen Song als minimale Änderung ins Dokument; ein unveränderter Song erzeugt keine Änderung. */
 export function applySong(doc: SongDocument, song: Song, message?: string): SongDocument {
   const target = toDocShape(song) as unknown as JsonObject;
-  const apply = (d: unknown) => syncMap(d as Record<string, unknown>, target);
+  const apply = (d: unknown) => syncMap(d as Record<string, unknown>, target, SONG_OWNED);
   return message === undefined ? A.change(doc, apply) : A.change(doc, { message }, apply);
 }
 

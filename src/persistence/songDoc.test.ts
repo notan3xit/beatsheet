@@ -291,6 +291,99 @@ describe('Dokumentform und Brücke (design.md D3, D4)', () => {
   });
 });
 
+describe('Spec library-persistence › Felder neuerer Versionen im Song-Dokument', () => {
+  /** Song mit allen Feldern der Dokumentform, auch den optionalen und den Datenschlüsseln. */
+  function fullSong(): Song {
+    const song = { ...baseSong(3), meter: 6 };
+    const beat = {
+      subdivision: 4 as const,
+      hits: { snare: [0], ride: [1], crash: [2] },
+      articulations: { snare: { 0: 'rim' as const }, ride: { 1: 'bell' as const } },
+      emphasis: { snare: [0] },
+    };
+    const [first] = bars(song);
+    const withAccent = addAccent(song, first!.id, { instrument: 'crash', beat: 0, position: 0 });
+    return {
+      ...withAccent,
+      patterns: withAccent.patterns.map((p, i) => (i === 0 ? { ...p, meter: 3, beats: [beat, ...p.beats.slice(1)] } : p)),
+    };
+  }
+
+  type Loose = Record<string, unknown> & { patterns: Loose[]; segments: (Loose & { blocks: (Loose & { bars: Loose[] })[] })[] };
+  type LooseBeat = Record<string, unknown> & { hits: Record<string, unknown>; articulations: Record<string, unknown> };
+
+  /** Fügt auf jeder Ebene Felder hinzu, die diese Version nicht kennt. */
+  function withUnknown(doc: SongDocument): SongDocument {
+    return A.change(doc, (d) => {
+      const song = d as unknown as Loose;
+      song.key = 'Dm';
+      song.patterns[0]!.swing = 60;
+      song.segments[0]!.color = 'blue';
+      song.segments[0]!.blocks[0]!.repeat = 2;
+      song.segments[0]!.blocks[0]!.bars[0]!.cue = 'Gitarre';
+      const beat = (song.patterns[0]!.beats as LooseBeat[])[0]!;
+      beat.feel = 'laid back';
+      beat.hits.cowbell = { 0: true };
+      beat.articulations.cowbell = { 0: 'muted' };
+      beat.articulations['cowbell:1'] = 'open';
+    });
+  }
+
+  const unknownValues = (doc: SongDocument) => {
+    const song = doc as unknown as Loose;
+    const beat = (song.patterns[0]!.beats as LooseBeat[])[0]!;
+    return JSON.parse(
+      JSON.stringify({
+        key: song.key,
+        swing: song.patterns[0]!.swing,
+        color: song.segments[0]!.color,
+        repeat: song.segments[0]!.blocks[0]!.repeat,
+        cue: song.segments[0]!.blocks[0]!.bars[0]!.cue,
+        feel: beat.feel,
+        cowbell: beat.hits.cowbell,
+        articulation: beat.articulations.cowbell,
+        flat: beat.articulations['cowbell:1'],
+      }),
+    ) as unknown;
+  };
+  const EXPECTED = { key: 'Dm', swing: 60, color: 'blue', repeat: 2, cue: 'Gitarre', feel: 'laid back', cowbell: { 0: true }, articulation: { 0: 'muted' }, flat: 'open' };
+
+  it('Feld einer neueren Version bleibt erhalten', () => {
+    const before = withUnknown(createSongDoc(fullSong()));
+    const after = edit(before, (song) => appendSegment(song, { name: 'Chorus', bars: 1 }));
+    expect(unknownValues(after)).toEqual(EXPECTED);
+    const touched = A.diff(after, A.getHeads(before), A.getHeads(after)).map((patch) => String(patch.path[0]));
+    expect(new Set(touched)).toEqual(new Set(['segments', 'revision', 'updatedAt']));
+  });
+
+  it('Empfangener Song mit unbekanntem Feld', () => {
+    const doc = withUnknown(createSongDoc(fullSong()));
+    const saved = applySong(doc, songOf(doc));
+    expect(A.getHeads(saved)).toEqual(A.getHeads(doc));
+    expect(unknownValues(saved)).toEqual(EXPECTED);
+  });
+
+  it('Bekanntes Feld entfernen', () => {
+    const song = fullSong();
+    const doc = createSongDoc(song);
+    const verse = pattern(song, 'Verse');
+    const followsSong = { ...song, patterns: song.patterns.map((p) => (p.id === verse.id ? { ...p, meter: undefined } : p)) };
+    expect('meter' in (applySong(doc, followsSong) as unknown as Loose).patterns[0]!).toBe(false);
+  });
+
+  it('jedes Feld der Dokumentform lässt sich entfernen', () => {
+    const song = fullSong();
+    const doc = createSongDoc(song);
+    const bare: Song = {
+      ...song,
+      meter: undefined,
+      patterns: song.patterns.map(({ meter: _meter, ...p }) => ({ ...p, beats: p.beats.map((b) => ({ subdivision: b.subdivision, hits: {} })) })),
+      segments: song.segments.map((s) => ({ ...s, blocks: s.blocks.map((b) => ({ ...b, bars: b.bars.map((bar) => ({ ...bar, accents: [] })) })) })),
+    };
+    expect(JSON.parse(JSON.stringify(applySong(doc, bare)))).toEqual(JSON.parse(JSON.stringify(toDocShape(bare))));
+  });
+});
+
 describe('sameSong', () => {
   const base = (): Song => ({
     ...songWith({ title: 'Intro', groove: true, bars: 1 }),

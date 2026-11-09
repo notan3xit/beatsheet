@@ -6,6 +6,7 @@ import { createQuota, DEFAULT_LIMITS, type Limits } from './limits.ts';
 import { parseProfile, profileOf, saveProfile } from './profile.ts';
 import { serveStatic } from './static.ts';
 import { handleWorkbookRequest } from './workbooks.ts';
+import { PACKAGE_VERSION, VERSION_HEADER } from './version.ts';
 
 export interface AppDeps extends AuthDeps {
   /** `false` nur für Tests über reines HTTP (`--insecure-cookie`, design.md D7). */
@@ -16,9 +17,16 @@ export interface AppDeps extends AuthDeps {
   staticDir?: string;
   /** Abweichende Grenzen, für Tests. */
   limits?: Partial<Limits>;
+  /** Version des Servers, ohne Angabe aus `package.json`; ältere Apps dürfen keine Songs übertragen (outdated-app, design.md D2). */
+  version?: string;
 }
 
 const COOKIE = 'beatsheet_session';
+
+const headerOf = (request: IncomingMessage, name: string) => {
+  const value = request.headers[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] : value;
+};
 const MAX_BODY = 4096;
 const MAX_WORKBOOK_BODY = 2 * 1024 * 1024;
 
@@ -117,9 +125,10 @@ export function createApp(deps: AppDeps): RequestListener {
     if (path === '/api/workbooks' || path?.startsWith('/api/workbooks/')) {
       const email = sessionEmail(deps, tokenOf(request));
       if (!email) return send(response, 401, { error: 'unauthenticated' });
-      const reply = await handleWorkbookRequest({ ...deps, events, limits, quota }, {
+      const reply = await handleWorkbookRequest({ ...deps, version: deps.version ?? PACKAGE_VERSION, events, limits, quota }, {
         email,
         method: request.method ?? 'GET',
+        version: headerOf(request, VERSION_HEADER),
         path: path.split('/').slice(3),
         body: () => readJson(request, MAX_WORKBOOK_BODY),
       });

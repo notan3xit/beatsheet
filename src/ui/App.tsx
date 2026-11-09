@@ -56,11 +56,25 @@ function StorageNote({ synced }: { synced: boolean }) {
   );
 }
 
-/** Ohne Anmeldung und Workbooks gibt es nichts abzugleichen, und der Hinweis entfällt. */
-function OfflineNote({ sync }: { sync: WorkbookActions }) {
+/** Der Server ist neuer als die App: Der Abgleich ruht bis zum Neuladen (outdated-app, design.md D4). */
+function OutdatedNote({ sync }: { sync: WorkbookActions }) {
+  return (
+    <div role="status" className="message note">
+      <span>Es gibt eine neue Version von Beatsheet. Bis zum Neuladen werden deine Änderungen nicht abgeglichen, sie bleiben auf diesem Gerät.</span>
+      <button type="button" onClick={() => void sync.reload()}>
+        Neu laden
+      </button>
+    </div>
+  );
+}
+
+/** Hinweis zum Abgleich: pausiert oder ohne Verbindung. Ohne Anmeldung und Workbooks gibt es nichts abzugleichen, und der Hinweis ohne Verbindung entfällt. */
+function SyncNote({ sync }: { sync: WorkbookActions }) {
   const offline = useSyncExternalStore(sync.subscribe, sync.isOffline);
+  const outdated = useSyncExternalStore(sync.subscribe, sync.isOutdated);
   const { workbooks } = useNotebook();
   const email = useEmail();
+  if (outdated) return <OutdatedNote sync={sync} />;
   if (!offline || (!email && workbooks.length === 0)) return null;
   return (
     <p role="status" className="message note">
@@ -144,7 +158,7 @@ export function App({
             <AppHeader session={session} profileApi={profileApi} />
             <div className="app-notes">
               {!storagePersisted && <StorageNote synced={sync !== undefined} />}
-              {sync && <OfflineNote sync={sync} />}
+              {sync && <SyncNote sync={sync} />}
               {sync && <Notices sync={sync} />}
               <ReportedMessages />
             </div>

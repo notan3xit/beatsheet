@@ -39,6 +39,8 @@ function setup() {
     getNotices: () => noNotices,
     dismissNotice: vi.fn(),
     isOffline: () => false,
+    isOutdated: () => false,
+    reload: vi.fn(),
     subscribe: () => () => {},
   } as unknown as WorkbookActions;
   const account: AccountApi = {

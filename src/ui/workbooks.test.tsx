@@ -31,6 +31,7 @@ const workbook = (title: string, overrides: Partial<Workbook> = {}): Workbook =>
 function fakeSync(store: NotebookStore, overrides: Partial<WorkbookActions> = {}) {
   let notices: Notice[] = [];
   let offline = false;
+  let outdated = false;
   const listeners = new Set<() => void>();
   const actions = {
     createWorkbook: vi.fn(async (title: string): Promise<CreatedResult> => {
@@ -64,6 +65,8 @@ function fakeSync(store: NotebookStore, overrides: Partial<WorkbookActions> = {}
     }),
     getNotices: () => notices,
     isOffline: () => offline,
+    isOutdated: () => outdated,
+    reload: vi.fn(async () => {}),
     dismissNotice: vi.fn((id: number) => {
       notices = notices.filter((n) => n.id !== id);
       listeners.forEach((l) => l());
@@ -82,7 +85,11 @@ function fakeSync(store: NotebookStore, overrides: Partial<WorkbookActions> = {}
     offline = next;
     listeners.forEach((l) => l());
   };
-  return { actions, addNotice, setOffline };
+  const setOutdated = (next: boolean) => {
+    outdated = next;
+    listeners.forEach((l) => l());
+  };
+  return { actions, addNotice, setOffline, setOutdated };
 }
 
 function setup({
@@ -102,10 +109,10 @@ function setup({
   };
   const session = createAccountSession(account);
   session.setEmail(email);
-  const { actions: sync, addNotice, setOffline } = fakeSync(store, overrides);
+  const { actions: sync, addNotice, setOffline, setOutdated } = fakeSync(store, overrides);
   const user = userEvent.setup();
   render(<App store={store} session={session} sync={sync} player={fakePlayer().player} storagePersisted={storagePersisted} />);
-  return { store, session, sync, user, account, addNotice, setOffline };
+  return { store, session, sync, user, account, addNotice, setOffline, setOutdated };
 }
 
 const card = (name: string) => screen.getByRole('region', { name });
@@ -484,6 +491,21 @@ describe('Spec workbooks › Songs nach dem Austritt (UI)', () => {
     await user.click(within(notice).getByRole('button', { name: 'Meldung schließen' }));
     expect(sync.dismissNotice).toHaveBeenCalled();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+});
+
+describe('Spec workbook-sync › Abgleich pausiert bei veralteter App (UI)', () => {
+  it('Neue Version veröffentlicht', async () => {
+    const { setOutdated, setOffline, sync, user } = setup();
+    act(() => {
+      setOffline(true);
+      setOutdated(true);
+    });
+    const [note, ...others] = screen.getAllByRole('status');
+    expect(others).toEqual([]);
+    expect(within(note!).queryByRole('button', { name: 'Meldung schließen' })).not.toBeInTheDocument();
+    await user.click(within(note!).getByRole('button', { name: 'Neu laden' }));
+    expect(sync.reload).toHaveBeenCalledOnce();
   });
 });
 

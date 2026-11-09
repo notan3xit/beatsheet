@@ -507,3 +507,47 @@ describe('Workbook-Dokument', () => {
     stream.close();
   });
 });
+
+describe('Spec workbook-sync › Abgleich nur mit aktueller App-Version', () => {
+  beforeEach(async () => {
+    await h.close();
+    h = await startServer({ version: '0.9.0' });
+    owner = await h.login(OWNER);
+    workbook = ((await (await h.api('POST', '/api/workbooks', { cookie: owner, body: { title: 'Band' } })).json()) as { id: string }).id;
+    expect((await addSong(createSongDoc(song()))).status).toBe(201);
+  });
+
+  /** Sendet eine Änderung an „Intro“ mit der Version `version` (`null`: ohne Angabe). */
+  async function syncWith(version: string | null) {
+    const [entry] = await sync([]);
+    const doc = A.load<{ v: number }>(fromBase64(entry!.doc!));
+    const changed = applySong(doc, { ...songOf(doc), title: 'Neu', revision: 2 });
+    const changes = toBase64(A.saveSince(changed, A.getHeads(doc)));
+    return h.api('POST', `/api/workbooks/${workbook}/sync`, { cookie: owner, version, body: { songs: [{ id: 'intro', base: A.getHeads(doc), changes }] } });
+  }
+
+  const addWith = (version: string | null) =>
+    h.api('POST', `/api/workbooks/${workbook}/songs`, { cookie: owner, version, body: { id: 'outro', doc: toBase64(A.save(createSongDoc(song('outro')))) } });
+
+  it.each([['mit älterer Version', '0.8.1'], ['ohne Versionsangabe', null], ['mit ungültiger Version', 'neu']])('Abgleich %s wird zurückgewiesen', async (_label, version) => {
+    const response = await syncWith(version);
+    expect(response.status).toBe(409);
+    const body = (await response.json()) as { error: string; songs?: unknown };
+    expect(body.error).toBe('outdated');
+    expect(body.songs).toBeUndefined();
+    expect((await serverSong()).title).toBe('Intro');
+  });
+
+  it.each([['mit älterer Version', '0.8.10'], ['ohne Versionsangabe', null]])('Anlegen %s wird zurückgewiesen', async (_label, version) => {
+    const response = await addWith(version);
+    expect(response.status).toBe(409);
+    expect(await errorOf(response)).toBe('outdated');
+    expect((await sync([])).map((e) => e.id)).toEqual(['intro']);
+  });
+
+  it.each([['gleicher Version', '0.9.0'], ['neuerer Version', '0.10.0']])('Abgleich und Anlegen mit %s werden angenommen', async (_label, version) => {
+    expect((await syncWith(version)).status).toBe(200);
+    expect((await serverSong()).title).toBe('Neu');
+    expect((await addWith(version)).status).toBe(201);
+  });
+});
