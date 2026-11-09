@@ -8,6 +8,16 @@ export interface ChangelogEntry {
 /** Neuerungen je Version in Stichworten für Nutzer, neueste zuerst. Der oberste Eintrag ist die aktuelle Version. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.9.0',
+    date: '2026-11-09',
+    items: [
+      'Abspielen einmal oder in Schleife; mit „Üben“ ein eigenes Übetempo pro Song und Gerät',
+      'Songs kopieren: Symbol an jeder Kachel oder eine Workbook-Kachel auf „Meine Songs“ ziehen',
+      'Songs in „Meine Songs“ und in Workbooks durch Ziehen sortieren; die Reihenfolge gilt für alle Mitglieder',
+      'Ist die App veraltet, pausiert der Abgleich und ein Hinweis bittet um „Neu laden“; die Songs bleiben dabei unbeschädigt',
+    ],
+  },
+  {
     version: '0.8.0',
     date: '2026-11-08',
     items: [
