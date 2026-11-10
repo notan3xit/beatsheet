@@ -67,7 +67,6 @@ export function PatternPage({ highlighted }: { highlighted: ReadonlySet<string> 
           </button>
         </div>
       )}
-      {!locked && song.patterns.length === 0 && <p className="hint">Noch keine Patterns. Lege Grooves und Fills hier oder beim Aufbau der Struktur an.</p>}
       <div ref={grid} className="pattern-grid">
         {songPatternOrder(song).map((p) => (
           <PatternCard key={p.id} pattern={p} flowWidth={flowWidth} highlighted={highlighted.has(p.id)} />

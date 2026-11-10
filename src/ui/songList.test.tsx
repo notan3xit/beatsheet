@@ -22,7 +22,9 @@ const songList = () => screen.getByRole('main', { name: 'Songs' });
 const mine = () => screen.getByRole('region', { name: 'Meine Songs' });
 /** Titel der Kacheln in der Reihenfolge der Anzeige. */
 const tileTitles = (area: HTMLElement) => within(area).queryAllByRole('article').map((t) => within(t).getByRole('heading').textContent);
-const backToList = (user: ReturnType<typeof userEvent.setup>) =>
+/** Beschriftungen der Kacheln zum Anlegen in der Reihenfolge der Anzeige. */
+const addTiles = () => [...mine().querySelectorAll('.tile-add')].map((t) => t.textContent);
+const backToList =(user: ReturnType<typeof userEvent.setup>) =>
   user.click(within(screen.getByRole('navigation', { name: 'Pfad' })).getByRole('button', { name: 'Songs' }));
 
 describe('Spec song-library › Song anlegen (UI)', () => {
@@ -67,8 +69,8 @@ describe('Spec song-library › Song-Liste (UI)', () => {
 
   it('Leere Liste', () => {
     setup();
-    expect(within(mine()).getByText(/Noch keine Songs/)).toBeInTheDocument();
-    expect(within(mine()).getByRole('button', { name: '+ Song' })).toBeInTheDocument();
+    expect(addTiles()).toEqual(['+ Beispiel-Song', '+ Song']);
+    expect(mine().querySelector('p')).not.toBeInTheDocument();
   });
 
   it('Neuer Song landet in „Meine Songs“', async () => {
@@ -116,6 +118,33 @@ describe('Spec song-library › Song über die Kachel „+ Song“ anlegen (UI)'
     expect(tiles.at(-1)).toHaveAccessibleName('+ Song');
     await user.click(tiles.at(-1)!);
     expect(screen.getByRole('heading', { level: 2, name: 'Neuer Song' })).toBeInTheDocument();
+  });
+});
+
+describe('Spec song-library › Beispiel-Song anlegen (UI)', () => {
+  it('Beispiel-Song anlegen', async () => {
+    const { store, user } = setup();
+    await user.click(within(mine()).getByRole('button', { name: '+ Beispiel-Song' }));
+    expect(screen.getByRole('heading', { level: 2, name: 'Beispiel-Song' })).toBeInTheDocument();
+    expect(store.getState().songs[0]!.segments.length).toBeGreaterThan(0);
+    expect(store.getState().songs[0]!.patterns.length).toBeGreaterThan(0);
+    await backToList(user);
+    expect(tileTitles(mine())).toEqual(['Beispiel-Song']);
+    expect(addTiles()).toEqual(['+ Song']);
+  });
+
+  it('Kachel fehlt bei vorhandenem Song', () => {
+    setup([songWith({ title: 'Skizze' })]);
+    expect(addTiles()).toEqual(['+ Song']);
+  });
+
+  it('Kachel nach dem Löschen des letzten Songs', async () => {
+    const { user } = setup();
+    await user.click(within(mine()).getByRole('button', { name: '+ Beispiel-Song' }));
+    await user.click(screen.getByRole('button', { name: 'Song entsperren' }));
+    await user.click(screen.getByRole('button', { name: 'Song löschen' }));
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Bestätigen' }));
+    expect(addTiles()).toEqual(['+ Beispiel-Song', '+ Song']);
   });
 });
 
@@ -189,7 +218,6 @@ describe('Spec song-library › Song löschen (UI)', () => {
     expect(dialog).toHaveTextContent(/Struktur/);
     await user.click(within(dialog).getByRole('button', { name: 'Bestätigen' }));
     expect(store.getState().songs).toEqual([]);
-    expect(within(songList()).getByText(/Noch keine Songs/)).toBeInTheDocument();
   });
 
   it('Löschen abgebrochen', async () => {

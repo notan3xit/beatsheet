@@ -1,0 +1,451 @@
+{
+  "format": "beatsheet.library",
+  "schemaVersion": 4,
+  "exportedAt": "2026-01-01T00:00:00.000Z",
+  "songs": [
+    {
+      "id": "1b0382de-f6ce-4029-a5a6-d1f146cf8cc2",
+      "title": "Beispiel-Song",
+      "tempo": 100,
+      "meter": 4,
+      "patterns": [
+        {
+          "id": "6311544d-f2b3-4168-928f-fd69b89de405",
+          "kind": "groove",
+          "name": "Rock-Beat",
+          "color": "blue",
+          "beats": [
+            {
+              "subdivision": 2,
+              "hits": {
+                "hihat": [
+                  0,
+                  1
+                ],
+                "kick": [
+                  0
+                ]
+              }
+            },
+            {
+              "subdivision": 2,
+              "hits": {
+                "hihat": [
+                  0,
+                  1
+                ],
+                "snare": [
+                  0
+                ]
+              }
+            },
+            {
+              "subdivision": 2,
+              "hits": {
+                "hihat": [
+                  0,
+                  1
+                ],
+                "kick": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "subdivision": 2,
+              "hits": {
+                "hihat": [
+                  0,
+                  1
+                ],
+                "snare": [
+                  0
+                ]
+              }
+            }
+          ],
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z",
+          "revision": 1
+        },
+        {
+          "id": "390b65ed-6851-4f88-8a66-a5f11c4baca8",
+          "kind": "groove",
+          "name": "Ride-Beat",
+          "color": "green",
+          "beats": [
+            {
+              "subdivision": 2,
+              "hits": {
+                "ride": [
+                  0,
+                  1
+                ],
+                "kick": [
+                  0
+                ]
+              },
+              "articulations": {
+                "ride": {
+                  "0": "bell"
+                }
+              }
+            },
+            {
+              "subdivision": 2,
+              "hits": {
+                "ride": [
+                  0,
+                  1
+                ],
+                "snare": [
+                  0
+                ],
+                "kick": [
+                  1
+                ]
+              },
+              "articulations": {
+                "ride": {
+                  "0": "bell"
+                }
+              }
+            },
+            {
+              "subdivision": 4,
+              "hits": {
+                "ride": [
+                  0,
+                  2
+                ],
+                "kick": [
+                  0
+                ],
+                "snare": [
+                  3
+                ]
+              },
+              "articulations": {
+                "ride": {
+                  "0": "bell"
+                },
+                "snare": {
+                  "3": "ghost"
+                }
+              }
+            },
+            {
+              "subdivision": 2,
+              "hits": {
+                "ride": [
+                  0,
+                  1
+                ],
+                "snare": [
+                  0
+                ]
+              },
+              "articulations": {
+                "ride": {
+                  "0": "bell"
+                }
+              }
+            }
+          ],
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z",
+          "revision": 1
+        },
+        {
+          "id": "b4341e6a-c2f2-4d31-8d26-a105342af9e0",
+          "kind": "fill",
+          "name": "Snare-Fill",
+          "color": "peach",
+          "beats": [
+            {
+              "subdivision": 4,
+              "hits": {
+                "snare": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          ],
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z",
+          "revision": 1
+        },
+        {
+          "id": "97a9c8a3-f559-430e-a1e2-e2731371de1e",
+          "kind": "fill",
+          "name": "Tom-Fill",
+          "color": "mauve",
+          "beats": [
+            {
+              "subdivision": 4,
+              "hits": {
+                "snare": [
+                  0,
+                  1
+                ],
+                "tom1": [
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "subdivision": 4,
+              "hits": {
+                "tom2": [
+                  0,
+                  1
+                ],
+                "floorTom": [
+                  2,
+                  3
+                ]
+              }
+            }
+          ],
+          "createdAt": "2026-01-01T00:00:00.000Z",
+          "updatedAt": "2026-01-01T00:00:00.000Z",
+          "revision": 1
+        }
+      ],
+      "segments": [
+        {
+          "id": "68872f35-e134-4fc5-b21c-8269ee72bf4f",
+          "name": "Intro",
+          "blocks": [
+            {
+              "id": "6d3a845f-5009-4cbd-a540-f50a56cc410a",
+              "bars": [
+                {
+                  "id": "cc8fe0d9-3fd1-43e6-8774-b3314e742233",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "5a01b08f-d7fa-4c2d-8ed5-9ff169cfb0e5",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": "b4341e6a-c2f2-4d31-8d26-a105342af9e0",
+                  "accents": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "e1525a4c-2b85-495d-ab1b-99abadf7c797",
+          "name": "Strophe",
+          "blocks": [
+            {
+              "id": "c7d56e37-15ad-423a-b85f-d864b604e6bb",
+              "bars": [
+                {
+                  "id": "4bc4aff6-dd86-439d-a9af-2e25013f20b2",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "fd6c64ed-1b11-4972-a30d-96eedb9cad90",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "8ce76506-9e44-498b-a49f-60d14670c9c5",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "679e24cd-c7c0-438e-85b5-800c979d8859",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": "b4341e6a-c2f2-4d31-8d26-a105342af9e0",
+                  "accents": []
+                }
+              ]
+            },
+            {
+              "id": "3053a106-5513-4b2c-aa77-1897c930e892",
+              "bars": [
+                {
+                  "id": "f57df718-74f1-4437-9263-749f4d0b7656",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "05077a87-84c8-489d-b600-b3d8828b2689",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "c3488c34-e34a-41fc-959b-4b232852393b",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "e08e51e3-a501-4464-83d0-2a31bb5d4f46",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": "97a9c8a3-f559-430e-a1e2-e2731371de1e",
+                  "accents": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "fb8147de-6009-4799-bfbc-fff78f0549e8",
+          "name": "Refrain",
+          "blocks": [
+            {
+              "id": "b6574b07-52a2-49d1-96ca-71186e63cacb",
+              "bars": [
+                {
+                  "id": "c391e9b4-89d6-479c-b332-c78de87526ea",
+                  "beats": 4,
+                  "grooveId": "390b65ed-6851-4f88-8a66-a5f11c4baca8",
+                  "fillId": null,
+                  "accents": [
+                    {
+                      "instrument": "crash",
+                      "beat": 0,
+                      "position": 0
+                    }
+                  ]
+                },
+                {
+                  "id": "e9c35eee-8646-454a-8a20-61d9f348f837",
+                  "beats": 4,
+                  "grooveId": "390b65ed-6851-4f88-8a66-a5f11c4baca8",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "92a3c930-2752-4278-a10b-782d0473d883",
+                  "beats": 4,
+                  "grooveId": "390b65ed-6851-4f88-8a66-a5f11c4baca8",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "9a9384cd-f8c3-404c-84e4-9cd1b19c6ba0",
+                  "beats": 4,
+                  "grooveId": "390b65ed-6851-4f88-8a66-a5f11c4baca8",
+                  "fillId": "b4341e6a-c2f2-4d31-8d26-a105342af9e0",
+                  "accents": []
+                }
+              ]
+            },
+            {
+              "id": "466c957f-55f7-43ce-b2b1-9f8dc5f792c5",
+              "bars": [
+                {
+                  "id": "0e203d94-e6d0-4a35-bcc0-9e5e8c75bb66",
+                  "beats": 4,
+                  "grooveId": "390b65ed-6851-4f88-8a66-a5f11c4baca8",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "5a76121e-af80-4ea4-b967-4828a939e066",
+                  "beats": 4,
+                  "grooveId": "390b65ed-6851-4f88-8a66-a5f11c4baca8",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "419cb25d-6163-4ce2-99e6-7a99e89588c2",
+                  "beats": 4,
+                  "grooveId": "390b65ed-6851-4f88-8a66-a5f11c4baca8",
+                  "fillId": null,
+                  "accents": []
+                },
+                {
+                  "id": "d0c6fed2-ea35-4db3-96e4-06adeefba7bf",
+                  "beats": 4,
+                  "grooveId": "390b65ed-6851-4f88-8a66-a5f11c4baca8",
+                  "fillId": "97a9c8a3-f559-430e-a1e2-e2731371de1e",
+                  "accents": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "9368c6de-c1b7-4576-bb3b-da15f82aaa05",
+          "name": "Outro",
+          "blocks": [
+            {
+              "id": "332b4407-6982-4a2d-9657-9f5c4a2f8c72",
+              "bars": [
+                {
+                  "id": "8dd07ae3-9c2f-464d-a425-3844d78df12d",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": null,
+                  "accents": [
+                    {
+                      "instrument": "crash",
+                      "beat": 0,
+                      "position": 0
+                    }
+                  ]
+                },
+                {
+                  "id": "df2dca70-3adb-4d9d-9e5b-34355ad41252",
+                  "beats": 4,
+                  "grooveId": "6311544d-f2b3-4168-928f-fd69b89de405",
+                  "fillId": "97a9c8a3-f559-430e-a1e2-e2731371de1e",
+                  "accents": []
+                },
+                {
+                  "id": "ca96e022-aec3-44e1-ae9d-568d329a98b6",
+                  "beats": 4,
+                  "grooveId": null,
+                  "fillId": null,
+                  "accents": [
+                    {
+                      "instrument": "crash",
+                      "beat": 0,
+                      "position": 0
+                    },
+                    {
+                      "instrument": "kick",
+                      "beat": 0,
+                      "position": 0
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-01-01T00:00:00.000Z",
+      "revision": 1
+    }
+  ]
+}

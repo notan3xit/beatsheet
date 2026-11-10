@@ -80,20 +80,24 @@ export function SongTile({
   );
 }
 
-/** Letzte Kachel eines Bereichs: legt einen Song an. */
-export function AddSongTile({ onClick, marked = false }: { onClick: () => void; marked?: boolean }) {
+/** Kachel, die einen Song anlegt. */
+export function AddSongTile({ onClick, marked = false, children = '+ Song' }: { onClick: () => void; marked?: boolean; children?: ReactNode }) {
   return (
     <button type="button" className={`tile tile-add${marked ? ' drop-before' : ''}`} onClick={onClick}>
-      + Song
+      {children}
     </button>
   );
 }
 
-/** Kacheln eines Bereichs nach `song-order`, gefolgt von „+ Song“; ohne Positionen alphabetisch. */
+/**
+ * Kacheln eines Bereichs nach `song-order`, gefolgt von „+ Song“; ohne Positionen alphabetisch.
+ * `onAddExample`: davor die Kachel „+ Beispiel-Song“ (example-song, design.md D3).
+ */
 export function SongTiles({
   songs,
   action,
   onAdd,
+  onAddExample,
   draggable = false,
   positions = null,
   area,
@@ -101,6 +105,7 @@ export function SongTiles({
   songs: readonly Song[];
   action?: (song: Song) => ReactNode;
   onAdd: () => void;
+  onAddExample?: () => void;
   /** Kacheln lassen sich ziehen (copy-song, design.md D4, D5). */
   draggable?: boolean;
   /** Positionen des Bereichs (sort-songs, design.md D9). */
@@ -118,6 +123,7 @@ export function SongTiles({
       {shown.map((song, index) => (
         <SongTile key={song.id} song={song} action={action?.(song)} draggable={draggable} now={now} shared={sharedOf(song)} marked={slot === index} />
       ))}
+      {onAddExample && <AddSongTile onClick={onAddExample}>+ Beispiel-Song</AddSongTile>}
       <AddSongTile onClick={onAdd} marked={slot === shown.length} />
     </div>
   );

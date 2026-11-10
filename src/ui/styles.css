@@ -536,14 +536,53 @@ input {
   margin-bottom: 2rem;
 }
 
-.overview-section > h2 {
+.overview-section > h2,
+.section-heading h2 {
   margin: 0 0 0.75rem;
   font-size: 1.15rem;
 }
 
-.overview-section > .hint {
-  margin: -0.25rem 0 0.75rem;
-  font-size: 0.85rem;
+/* Überschrift mit Knopf „?“ und Erklärung im Popover (example-song, design.md D4) */
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.section-heading h2 {
+  margin-bottom: 0;
+}
+
+.help {
+  position: relative;
+}
+
+.help > .icon-button {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--muted);
+}
+
+.help > .icon-button:hover,
+.help > .icon-button[aria-expanded='true'] {
+  color: var(--text);
+}
+
+.help .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.help-popover {
+  right: auto;
+  left: 0;
+  width: 22rem;
+  max-width: calc(100vw - 2.5rem);
+}
+
+.help-popover p {
+  margin: 0;
 }
 
 .tiles {
@@ -852,8 +891,7 @@ body.dragging-pattern .tile-add:hover {
   color: var(--muted);
 }
 
-.workbook-main,
-.workbook-empty {
+.workbook-main {
   flex: 1;
   min-width: 0;
   min-height: 14rem;
@@ -1008,8 +1046,7 @@ body.dragging-pattern .tile-add:hover {
     border-color: var(--accent);
   }
 
-  .workbook-main,
-  .workbook-empty {
+  .workbook-main {
     border-radius: 10px;
   }
 

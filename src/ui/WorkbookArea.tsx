@@ -1,9 +1,11 @@
-import { useId, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
 import type { Song, Workbook } from '../domain/types';
 import type { WorkbookActions } from '../sync/sync';
 import { useIsDropTarget } from './dragSong';
 import { NewDot, sortedByTitle } from './SongTile';
+import { HelpIcon } from './icons';
 import { useActivity } from './useActivity';
+import { useDismiss } from './useDismiss';
 import { useNotebook } from './useLibrary';
 import { useEmail } from './useWorkbooks';
 import { useReportedAction, WorkbookCard } from './WorkbookCard';
@@ -19,6 +21,28 @@ function useChosenWorkbook() {
     setChosen(id);
   };
   return [chosen, choose] as const;
+}
+
+/** Knopf „?“ neben der Überschrift mit der Erklärung der Workbooks (example-song, design.md D4). */
+function WorkbooksHelp() {
+  const [open, setOpen] = useState(false);
+  const area = useRef<HTMLSpanElement>(null);
+  useDismiss(open, area, useCallback(() => setOpen(false), []));
+  return (
+    <span className="help" ref={area}>
+      <button type="button" className="icon-button" aria-label="Was sind Workbooks?" title="Was sind Workbooks?" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <HelpIcon />
+      </button>
+      {open && (
+        <div role="dialog" aria-label="Was sind Workbooks?" className="card-popover help-popover">
+          <p>
+            Ein Workbook ist eine Sammlung von Songs, die du mit anderen teilst, etwa mit deiner Band. Alle Mitglieder sehen und bearbeiten dieselben
+            Songs, Änderungen kommen bei allen gleich an. Mitglieder lädst du per E-Mail ein.
+          </p>
+        </div>
+      )}
+    </span>
+  );
 }
 
 function WorkbookEntry({ workbook, songs, hasNew, selected, onChoose }: { workbook: Workbook; songs: number; hasNew: boolean; selected: boolean; onChoose: () => void }) {
@@ -72,7 +96,10 @@ export function WorkbookArea({ sync, songs }: { sync: WorkbookActions; songs: re
 
   return (
     <section aria-label="Workbooks" className="overview-section">
-      <h2>Workbooks</h2>
+      <div className="section-heading">
+        <h2>Workbooks</h2>
+        <WorkbooksHelp />
+      </div>
       <div className="workbook-layout">
         <nav aria-label="Workbooks" className="workbook-list">
           <ul>
@@ -95,11 +122,7 @@ export function WorkbookArea({ sync, songs }: { sync: WorkbookActions; songs: re
             )}
           </ul>
         </nav>
-        {selected ? (
-          <WorkbookCard key={selected.id} workbook={selected} songs={songsOf(selected.id)} sync={sync} />
-        ) : (
-          <p className="hint workbook-empty">Mit „+ Workbook“ legst du eine Sammlung an, die du mit anderen teilen kannst.</p>
-        )}
+        {selected && <WorkbookCard key={selected.id} workbook={selected} songs={songsOf(selected.id)} sync={sync} />}
       </div>
     </section>
   );

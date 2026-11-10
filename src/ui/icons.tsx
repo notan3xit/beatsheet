@@ -93,6 +93,16 @@ export function InfoIcon() {
   );
 }
 
+/** Fragezeichen im Kreis: Erklärung öffnen. */
+export function HelpIcon() {
+  return (
+    <Icon>
+      <circle cx="8" cy="8" r="6.5" />
+      <path d="M6.1 6.2a1.95 1.95 0 1 1 2.65 1.8c-.45.2-.75.6-.75 1.1v.4M8 11.5v.25" />
+    </Icon>
+  );
+}
+
 export function ImportIcon() {
   return (
     <Icon>

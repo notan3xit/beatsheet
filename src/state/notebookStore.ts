@@ -8,6 +8,8 @@ import {
 import { newId } from '../domain/id';
 import { addPattern, patternUsage, removePattern } from '../domain/songPatterns';
 import { DEFAULT_TEMPO, type Pattern, type PatternKind, type Song, type Workbook } from '../domain/types';
+import { parseNotebookFile } from '../persistence/fileFormat';
+import exampleFile from './exampleSong.json?raw';
 
 export const HISTORY_LIMIT = 50;
 
@@ -36,6 +38,8 @@ export interface NotebookStore {
   createSong(title: string, workbookId?: string): Song;
   /** Kopie in „Meine Songs“: neue ID, ohne Zuordnung, Revision 1 (song-library, copy-song design.md D1). */
   copySong(id: string): Song;
+  /** Beispiel-Song aus `exampleSong.json` in „Meine Songs“, angelegt wie eine Kopie (example-song, design.md D2). */
+  createExampleSong(): Song;
   renameSong(id: string, title: string): void;
   deleteSong(id: string): void;
   openSong(id: string): void;
@@ -210,6 +214,15 @@ export function createNotebookStore(
       songs = [...songs, copy];
       emit();
       return copy;
+    },
+    createExampleSong() {
+      const parsed = parseNotebookFile(exampleFile);
+      if (!parsed.ok) throw new Error(parsed.error);
+      const timestamp = now().toISOString();
+      const song: Song = { ...parsed.songs[0]!, id: nextId(), createdAt: timestamp, updatedAt: timestamp, revision: 1 };
+      songs = [...songs, song];
+      emit();
+      return song;
     },
     renameSong(id, title) {
       const trimmed = title.trim();

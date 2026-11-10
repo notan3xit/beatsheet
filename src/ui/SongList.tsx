@@ -65,7 +65,6 @@ function MySongs({ songs, sync }: { songs: readonly Song[]; sync: WorkbookAction
   return (
     <section aria-label="Meine Songs" className={`overview-section${target ? ' drop-target' : ''}`} data-drop-mine>
       <h2>Meine Songs</h2>
-      {songs.length === 0 && <p className="hint">Noch keine Songs. Lege mit „+ Song“ deinen ersten an.</p>}
       <SongTiles
         songs={songs}
         action={(song) => (
@@ -78,6 +77,7 @@ function MySongs({ songs, sync }: { songs: readonly Song[]; sync: WorkbookAction
         positions={positions}
         area={{ kind: 'mine' }}
         onAdd={() => store.openSong(store.createSong('').id)}
+        onAddExample={songs.length === 0 ? () => store.openSong(store.createExampleSong().id) : undefined}
       />
     </section>
   );

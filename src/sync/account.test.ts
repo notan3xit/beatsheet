@@ -171,6 +171,18 @@ describe('Spec account-songs › Eigene Songs im Account', () => {
     expect(songNamed(second, 'Skizze').segments).toEqual(songNamed(first, 'Skizze').segments);
   });
 
+  it('Beispiel-Song angemeldet angelegt (song-library)', async () => {
+    await start();
+    const first = await loggedIn();
+    const example = first.store.createExampleSong();
+    await first.sync.syncAll();
+    expect(inAccount(first, 'Beispiel-Song')).toBe(true);
+
+    const second = await loggedIn();
+    expect(mine(second)).toEqual(['Beispiel-Song']);
+    expect(songNamed(second, 'Beispiel-Song')).toMatchObject({ id: example.id, patterns: example.patterns, segments: example.segments });
+  });
+
   it('Neuer Song auf einem Gerät: über das Ereignis', async () => {
     await start();
     const first = await loggedIn();

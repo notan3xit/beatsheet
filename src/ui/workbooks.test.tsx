@@ -205,6 +205,40 @@ describe('Spec workbooks › Workbooks auf der Startseite (UI)', () => {
   });
 });
 
+describe('Spec workbooks › Erklärung der Workbooks (UI)', () => {
+  const area = () => screen.getByRole('region', { name: 'Workbooks' });
+  const help = () => within(area()).getByRole('button', { name: 'Was sind Workbooks?' });
+  const explanation = () => screen.queryByRole('dialog', { name: 'Was sind Workbooks?' });
+
+  it('Erklärung öffnen', async () => {
+    const { user } = setup();
+    expect(help()).toHaveAttribute('aria-expanded', 'false');
+    await user.click(help());
+    expect(help()).toHaveAttribute('aria-expanded', 'true');
+    expect(explanation()).toBeInTheDocument();
+  });
+
+  it('Erklärung schließen: Escape, Klick außerhalb, erneuter Klick', async () => {
+    const { user } = setup();
+    await user.click(help());
+    await user.keyboard('{Escape}');
+    expect(explanation()).not.toBeInTheDocument();
+    await user.click(help());
+    await user.click(screen.getByRole('heading', { name: 'Meine Songs' }));
+    expect(explanation()).not.toBeInTheDocument();
+    await user.click(help());
+    await user.click(help());
+    expect(explanation()).not.toBeInTheDocument();
+  });
+
+  it('Ohne Workbook', () => {
+    setup();
+    expect(help()).toBeInTheDocument();
+    expect(within(area()).getByRole('button', { name: '+ Workbook' })).toBeInTheDocument();
+    expect(area().querySelector('p')).not.toBeInTheDocument();
+  });
+});
+
 describe('Spec workbooks › Workbook wählen (UI)', () => {
   const two = () => {
     const intro = songWith({ title: 'Intro' });

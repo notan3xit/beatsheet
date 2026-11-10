@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { toggleHit } from '../domain/sequencer';
 import { setTempo } from '../domain/playback';
+import { allBars } from '../domain/songPatterns';
 import { appendSegment } from '../domain/structure';
 import type { Workbook } from '../domain/types';
+import { parseNotebookFile } from '../persistence/fileFormat';
 import { notebookWith } from '../test/notebook';
 import { emptyBeats, patternOf } from '../test/patterns';
 import { songWith } from '../test/songs';
+import exampleFile from './exampleSong.json?raw';
 import { createNotebookStore } from './notebookStore';
 
 describe('Spec song-library › Song anlegen', () => {
@@ -46,6 +49,37 @@ describe('Spec song-library › Song kopieren', () => {
     store.openSong(copy.id);
     store.updateSong((s) => setTempo(s, 90));
     expect(store.getState().songs.find((s) => s.id === song.id)).toBe(song);
+  });
+});
+
+describe('Spec song-library › Beispiel-Song anlegen', () => {
+  it('Die Datei wird fehlerfrei gelesen', () => {
+    const parsed = parseNotebookFile(exampleFile);
+    expect(parsed.ok && parsed.songs).toHaveLength(1);
+  });
+
+  it('legt „Beispiel-Song“ mit Patterns und Segmenten an, ohne Workbook, nicht geöffnet', () => {
+    const store = createNotebookStore();
+    const song = store.createExampleSong();
+    expect(store.getState().songs).toEqual([song]);
+    expect(song).toMatchObject({ title: 'Beispiel-Song', tempo: 100, revision: 1 });
+    expect(song.patterns.map((p) => [p.name, p.kind])).toEqual([
+      ['Rock-Beat', 'groove'],
+      ['Ride-Beat', 'groove'],
+      ['Snare-Fill', 'fill'],
+      ['Tom-Fill', 'fill'],
+    ]);
+    expect(song.segments.map((s) => s.name)).toEqual(['Intro', 'Strophe', 'Refrain', 'Outro']);
+    expect(allBars(song)).toHaveLength(21);
+    expect(store.getState().placement).toEqual({});
+    expect(store.getState().openSongId).toBeNull();
+  });
+
+  it('Zweimal angelegt: jedes Mal eine neue ID', () => {
+    const store = createNotebookStore();
+    const first = store.createExampleSong();
+    store.deleteSong(first.id);
+    expect(store.createExampleSong().id).not.toBe(first.id);
   });
 });
 
