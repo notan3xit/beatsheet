@@ -2,8 +2,8 @@ import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { createPattern } from '../domain/pattern';
-import { appendSegment, setBarProps } from '../domain/structure';
-import type { Pattern } from '../domain/types';
+import { addAccent, appendSegment, setBarProps } from '../domain/structure';
+import type { Accent, Pattern } from '../domain/types';
 import { notebookWith } from '../test/notebook';
 import { App } from './App';
 
@@ -41,6 +41,47 @@ describe('Spec songbook-view › Doppelseite', () => {
     await user.click(within(screen.getByRole('navigation', { name: 'Pfad' })).getAllByRole('button').at(-1)!);
     const card = patternCards()[0]!;
     expect(within(card).getByRole('img', { name: 'Noten: Verse-Beat' }).innerHTML).not.toBe(before);
+  });
+});
+
+describe('Spec songbook-view › Akzent-Markierungen (UI)', () => {
+  function withAccents(accents: Accent[]) {
+    const view = setup([]);
+    act(() =>
+      view.store.updateSong((song) => {
+        const withBar = appendSegment(song, { name: 'Outro', bars: 1 });
+        const barId = withBar.segments[0]!.blocks[0]!.bars[0]!.id;
+        return accents.reduce((s, accent) => addAccent(s, barId, accent), withBar);
+      }),
+    );
+    return view;
+  }
+  const markers = () => [...structurePage().querySelectorAll<HTMLElement>('.accent')].map((m) => [m.textContent, m.classList.contains('bottom') ? 'unten' : 'oben']);
+
+  it('Hand und Fuß auf demselben Schlag', () => {
+    withAccents([
+      { instrument: 'crash', beat: 0, position: 0 },
+      { instrument: 'kick', beat: 0, position: 0 },
+    ]);
+    expect(markers()).toEqual(expect.arrayContaining([['Cr', 'oben'], ['BD', 'unten']]));
+    expect(markers()).toHaveLength(2);
+    expect(structurePage().querySelector('.accent')!.closest('.structure-row')).toHaveClass('has-foot-accent');
+  });
+
+  it('Zeile ohne Fuß-Akzent ohne zusätzlichen Abstand', () => {
+    withAccents([{ instrument: 'crash', beat: 0, position: 0 }]);
+    expect(structurePage().querySelector('.accent')!.closest('.structure-row')).not.toHaveClass('has-foot-accent');
+  });
+
+  it('Verdeckte Akzente bleiben erhalten', async () => {
+    const { user } = withAccents([
+      { instrument: 'snare', beat: 1, position: 0 },
+      { instrument: 'crash', beat: 1, position: 0 },
+    ]);
+    expect(markers()).toEqual([['Cr', 'oben']]);
+    await user.click(within(structurePage()).getByRole('button', { name: 'Takt 1' }));
+    const accents = within(screen.getByRole('dialog', { name: 'Takt-Auswahl' })).getByRole('group', { name: 'Akzente' });
+    expect(within(accents).getAllByRole('listitem')).toHaveLength(2);
   });
 });
 

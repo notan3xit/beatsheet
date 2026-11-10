@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createPattern } from '../domain/pattern';
-import type { Bar, Pattern, Song } from '../domain/types';
+import type { Accent, Bar, Pattern, Song } from '../domain/types';
 import { barOf, songWith } from '../test/songs';
 import { patternOf } from '../test/patterns';
 import { layoutStructure, selectedPatterns, songPatternOrder, type FillItem, type Item } from './layout';
@@ -174,8 +174,57 @@ describe('Spec songbook-view › Akzent-Markierungen', () => {
     const bars = [barOf({ grooveId: a.id, accents: [{ instrument: 'crash', beat: 0, position: 0 }] }), barOf({ accents: [{ instrument: 'ride', beat: 1, position: 2 }] })];
     const [segment] = layoutStructure(song([a], [bars]));
     expect(ofKind(segment!.rows[0]!.items, 'accent')).toEqual([
-      { kind: 'accent', x: 0, label: 'Cr', barId: bars[0]!.id },
-      { kind: 'accent', x: 5.5, label: 'Ri', barId: bars[1]!.id },
+      { kind: 'accent', x: 0, label: 'Cr', place: 'top', barId: bars[0]!.id },
+      { kind: 'accent', x: 5.5, label: 'Ri', place: 'top', barId: bars[1]!.id },
+    ]);
+  });
+
+  const accentsOf = (accents: Accent[]) => {
+    const [segment] = layoutStructure(song([], [[barOf({ accents })]]));
+    return ofKind(segment!.rows[0]!.items, 'accent').map(({ x, label, place }) => ({ x, label, place }));
+  };
+
+  it('Hand und Fuß auf demselben Schlag', () => {
+    const shown = accentsOf([
+      { instrument: 'kick', beat: 0, position: 0 },
+      { instrument: 'crash', beat: 0, position: 0 },
+    ]);
+    expect(shown).toHaveLength(2);
+    expect(shown).toEqual(
+      expect.arrayContaining([
+        { x: 0, label: 'Cr', place: 'top' },
+        { x: 0, label: 'BD', place: 'bottom' },
+      ]),
+    );
+  });
+
+  it('Mehrere Hand-Akzente in einem Beat', () => {
+    expect(
+      accentsOf([
+        { instrument: 'snare', beat: 1, position: 0 },
+        { instrument: 'crash', beat: 1, position: 2 },
+      ]),
+    ).toEqual([{ x: 1.5, label: 'Cr', place: 'top' }]);
+  });
+
+  it('Mehrere Fuß-Akzente in einem Beat', () => {
+    expect(
+      accentsOf([
+        { instrument: 'kick', beat: 0, position: 0 },
+        { instrument: 'hihatPedal', beat: 0, position: 0 },
+      ]),
+    ).toEqual([{ x: 0, label: 'HP', place: 'bottom' }]);
+  });
+
+  it('Verschiedene Beats', () => {
+    expect(
+      accentsOf([
+        { instrument: 'crash', beat: 0, position: 0 },
+        { instrument: 'ride', beat: 1, position: 0 },
+      ]),
+    ).toEqual([
+      { x: 0, label: 'Cr', place: 'top' },
+      { x: 1, label: 'Ri', place: 'top' },
     ]);
   });
 });

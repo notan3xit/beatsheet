@@ -1,7 +1,7 @@
 import { allBars } from '../domain/songPatterns';
 import { resolveSong, type ResolvedBar } from '../domain/timeline';
 import { shorthand } from '../notation/shorthand';
-import type { Instrument, Pattern, PatternColor, Song } from '../domain/types';
+import { INSTRUMENTS, type Accent, type Instrument, type Pattern, type PatternColor, type Song } from '../domain/types';
 
 /** Höchstens so viele Beats pro Zeile (vier 4/4-Takte). Takte werden nie geteilt. */
 export const BEATS_PER_ROW = 16;
@@ -18,6 +18,31 @@ export const ACCENT_LABELS: Record<Instrument, string> = {
   kick: 'BD',
   hihatPedal: 'HP',
 };
+
+/** Mit dem Fuß gespielt; ihre Akzente stehen unter dem Takt (accent-markers, design.md D1). */
+export const FOOT_INSTRUMENTS: readonly Instrument[] = ['kick', 'hihatPedal'];
+
+export type AccentPlace = 'top' | 'bottom';
+
+/**
+ * Je Beat höchstens ein Akzent oben (Hand, höchste Sequencer-Zeile) und einer unten (Fuß, niedrigste);
+ * bei gleichem Instrument die frühere Position (accent-markers, design.md D2).
+ */
+export function shownAccents(accents: readonly Accent[]): { accent: Accent; place: AccentPlace }[] {
+  const shown = new Map<string, { accent: Accent; place: AccentPlace }>();
+  const row = (a: Accent) => INSTRUMENTS.indexOf(a.instrument);
+  for (const accent of accents) {
+    const place: AccentPlace = FOOT_INSTRUMENTS.includes(accent.instrument) ? 'bottom' : 'top';
+    const key = `${accent.beat}:${place}`;
+    const current = shown.get(key)?.accent;
+    const better =
+      !current ||
+      (place === 'top' ? row(accent) < row(current) : row(accent) > row(current)) ||
+      (row(accent) === row(current) && accent.position < current.position);
+    if (better) shown.set(key, { accent, place });
+  }
+  return [...shown.values()].sort((a, b) => a.accent.beat - b.accent.beat || a.place.localeCompare(b.place));
+}
 
 // Alle Positionen und Breiten in Beats, relativ zum Zeilenanfang.
 
@@ -75,6 +100,7 @@ export interface AccentItem {
   kind: 'accent';
   x: number;
   label: string;
+  place: AccentPlace;
   barId: string;
 }
 
@@ -308,11 +334,12 @@ function layoutRow(
   }
 
   for (const bar of bars) {
-    for (const accent of bar.accents) {
+    for (const { accent, place } of shownAccents(bar.accents)) {
       items.push({
         kind: 'accent',
         x: bar.start - rowStart + accent.beat + accent.position / 4,
         label: ACCENT_LABELS[accent.instrument],
+        place,
         barId: bar.barId,
       });
     }

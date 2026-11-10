@@ -1742,6 +1742,16 @@ button.tempo-mark:hover {
   color: var(--bg);
 }
 
+/* Fuß-Akzente unter dem Takt; die Zeile lässt dafür unten Platz (accent-markers, design.md D3) */
+.accent.bottom {
+  top: auto;
+  bottom: -0.35rem;
+}
+
+.structure-row.has-foot-accent:not(.flat) {
+  margin-bottom: 0.35rem;
+}
+
 /* Abkürzungen beim Überfahren mit der Maus (nur im DOM, solange gehovert) */
 .insert-bar {
   position: absolute;

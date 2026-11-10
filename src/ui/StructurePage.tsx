@@ -103,7 +103,7 @@ function RowItem({ item, isHighlighted }: { item: Item; isHighlighted: (barId: s
       return <FillBlock item={item} highlighted={item.barIds.some(isHighlighted)} />;
     case 'accent':
       return (
-        <span className="accent" style={place(item.x)}>
+        <span className={`accent${item.place === 'bottom' ? ' bottom' : ''}`} style={place(item.x)}>
           {item.label}
         </span>
       );
@@ -222,7 +222,9 @@ function StructureRow({ row, selection }: { row: Row; selection: Selection }) {
   return (
     <div
       ref={ref}
-      className={`structure-row${row.blockStart ? ' block-start' : ''}${row.flat ? ' flat' : ''}`}
+      className={`structure-row${row.blockStart ? ' block-start' : ''}${row.flat ? ' flat' : ''}${
+        row.items.some((i) => i.kind === 'accent' && i.place === 'bottom') ? ' has-foot-accent' : ''
+      }`}
       style={{ width: `calc(var(--beat) * ${row.width})` }}
     >
       <span className="row-number" aria-hidden="true">
