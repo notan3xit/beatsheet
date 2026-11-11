@@ -96,7 +96,7 @@ Rim Shot, Cross-Stick und Ride-Glocke MUST sich hörbar vom normalen Schlag des 
 - **WHEN** die Snare auf Position 1 einen Cross-Stick und auf Position 3 einen normalen Schlag hat
 - **THEN** erklingt der Schlag auf Position 1 leiser und kürzer als der auf Position 3
 
-#### Scenario: Ride-Glocke
+#### Scenario: Ride-Bell
 - **WHEN** die Ride auf Position 1 eine Glocke und auf Position 3 einen normalen Schlag hat
 - **THEN** erklingen beide Schläge mit verschiedenem Klang
 

@@ -72,7 +72,7 @@ describe('Spec drum-notation › Pausen in anderen Taktarten', () => {
 });
 
 describe('Spec drum-notation › Systemposition je Instrument', () => {
-  it('Snare und Bassdrum', () => {
+  it('Snare und Kick Drum', () => {
     const model = toNotation(patternOf([{ hits: { snare: [1], kick: [1] } }]));
     const [upGroup] = model.measures[0]!.voices.up;
     const [downGroup] = model.measures[0]!.voices.down;

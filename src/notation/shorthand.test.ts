@@ -136,7 +136,7 @@ describe('Spec songbook-view › Fill-Kurzschrift (neue Spielweisen)', () => {
     expect(withBeat({ snare: [1] }, { articulations: { snare: { 0: 'flam' } }, emphasis: { snare: [0] } })).toEqual([[1, 'v']]);
   });
 
-  it('Ride und Glocke', () => {
+  it('Ride und Bell', () => {
     expect(withBeat({ ride: [1, 2] }, { articulations: { ride: { 1: 'bell' } } })).toEqual([
       [0, 'r'],
       [0, 'b'],

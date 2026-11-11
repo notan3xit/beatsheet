@@ -192,7 +192,7 @@ describe('Spec pattern-sequencer › Spielweise eines Schlags (je Instrument)', 
     expect(cycleSeen('tom1', 4).seen).toEqual(['flam', 'drag', 'ghost', undefined]);
   });
 
-  it('Glocke auf der Ride', () => {
+  it('Bell auf der Ride', () => {
     expect(cycleSeen('ride', 2).seen).toEqual(['bell', undefined]);
   });
 

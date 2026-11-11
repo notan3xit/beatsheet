@@ -48,7 +48,7 @@ Jedes Instrument MUST an einer festen Systemposition stehen (Linie 1 = unterste 
 | Hi-Hat (geschlossen/offen) | über Linie 5 |
 | Crash | Hilfslinie über dem System |
 
-#### Scenario: Snare und Bassdrum
+#### Scenario: Snare und Kick Drum
 - **WHEN** ein Pattern einen Snare- und einen Bassdrum-Schlag enthält
 - **THEN** steht die Snare im Zwischenraum 3 und die Bassdrum im Zwischenraum 1
 
@@ -228,7 +228,7 @@ Ein Cross-Stick MUST mit x-Notenkopf auf der Systemposition der Snare dargestell
 ### Requirement: Ride-Glocke
 Ein Schlag auf die Ride-Glocke MUST mit Rauten-Notenkopf auf der Systemposition der Ride dargestellt werden.
 
-#### Scenario: Glocke
+#### Scenario: Bell
 - **WHEN** ein Beat eine Ride-Glocke auf der „1“ hat
 - **THEN** erscheint auf Linie 5 ein Rauten-Notenkopf
 
@@ -246,7 +246,7 @@ Eine Spalte mit mindestens einem betonten Schlag MUST genau ein `>` tragen, unab
 - **WHEN** auf der „2“ Hi-Hat und eine betonte Snare liegen
 - **THEN** steht über dieser Spalte ein `>`
 
-#### Scenario: Nur die Bassdrum betont
+#### Scenario: Nur die Kick Drum betont
 - **WHEN** auf der „1“ nur eine betonte Bassdrum liegt
 - **THEN** steht das `>` oberhalb des Systems
 

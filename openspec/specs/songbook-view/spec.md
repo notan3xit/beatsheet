@@ -485,7 +485,7 @@ Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Zeichen in einer von d
 - **WHEN** ein Fill auf Position 1 eine geschlossene Hi-Hat, auf Position 2 eine offene Hi-Hat und auf Position 3 das Hi-Hat-Pedal hat
 - **THEN** zeigt die Kurzschrift `x` und `o` oben und `x` unten, jeweils an ihren Zeitpunkten
 
-#### Scenario: Ride und Glocke
+#### Scenario: Ride und Bell
 - **WHEN** ein Fill auf Position 1 einen Ride und auf Position 2 eine Ride-Glocke hat
 - **THEN** zeigt die Kurzschrift oben `r` und `b`
 

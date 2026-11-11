@@ -62,7 +62,7 @@ Mit dem Klang „DRSKit“ MUST jedes der zehn Instrumente mit einer Aufnahme de
 - **WHEN** ein Cross-Stick erklingt
 - **THEN** spielt die Aufnahme des Cross-Sticks
 
-#### Scenario: Ride-Glocke
+#### Scenario: Ride-Bell
 - **GIVEN** der Klang ist „DRSKit“ und die Aufnahmen sind bereit
 - **WHEN** eine Ride-Glocke erklingt
 - **THEN** spielt die Aufnahme der Glocke

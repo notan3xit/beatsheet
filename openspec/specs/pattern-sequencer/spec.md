@@ -140,7 +140,7 @@ Shift-Klick auf eine gesetzte Zelle eines Instruments mit Spielweisen nach „Sp
 - **WHEN** Tom 1 auf der „1“ gesetzt ist und der Nutzer die Zelle viermal mit Shift aktiviert
 - **THEN** ist der Schlag nacheinander Flam, Drag, Ghost Note und wieder normal
 
-#### Scenario: Glocke auf der Ride
+#### Scenario: Bell auf der Ride
 - **WHEN** die Ride auf der „1“ gesetzt ist und der Nutzer die Zelle zweimal mit Shift aktiviert
 - **THEN** ist der Schlag nacheinander Glocke und wieder normal
 

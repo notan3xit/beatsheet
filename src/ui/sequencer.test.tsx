@@ -226,7 +226,7 @@ describe('Spec pattern-sequencer › Spielweise eines Schlags (UI)', () => {
     expect(cellAt('Snare', 1, 1)).toHaveAttribute('data-articulation', 'ghost');
   });
 
-  it('Glocke auf der Ride', async () => {
+  it('Bell auf der Ride', async () => {
     const { user } = setup(patternOf([{ hits: { ride: [1] } }]));
     await shiftClick(user, cellAt('Ride', 1, 1));
     expect(cellAt('Ride', 1, 1)).toHaveAttribute('data-articulation', 'bell');

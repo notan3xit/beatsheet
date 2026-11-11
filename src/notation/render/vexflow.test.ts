@@ -314,7 +314,7 @@ describe('Spec drum-notation › Neue Spielweisen und Betonung (Renderer)', () =
     expect(marks(container)).toHaveLength(1);
   });
 
-  it('Nur die Bassdrum betont: > oberhalb des Systems', () => {
+  it('Nur die Kick Drum betont: > oberhalb des Systems', () => {
     const [mark] = marks(render([{ hits: { kick: [1] } }], { emphasis: { kick: [0] } }));
     // Oberste Linie: Zeilenanfang 40 plus Rand von 40 über dem System
     expect(mark!.y).toBeLessThan(80);
