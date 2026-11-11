@@ -171,6 +171,18 @@ Das Popover „Mitglieder“ MUST einen Abschnitt „Mitglieder“ mit der Liste
 - **WHEN** ein Mitglied, das nicht Besitzer ist, die Mitglieder von „Band“ öffnet
 - **THEN** zeigt das Popover nur den Abschnitt „Mitglieder“
 
+### Requirement: Einladen-Formular steht fest
+Im Formular „Hinzufügen“ MUST das Feld „Mail-Adresse“ und der Knopf „Einladen“ gleich hoch auf einer Linie stehen. Der Knopf MUST seine Lage behalten, solange das Popover offen ist und sich sein Inhalt nicht ändert.
+
+#### Scenario: Feld und Knopf auf einer Linie
+- **WHEN** der Besitzer die Mitglieder von „Band“ öffnet
+- **THEN** haben das Feld „Mail-Adresse“ und der Knopf „Einladen“ dieselbe Ober- und Unterkante
+
+#### Scenario: Knopf bleibt stehen
+- **GIVEN** der Besitzer hat die Mitglieder von „Band“ geöffnet
+- **WHEN** drei Sekunden vergehen, ohne dass er etwas eingibt
+- **THEN** steht „Einladen“ an derselben Stelle wie direkt nach dem Öffnen
+
 ### Requirement: Workbook wählen
 Ein Klick auf einen Eintrag der Seitenleiste MUST dieses Workbook wählen; der gewählte Eintrag MUST hervorgehoben sein. Ohne frühere Wahl MUST das erste Workbook gewählt sein. Die Wahl MUST erhalten bleiben, wenn der Nutzer einen Song öffnet und zur Startseite zurückkehrt. Verschwindet das gewählte Workbook, MUST das erste verbliebene gewählt sein.
 
@@ -210,6 +222,14 @@ Die Kürzel im Kopf eines Workbooks MUST für Mitglieder mit Profil ihr Kürzel 
 - **GIVEN** ben@example.com wurde zu „Band“ eingeladen und hat sich nie angemeldet
 - **WHEN** ein Mitglied die Mitglieder von „Band“ öffnet
 - **THEN** steht dort „ben@example.com“ mit „noch nicht angemeldet“
+
+### Requirement: Kürzel beim Überfahren
+Beim Überfahren MUST jedes Kürzel im Kopf eines Workbooks seine Fläche behalten, mit und ohne Profil.
+
+#### Scenario: Überfahren der Kürzel
+- **GIVEN** „Band“ hat die Mitglieder anna@example.com mit Profil und ben@example.com ohne Profil
+- **WHEN** der Nutzer die Kürzel im Kopf von „Band“ überfährt
+- **THEN** behalten das farbige Kürzel von Anna und das graue von Ben ihre Fläche
 
 ### Requirement: Geänderte Profile erscheinen bei allen
 Ändert ein Nutzer sein Profil, MUST die Änderung bei allen anderen Mitgliedern seiner Workbooks, die die App geöffnet haben und den Server erreichen, binnen 5 Sekunden erscheinen, ohne Neuladen.

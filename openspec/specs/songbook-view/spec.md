@@ -431,6 +431,17 @@ Die Kopfzeile MUST einzeilig sein und nur den Namen in der mit „text“ gemisc
 - **WHEN** der Nutzer auf der rechten Seite auf den Namen „Verse-Beat“ klickt
 - **THEN** öffnet sich der Pattern-Editor für „Verse-Beat“
 
+### Requirement: Höhe des Notenbilds der Pattern-Karte
+Die Höhe des Notenbilds einer Pattern-Karte MUST seinen sichtbaren Zeichen folgen: Kein Zeichen MUST abgeschnitten sein, und über dem obersten wie unter dem untersten Zeichen MUST nur ein schmaler Rand bleiben.
+
+#### Scenario: Balken unter dem System
+- **WHEN** die rechte Seite einen Groove mit Sechzehnteln auf der Bassdrum zeigt, deren Balken unter dem System liegen
+- **THEN** sind Hälse und Balken in der Karte vollständig zu sehen
+
+#### Scenario: Triolenklammer oben
+- **WHEN** die rechte Seite einen Fill mit Sextolen auf Snare und Toms zeigt
+- **THEN** liegt über der Triolenklammer mit „6“ nur der schmale Rand
+
 ### Requirement: Hervorhebung von Auswahl und Ablegeziel
 Ausgewählte Takte und Ablegeziele beim Ziehen MUST über ihre Balken hervorgehoben werden: Groove- und Fill-Balken mit vollem Rahmen in der Patternfarbe und kräftigerer Füllung. Ein Fill MUST hervorgehoben sein, wenn sein Takt oder ein von ihm ganz überdeckter Takt hervorgehoben ist. Ein Takt ohne Groove MUST einen grauen Schatten-Groove zeigen. Der Takt selbst MUST NOT umrahmt werden; gestrichelte Linien MUST NOT vorkommen.
 
