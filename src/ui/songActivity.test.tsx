@@ -10,15 +10,16 @@ import type { WorkbookActions } from '../sync/sync';
 import { fakePlayer } from '../test/fakePlayer';
 import { songWith } from '../test/songs';
 import { App } from './App';
+import { accountOf, signedInAs, memberList } from '../test/accounts';
 
 const ME = 'ich@example.com';
 const MAX = 'max@example.org';
 const NOW = new Date(2026, 10, 8, 14, 30);
 const ago = (seconds: number) => NOW.getTime() / 1000 - seconds;
 
-const band: Workbook = { id: 'wb-band', title: 'Band', owner: ME, members: [ME, MAX], profiles: { [MAX]: { name: 'Max', initials: 'M', color: 'blue' } } };
-const proberaum: Workbook = { id: 'wb-proberaum', title: 'Proberaum', owner: ME, members: [ME, 'anna@example.com'] };
-const personal: Workbook = { id: 'wb-me', title: 'Meine Songs', owner: ME, members: [ME], personal: true };
+const band: Workbook = { id: 'wb-band', title: 'Band', owner: ME, members: memberList([ME, MAX, 'anna@example.com'], { [MAX]: { name: 'Max', initials: 'M', color: 'blue' } }) };
+const proberaum: Workbook = { id: 'wb-proberaum', title: 'Proberaum', owner: ME, members: memberList([ME, 'anna@example.com']) };
+const personal: Workbook = { id: 'wb-me', title: 'Meine Songs', owner: ME, members: memberList([ME]), personal: true };
 
 function fakeActivity(entries: Record<string, LastChange & { isNew?: boolean }>) {
   const listeners = new Set<() => void>();
@@ -66,13 +67,13 @@ function setup(songs: { song: Song; workbook?: Workbook }[], entries: Record<str
   const placement = Object.fromEntries(songs.flatMap(({ song, workbook }) => (workbook ? [[song.id, workbook.id]] : [])));
   const store = createNotebookStore(songs.map((s) => s.song), undefined, { placement, workbooks: [band, proberaum, personal] });
   const account: AccountApi = {
-    session: vi.fn(async () => ME),
+    session: vi.fn(async () => signedInAs(ME)),
     requestCode: vi.fn(async () => ({ ok: true as const })),
-    verify: vi.fn(async () => ({ ok: true as const, email: ME })),
+    verify: vi.fn(async () => ({ ok: true as const, ...signedInAs(ME) })),
     logout: vi.fn(async () => ({ ok: true as const })),
   };
   const session = createAccountSession(account);
-  session.setEmail(ME);
+  session.setSession(signedInAs(ME));
   const fake = fakeActivity(entries);
   render(<App store={store} session={session} sync={noSync()} player={fakePlayer().player} activity={fake.activity} />);
   return fake;
@@ -90,15 +91,35 @@ afterEach(() => vi.useRealTimers());
 describe('Spec song-activity › Letzte Änderung auf der Kachel', () => {
   it('Gemeinsames Workbook', () => {
     const song = songWith({ title: 'Hysteria' });
-    setup([{ song, workbook: band }], { [song.id]: { time: ago(7200), author: MAX } });
+    setup([{ song, workbook: band }], { [song.id]: { time: ago(7200), author: accountOf(MAX) } });
     expect(tileOf('Band', 'Hysteria')).toHaveTextContent('vor 2 Std.');
     expect(tileOf('Band', 'Hysteria')).toHaveTextContent('Max');
   });
 
   it('Ohne Profil die Adresse', () => {
     const song = songWith({ title: 'Intro' });
-    setup([{ song, workbook: band }], { [song.id]: { time: ago(7200), author: 'anna@example.com' } });
+    setup([{ song, workbook: band }], { [song.id]: { time: ago(7200), author: accountOf('anna@example.com') } });
     expect(tileOf('Band', 'Intro')).toHaveTextContent('anna@example.com');
+  });
+
+  it('Adresse eines Mitglieds als Autor', () => {
+    const song = songWith({ title: 'Hysteria' });
+    setup([{ song, workbook: band }], { [song.id]: { time: ago(7200), author: MAX } });
+    expect(tileOf('Band', 'Hysteria')).toHaveTextContent('Max');
+  });
+
+  it('Autor nicht mehr Mitglied, mit Kennung und mit Adresse', () => {
+    const viaAccount = songWith({ title: 'Hysteria' });
+    const viaAddress = songWith({ title: 'Intro' });
+    setup([{ song: viaAccount, workbook: band }, { song: viaAddress, workbook: band }], {
+      [viaAccount.id]: { time: ago(7200), author: accountOf('ben@example.com') },
+      [viaAddress.id]: { time: ago(7200), author: 'ben@example.com' },
+    });
+    for (const title of ['Hysteria', 'Intro']) {
+      expect(tileOf('Band', title)).toHaveTextContent('vor 2 Std.');
+      expect(tileOf('Band', title)).not.toHaveTextContent('ben');
+      expect(tileOf('Band', title)).not.toHaveTextContent(accountOf('ben@example.com'));
+    }
   });
 
   it('Meine Songs: Zeit, kein Autor, kein Punkt', () => {

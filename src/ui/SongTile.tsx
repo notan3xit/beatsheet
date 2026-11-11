@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ordered, type Positions } from '../domain/songOrder';
 import { allBars } from '../domain/songPatterns';
+import { memberOf } from '../domain/members';
 import type { Song, Workbook } from '../domain/types';
 import { useDropSlot, useSongDragSource, type DropArea } from './dragSong';
 import { formatRelative } from './historyText';
@@ -43,7 +44,8 @@ export function SongTile({
   const source = useSongDragSource(song, shared?.id ?? 'mine');
   const activity = useActivity();
   const last = activity.lastChange(song.id);
-  const author = shared && last?.author ? (shared.profiles?.[last.author]?.name ?? last.author) : null;
+  const member = shared ? memberOf(shared.members, last?.author ?? null) : undefined;
+  const author = member ? (member.profile?.name ?? member.email) : null;
   return (
     <article
       className={`tile${source.dragging ? ' dragging' : ''}${marked ? ' drop-before' : ''}`}

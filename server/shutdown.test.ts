@@ -68,7 +68,7 @@ describe.skipIf(process.platform === 'win32')('Beenden auf SIGTERM', () => {
       const second = await startProcess({ data, port, args: ['--insecure-cookie'] });
       const session = await fetch(`${second.url}/api/auth/session`, { headers: { Cookie: cookie } });
       expect(session.status).toBe(200);
-      expect(await session.json()).toEqual({ email: EMAIL });
+      expect(await session.json()).toMatchObject({ email: EMAIL });
     },
     TIMEOUT,
   );

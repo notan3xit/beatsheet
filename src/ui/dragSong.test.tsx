@@ -11,13 +11,14 @@ import { fakePlayer } from '../test/fakePlayer';
 import { songWith } from '../test/songs';
 import { App } from './App';
 import { dropEffect } from './dragSong';
+import { signedInAs, memberList } from '../test/accounts';
 
 const ME = 'ich@example.com';
-const workbook = (title: string): Workbook => ({ id: `wb-${title}`, title, owner: ME, members: [ME] });
+const workbook = (title: string): Workbook => ({ id: `wb-${title}`, title, owner: ME, members: memberList([ME]) });
 const noNotices: never[] = [];
 const mouse = { pointerType: 'mouse', button: 0, pointerId: 1 } as const;
 
-const PERSONAL: Workbook = { id: 'wb-mine', title: 'Meine Songs', owner: ME, members: [ME], personal: true };
+const PERSONAL: Workbook = { id: 'wb-mine', title: 'Meine Songs', owner: ME, members: memberList([ME]), personal: true };
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -85,13 +86,13 @@ function setup({
     subscribe: () => () => {},
   } as unknown as WorkbookActions;
   const account: AccountApi = {
-    session: vi.fn(async () => ME),
+    session: vi.fn(async () => signedInAs(ME)),
     requestCode: vi.fn(async () => ({ ok: true as const })),
-    verify: vi.fn(async () => ({ ok: true as const, email: ME })),
+    verify: vi.fn(async () => ({ ok: true as const, ...signedInAs(ME) })),
     logout: vi.fn(async () => ({ ok: true as const })),
   };
   const session = createAccountSession(account);
-  session.setEmail(ME);
+  session.setSession(signedInAs(ME));
   let hit: Element | null = null;
   render(<App store={store} session={session} sync={sync} player={fakePlayer().player} hitTest={() => hit} activity={activity} />);
   const byTitle = (title: string) => store.getState().songs.find((s) => s.title === title)!.id;

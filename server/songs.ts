@@ -199,7 +199,7 @@ export function parseWorkbookPart(body: Record<string, unknown>): ClientWorkbook
 export async function syncWorkbookDoc(
   db: Database,
   workbookId: string,
-  email: string,
+  account: string,
   { base, changes }: ClientWorkbookDoc,
   quota: QuotaCheck,
   personal: boolean,
@@ -233,7 +233,7 @@ export async function syncWorkbookDoc(
       if (!isChunkData(bytes)) throw new Error('keine Automerge-Daten');
       merged = A.loadIncremental(A.clone(server), bytes);
       clientHeads = A.getHeads(A.loadIncremental(A.clone(A.view(server, base)), bytes));
-      if (!isValidWorkbookDoc(merged) || !changesAllowed(merged, serverHeads, A.getHeads(merged), email, personal)) throw new Error('ungültig');
+      if (!isValidWorkbookDoc(merged) || !changesAllowed(merged, serverHeads, A.getHeads(merged), account, personal)) throw new Error('ungültig');
     } catch {
       return { reply: { status: 'invalid', doc: toBase64(stored) }, changed: false };
     }

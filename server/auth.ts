@@ -72,7 +72,7 @@ export async function requestCode(deps: AuthDeps, rawEmail: unknown): Promise<Re
 }
 
 export type VerifyError = 'wrong-code' | 'expired' | 'too-many-attempts' | 'no-code';
-export type VerifyResult = { ok: true; email: string; token: string } | { ok: false; error: VerifyError };
+export type VerifyResult = { ok: true; email: string; account: string; token: string } | { ok: false; error: VerifyError };
 
 export function verifyCode(deps: AuthDeps, rawEmail: unknown, rawCode: unknown): VerifyResult {
   const email = normalizeEmail(rawEmail);
@@ -97,16 +97,22 @@ export function verifyCode(deps: AuthDeps, rawEmail: unknown, rawCode: unknown):
   deps.db
     .prepare('INSERT INTO sessions (token_hash, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
     .run(hashToken(token), String(user.id), now, now + SESSION_TTL);
-  return { ok: true, email, token };
+  return { ok: true, email, account: String(user.id), token };
 }
 
-/** Adresse zur Sitzung, oder `null`, wenn unbekannt oder abgelaufen. */
-export function sessionEmail(deps: AuthDeps, token: string | undefined): string | null {
+/** Konto einer Sitzung: Adresse und Kennung. */
+export interface SessionAccount {
+  email: string;
+  account: string;
+}
+
+/** Konto zur Sitzung, oder `null`, wenn unbekannt oder abgelaufen. */
+export function sessionAccount(deps: AuthDeps, token: string | undefined): SessionAccount | null {
   if (!token) return null;
   const row = deps.db
-    .prepare('SELECT users.email AS email FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ?')
+    .prepare('SELECT users.email AS email, users.id AS id FROM sessions JOIN users ON users.id = sessions.user_id WHERE token_hash = ? AND expires_at > ?')
     .get(hashToken(token), deps.now().getTime()) as Row | undefined;
-  return row ? String(row.email) : null;
+  return row ? { email: String(row.email), account: String(row.id) } : null;
 }
 
 export function endSession(deps: AuthDeps, token: string | undefined): void {

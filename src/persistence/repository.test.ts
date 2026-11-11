@@ -11,6 +11,8 @@ import { songWith } from '../test/songs';
 import { connectStore, openRepository, requestPersistentStorage } from './repository';
 import { applySong, createSongDoc, songOf } from './songDoc';
 import { createWorkbookDoc, markSeen } from './workbookDoc';
+import { accountOf, memberList, signedInAs } from '../test/accounts';
+import { authorOf, createAccountSession } from '../account/session';
 
 const uniqueDb = () => `beatsheet-test-${crypto.randomUUID()}`;
 
@@ -231,7 +233,7 @@ describe('Spec library-persistence › Übernahme lokal gespeicherter Songs in d
 });
 
 describe('Spec workbook-sync › Client-Speicher', () => {
-  const band: Workbook = { id: 'wb', title: 'Band', owner: 'ich@example.com', members: ['ich@example.com'] };
+  const band: Workbook = { id: 'wb', title: 'Band', owner: 'ich@example.com', members: memberList(['ich@example.com']) };
 
   async function storedSong(title: string) {
     const name = uniqueDb();
@@ -466,6 +468,19 @@ describe('Spec song-history › Autor einer Änderung', () => {
     store.updateSong((s) => ({ ...s, tempo: 90 }));
     await connection.flush();
     expect(messages(repo.documentBytes(song.id)).slice(1)).toEqual([JSON.stringify({ by: 'max@example.org' })]);
+  });
+
+  it('Keine Adresse im Song: Autor ist die Kennung der Sitzung', async () => {
+    const offline = async () => ({ ok: false as const, error: 'unreachable' as const });
+    const session = createAccountSession({ session: async () => null, requestCode: offline, verify: offline, logout: offline });
+    session.setSession(signedInAs('max@example.org'));
+    const repo = await openRepository(uniqueDb(), { author: authorOf(session) });
+    const store = createNotebookStore();
+    const connection = connectStore(store, repo);
+    store.createSong('Hysteria');
+    await connection.flush();
+    const bytes = repo.documentBytes(store.getState().songs[0]!.id);
+    expect(messages(bytes)).toEqual([JSON.stringify({ by: accountOf('max@example.org') })]);
   });
 
   it('Auch das Anlegen eines Songs trägt den Autor', async () => {
@@ -723,13 +738,13 @@ describe('Spec song-activity › Letzte Änderung und Neues', () => {
     const repo = await openRepository(uniqueDb(), { author: () => 'max@example.org' });
     const song = songWith({ title: 'Intro' });
     expect(repo.lastChange(song.id)).toBeNull();
-    expect(repo.isNew(song.id, null, 'ich@example.com')).toBe(false);
+    expect(repo.isNew(song.id, null, ['ich@example.com'])).toBe(false);
     await repo.write({ put: [song], remove: [] });
     expect(repo.lastChange(song.id)).toMatchObject({ author: 'max@example.org' });
-    expect(repo.isNew(song.id, null, 'ich@example.com')).toBe(true);
-    expect(repo.isNew(song.id, null, 'max@example.org')).toBe(false);
+    expect(repo.isNew(song.id, null, ['ich@example.com'])).toBe(true);
+    expect(repo.isNew(song.id, null, ['max@example.org'])).toBe(false);
     const seen = repo.songHeads(song.id);
     await repo.write({ put: [{ ...song, tempo: 90 }], remove: [] });
-    expect(repo.isNew(song.id, seen, 'ich@example.com')).toBe(true);
+    expect(repo.isNew(song.id, seen, ['ich@example.com'])).toBe(true);
   });
 });

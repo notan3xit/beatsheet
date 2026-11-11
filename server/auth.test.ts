@@ -60,6 +60,7 @@ const post = (h: Harness, path: string, body: unknown, cookie?: string) =>
 
 const requestCode = (h: Harness, email: string) => post(h, 'code', { email });
 const verify = (h: Harness, email: string, code: string) => post(h, 'verify', { email, code });
+const accountOf = (h: Harness, email: string) => (h.db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: string }).id;
 const session = (h: Harness, cookie?: string) =>
   fetch(`${h.url}/api/auth/session`, { headers: cookie ? { Cookie: cookie } : {} });
 
@@ -126,9 +127,11 @@ describe('Spec account-auth › Mit Code anmelden', () => {
     await requestCode(h, 'ich@example.com');
     const response = await verify(h, 'ich@example.com', codeIn(h.mails[0]!));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ email: 'ich@example.com' });
+    const account = accountOf(h, 'ich@example.com');
+    expect(account).toMatch(/^[0-9a-f-]{36}$/);
+    expect(await response.json()).toEqual({ email: 'ich@example.com', account });
     const current = await session(h, cookieOf(response));
-    expect(await current.json()).toEqual({ email: 'ich@example.com' });
+    expect(await current.json()).toEqual({ email: 'ich@example.com', account });
   });
 
   it('Erneute Anmeldung mit anderer Schreibweise', async () => {
@@ -137,7 +140,7 @@ describe('Spec account-auth › Mit Code anmelden', () => {
     h.advance(31_000);
     await requestCode(h, ' Ich@Example.com ');
     const response = await verify(h, ' Ich@Example.com ', codeIn(h.mails.at(-1)!));
-    expect(await response.json()).toEqual({ email: 'ich@example.com' });
+    expect(await response.json()).toEqual({ email: 'ich@example.com', account: accountOf(h, 'ich@example.com') });
     expect(h.db.prepare('SELECT COUNT(*) AS n FROM users').get()).toEqual({ n: 1 });
   });
 
@@ -222,7 +225,7 @@ describe('Spec account-auth › Sitzung', () => {
     const h = await start();
     const cookie = await login(h);
     h.advance(89 * DAY);
-    expect(await (await session(h, cookie)).json()).toEqual({ email: 'ich@example.com' });
+    expect(await (await session(h, cookie)).json()).toEqual({ email: 'ich@example.com', account: accountOf(h, 'ich@example.com') });
   });
 
   it('Sitzung abgelaufen', async () => {

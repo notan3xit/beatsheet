@@ -15,6 +15,8 @@ export interface Harness {
   advance(ms: number): void;
   /** Meldet die Adresse an (Code anfordern und bestätigen); liefert das Sitzungs-Cookie. */
   login(email: string): Promise<string>;
+  /** Adresse und Kennung eines angemeldeten Kontos, wie `session` sie liefert. */
+  signedInAs(email: string): { email: string; account: string };
   /** Version des Servers. */
   version: string;
   /** JSON-Anfrage an die API; ohne `cookie` ohne Sitzung. Sendet die Version des Servers als App-Version, `version: null` keine. */
@@ -64,6 +66,11 @@ export async function startServer({ appUrl, limits, staticDir, version = PACKAGE
     db,
     advance: (ms) => void (time += ms),
     api,
+    signedInAs(email) {
+      const row = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: string } | undefined;
+      if (!row) throw new Error(`${email} hat kein Konto`);
+      return { email, account: row.id };
+    },
     async login(email) {
       // Über die Sperre für erneute Codes an dieselbe Adresse hinweg
       time += 31_000;

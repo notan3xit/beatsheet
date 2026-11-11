@@ -39,7 +39,7 @@ export function useLogout(session: AccountSession) {
       const result = await session.api.logout();
       if (!result.ok) return report('alert', MESSAGES[result.error]);
       await sync?.afterLogout();
-      session.setEmail(null);
+      session.setSession(null);
     } finally {
       setLoggingOut(false);
     }
@@ -119,7 +119,7 @@ export function AccountMenu({
     run(async () => {
       const result = await api.verify(address, code);
       if (!result.ok) return setError(result.error);
-      session.setEmail(result.email);
+      session.setSession({ email: result.email, account: result.account });
       setInput('');
       reset();
     });

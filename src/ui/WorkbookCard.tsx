@@ -1,5 +1,5 @@
 import { useCallback, useId, useRef, useState } from 'react';
-import type { Song, Workbook } from '../domain/types';
+import type { Member, Song, Workbook } from '../domain/types';
 import type { ActionResult, WorkbookActions } from '../sync/sync';
 import { useConfirm } from './ConfirmDialog';
 import { EditableHeading } from './EditableHeading';
@@ -72,12 +72,12 @@ function MembersPopover({ workbook, sync }: { workbook: Workbook; sync: Workbook
       <section aria-labelledby={membersHeading}>
         <h4 id={membersHeading}>Mitglieder</h4>
         <ul className="member-list">
-          {workbook.members.map((member) => (
+          {workbook.members.map(({ email: member, profile }) => (
             <li key={member}>
               <span className="member-name">
-                <MemberAvatar email={member} profile={workbook.profiles?.[member]} />
-                {workbook.profiles?.[member] ? (
-                  labelOf(workbook, member)
+                <MemberAvatar email={member} profile={profile} />
+                {profile ? (
+                  profile.name
                 ) : (
                   <span className="member-pending">
                     {member}
@@ -127,7 +127,7 @@ function MembersPopover({ workbook, sync }: { workbook: Workbook; sync: Workbook
   );
 }
 
-const labelOf = (workbook: Workbook, member: string) => workbook.profiles?.[member]?.name ?? member;
+const labelOf = (member: Member) => member.profile?.name ?? member.email;
 
 /** Das gewählte Workbook neben der Seitenleiste (song-overview-tiles, design.md D4). */
 export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; songs: readonly Song[]; sync: WorkbookActions }) {
@@ -173,12 +173,12 @@ export function WorkbookCard({ workbook, songs, sync }: { workbook: Workbook; so
             type="button"
             className="avatars"
             aria-label="Mitglieder"
-            title={workbook.members.map((member) => labelOf(workbook, member)).join(', ')}
+            title={workbook.members.map(labelOf).join(', ')}
             aria-expanded={membersOpen}
             onClick={() => setMembersOpen((open) => !open)}
           >
             {workbook.members.slice(0, 4).map((member) => (
-              <MemberAvatar key={member} email={member} profile={workbook.profiles?.[member]} />
+              <MemberAvatar key={member.email} email={member.email} profile={member.profile} />
             ))}
             {workbook.members.length > 4 && (
               <span className="avatar" aria-hidden="true">

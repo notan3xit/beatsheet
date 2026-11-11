@@ -14,6 +14,7 @@ import { App } from './App';
 import { CHANGELOG } from './changelog';
 import { connectTheme, createThemeSetting, THEME_STORAGE_KEY, type ThemeSetting } from './theme';
 import * as download from './download';
+import { signedInAs } from '../test/accounts';
 
 const ME = 'ich@example.com';
 const VERSION_ENTRY = `Version ${CHANGELOG[0]!.version}`;
@@ -39,13 +40,13 @@ function fakeSound({
 
 function setup(email: string | null = null, sound: PlaybackSound = fakeSound(), theme: ThemeSetting = createThemeSetting(null)) {
   const account: AccountApi = {
-    session: vi.fn(async () => email),
+    session: vi.fn(async () => (email ? signedInAs(email) : null)),
     requestCode: vi.fn(async () => ({ ok: true as const })),
-    verify: vi.fn(async () => ({ ok: true as const, email: ME })),
+    verify: vi.fn(async () => ({ ok: true as const, ...signedInAs(ME) })),
     logout: vi.fn(async () => ({ ok: true as const })),
   };
   const session = createAccountSession(account);
-  session.setEmail(email);
+  session.setSession(email ? signedInAs(email) : null);
   const user = userEvent.setup();
   render(<App store={createNotebookStore([songWith({ title: 'Hysteria' })])} session={session} player={fakePlayer().player} sound={sound} theme={theme} />);
   return { user, account, session, sound, theme };

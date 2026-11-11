@@ -79,12 +79,12 @@ async function device(email: string): Promise<Device> {
     };
   };
   const session = createAccountSession({
-    session: vi.fn(async () => email),
+    session: vi.fn(async () => (email ? h.signedInAs(email) : null)),
     requestCode: vi.fn(async () => ({ ok: true as const })),
-    verify: vi.fn(async () => ({ ok: true as const, email })),
+    verify: vi.fn(async () => ({ ok: true as const, ...h.signedInAs(email) })),
     logout: vi.fn(async () => ({ ok: true as const })),
   });
-  session.setEmail(email);
+  session.setSession(h.signedInAs(email));
   const repo = await openRepository(`limits-test-${crypto.randomUUID()}`);
   const store = createNotebookStore(await repo.loadAll(), undefined, await repo.loadSyncState());
   const connection = connectStore(store, repo, { debounceMs: 10 });

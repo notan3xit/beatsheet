@@ -1,4 +1,4 @@
-import { createContext, useContext, useSyncExternalStore } from 'react';
+import { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
 import type { AccountSession } from '../account/session';
 import type { SyncError } from '../sync/api';
 import type { WorkbookActions } from '../sync/sync';
@@ -14,6 +14,15 @@ export function useEmail(): string | null {
   const session = useContext(SessionContext);
   if (!session) throw new Error('SessionContext fehlt');
   return useSyncExternalStore(session.subscribe, session.getEmail);
+}
+
+/** Eigene Kennung und Adresse; leer, wenn nicht angemeldet (account-id-authorship, design.md D5). */
+export function useMe(): readonly string[] {
+  const session = useContext(SessionContext);
+  if (!session) throw new Error('SessionContext fehlt');
+  const email = useSyncExternalStore(session.subscribe, session.getEmail);
+  const account = useSyncExternalStore(session.subscribe, session.getAccount);
+  return useMemo(() => [account, email].filter((id): id is string => id !== null), [account, email]);
 }
 
 const MESSAGES: Partial<Record<SyncError, string>> & { unreachable: string } = {

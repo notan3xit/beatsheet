@@ -28,12 +28,13 @@ export function createSongActivity({ store, repo, session }: { store: NotebookSt
   return {
     lastChange: (songId) => repo.lastChange(songId),
     isNew(songId) {
+      const account = session.getAccount();
       const email = session.getEmail();
       const { placement, workbooks } = store.getState();
       const workbookId = placement[songId];
-      if (!email || !workbookId || !workbooks.some((w) => w.id === workbookId && !w.personal)) return false;
-      const seen = repo.workbookSeen(workbookId, email);
-      return seen !== null && repo.isNew(songId, seen[songId] ?? null, email);
+      if (!account || !email || !workbookId || !workbooks.some((w) => w.id === workbookId && !w.personal)) return false;
+      const seen = repo.workbookSeen(workbookId, account);
+      return seen !== null && repo.isNew(songId, seen[songId] ?? null, [account, email]);
     },
     order: (workbookId) => repo.workbookOrder(workbookId),
     subscribe(listener) {

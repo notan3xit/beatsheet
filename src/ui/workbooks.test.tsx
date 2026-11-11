@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { AccountApi } from '../account/api';
 import { createAccountSession } from '../account/session';
-import type { Song, Workbook } from '../domain/types';
+import type { MemberProfile, Song, Workbook } from '../domain/types';
 import { parseNotebookFile, serializeNotebook } from '../persistence/fileFormat';
 import { createNotebookStore, type NotebookStore } from '../state/notebookStore';
 import type { SyncError } from '../sync/api';
@@ -14,6 +14,7 @@ import { fakePlayer } from '../test/fakePlayer';
 import { songWith } from '../test/songs';
 import { App } from './App';
 import * as download from './download';
+import { signedInAs, memberList } from '../test/accounts';
 
 const ME = 'ich@example.com';
 const ANNA = 'anna@example.com';
@@ -24,7 +25,7 @@ const workbook = (title: string, overrides: Partial<Workbook> = {}): Workbook =>
   id: `wb-${title}`,
   title,
   owner: ME,
-  members: [ME, ANNA],
+  members: memberList([ME, ANNA]),
   ...overrides,
 });
 
@@ -35,7 +36,7 @@ function fakeSync(store: NotebookStore, overrides: Partial<WorkbookActions> = {}
   const listeners = new Set<() => void>();
   const actions = {
     createWorkbook: vi.fn(async (title: string): Promise<CreatedResult> => {
-      const created = workbook(title || 'Neues Workbook', { members: [ME] });
+      const created = workbook(title || 'Neues Workbook', { members: memberList([ME]) });
       store.setWorkbooks([...store.getState().workbooks, created]);
       return { ok: true, id: created.id };
     }),
@@ -103,13 +104,13 @@ function setup({
 } = {}) {
   const store = createNotebookStore(songs, undefined, { placement, workbooks });
   const account: AccountApi = {
-    session: vi.fn(async () => email),
+    session: vi.fn(async () => (email ? signedInAs(email) : null)),
     requestCode: vi.fn(async () => ({ ok: true as const })),
-    verify: vi.fn(async () => ({ ok: true as const, email: ME })),
+    verify: vi.fn(async () => ({ ok: true as const, ...signedInAs(ME) })),
     logout: vi.fn(async () => ({ ok: true as const })),
   };
   const session = createAccountSession(account);
-  session.setEmail(email);
+  session.setSession(email ? signedInAs(email) : null);
   const { actions: sync, addNotice, setOffline, setOutdated } = fakeSync(store, overrides);
   const user = userEvent.setup();
   render(<App store={store} session={session} sync={sync} player={fakePlayer().player} storagePersisted={storagePersisted} />);
@@ -397,7 +398,8 @@ describe('Spec workbooks › Mitglieder-Popover (UI)', () => {
 describe('Spec workbooks › Mitglieder mit Profil (UI)', () => {
   const BEN = 'ben@example.com';
   const band = () =>
-    workbook('Band', { members: [ME, ANNA, BEN], profiles: { [ME]: { name: 'Artjom', initials: 'AR', color: 'blue' }, [ANNA]: { name: 'Anna Berg', initials: 'AB', color: 'green' } } });
+    workbook('Band', { members: memberList([ME, ANNA, BEN], { [ME]: { name: 'Artjom', initials: 'AR', color: 'blue' }, [ANNA]: { name: 'Anna Berg', initials: 'AB', color: 'green' } }) });
+  const withAnna = (profile: MemberProfile) => ({ ...band(), members: band().members.map((m) => (m.email === ANNA ? { ...m, profile } : m)) });
   const avatars = () => [...membersOf('Band').querySelectorAll<HTMLElement>('.avatar')];
 
   it('Kürzel in Farbe', () => {
@@ -410,7 +412,7 @@ describe('Spec workbooks › Mitglieder mit Profil (UI)', () => {
   });
 
   it('Gespeichertes Kürzel statt Anfangsbuchstaben', () => {
-    setup({ workbooks: [{ ...band(), profiles: { ...band().profiles, [ANNA]: { name: 'Anna Berg', initials: 'A', color: 'green' } } }] });
+    setup({ workbooks: [withAnna({ name: 'Anna Berg', initials: 'A', color: 'green' })] });
     expect(avatars()[1]).toHaveTextContent('A');
   });
 
@@ -433,7 +435,7 @@ describe('Spec workbooks › Mitglieder mit Profil (UI)', () => {
   it('Neuer Name erscheint ohne Neuladen (Spec workbooks › Geänderte Profile erscheinen bei allen)', async () => {
     const { user, store } = setup({ workbooks: [band()] });
     await user.click(membersOf('Band'));
-    act(() => store.setWorkbooks([{ ...band(), profiles: { ...band().profiles, [ANNA]: { name: 'Anna B.', initials: 'AB', color: 'green' } } }]));
+    act(() => store.setWorkbooks([withAnna({ name: 'Anna B.', initials: 'AB', color: 'green' })]));
     expect(within(popover('Band')).getByText('Anna B.')).toBeInTheDocument();
     expect(within(popover('Band')).queryByText('Anna Berg')).not.toBeInTheDocument();
   });
@@ -457,7 +459,7 @@ describe('Spec workbooks › Mitglied entfernen und austreten (UI)', () => {
   });
 
   it('Verlassen nach Bestätigung', async () => {
-    const { user, sync } = setup({ workbooks: [workbook('Band', { owner: ANNA, members: [ANNA, ME] })] });
+    const { user, sync } = setup({ workbooks: [workbook('Band', { owner: ANNA, members: memberList([ANNA, ME]) })] });
     await user.click(membersOf('Band'));
     await user.click(within(popover('Band')).getByRole('button', { name: 'Workbook verlassen' }));
     await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Bestätigen' }));
@@ -472,7 +474,7 @@ describe('Spec workbooks › Mitglied entfernen und austreten (UI)', () => {
   });
 
   it('Mitglieder können andere nicht entfernen', async () => {
-    const { user } = setup({ workbooks: [workbook('Band', { owner: ANNA, members: [ANNA, ME] })] });
+    const { user } = setup({ workbooks: [workbook('Band', { owner: ANNA, members: memberList([ANNA, ME]) })] });
     await user.click(membersOf('Band'));
     expect(within(popover('Band')).queryByRole('button', { name: /entfernen/ })).not.toBeInTheDocument();
   });
@@ -823,7 +825,7 @@ describe('Spec song-library › Song kopieren (UI)', () => {
 });
 
 describe('Spec account-songs › „Meine Songs“ im Account (UI)', () => {
-  const personal: Workbook = { id: 'wb-me', title: 'Meine Songs', owner: ME, members: [ME], personal: true };
+  const personal: Workbook = { id: 'wb-me', title: 'Meine Songs', owner: ME, members: memberList([ME]), personal: true };
   const placed = (title: string) => {
     const song = songWith({ title });
     return { song, placement: { [song.id]: personal.id } };
@@ -912,20 +914,20 @@ describe('Spec library-persistence › Dauerhaften Speicher anfordern (UI)', () 
 
   it('Der Hinweis wechselt mit der Anmeldung', () => {
     const { session } = setup({ email: null, storagePersisted: false });
-    act(() => session.setEmail(ME));
+    act(() => session.setSession(signedInAs(ME)));
     expect(note()).toHaveTextContent('im Account');
-    act(() => session.setEmail(null));
+    act(() => session.setSession(null));
     expect(note()).toHaveTextContent('Exportieren');
   });
 
   it('Ohne Abgleich gilt der Hinweis für lokale Daten, auch angemeldet', () => {
     const session = createAccountSession({
-      session: vi.fn(async () => ME),
+      session: vi.fn(async () => signedInAs(ME)),
       requestCode: vi.fn(async () => ({ ok: true as const })),
-      verify: vi.fn(async () => ({ ok: true as const, email: ME })),
+      verify: vi.fn(async () => ({ ok: true as const, ...signedInAs(ME) })),
       logout: vi.fn(async () => ({ ok: true as const })),
     });
-    session.setEmail(ME);
+    session.setSession(signedInAs(ME));
     render(<App store={createNotebookStore()} session={session} player={fakePlayer().player} storagePersisted={false} />);
     expect(note()).toHaveTextContent('Exportieren');
   });

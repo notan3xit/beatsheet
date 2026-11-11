@@ -11,7 +11,7 @@ interface Workbook {
   id: string;
   title: string;
   owner: string;
-  members: string[];
+  members: { email: string }[];
   personal?: boolean;
 }
 
@@ -58,7 +58,7 @@ describe('Spec account-songs › Persönlicher Bestand', () => {
     const second = await list();
     expect(first.filter((w) => w.personal)).toHaveLength(1);
     expect(second).toEqual(first);
-    expect(first[0]).toMatchObject({ owner: OWNER, members: [OWNER], personal: true });
+    expect(first[0]).toMatchObject({ owner: OWNER, members: [{ email: OWNER }], personal: true });
   });
 
   it('kennzeichnet nur das persönliche Workbook', async () => {

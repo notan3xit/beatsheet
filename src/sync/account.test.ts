@@ -84,7 +84,7 @@ async function device({ dbName = `account-test-${crypto.randomUUID()}`, cookie: 
   const session = createAccountSession({
     session: vi.fn(async () => null),
     requestCode: vi.fn(async () => ({ ok: true as const })),
-    verify: vi.fn(async () => ({ ok: true as const, email: ME })),
+    verify: vi.fn(async () => ({ ok: true as const, ...h.signedInAs(ME) })),
     logout: vi.fn(async () => ({ ok: true as const })),
   });
   const repo = await openRepository(dbName);
@@ -92,7 +92,7 @@ async function device({ dbName = `account-test-${crypto.randomUUID()}`, cookie: 
   const store = createNotebookStore(songs, undefined, await repo.loadSyncState());
   const connection = connectStore(store, repo, { debounceMs: 10 });
   const sync = createSync({ store, repo, connection, session, api: createSyncApi(fetcher), openEvents, pollMs: 3_600_000, debounceMs: 10 });
-  if (startEmail) session.setEmail(startEmail);
+  if (startEmail) session.setSession(h.signedInAs(startEmail));
   const result: Device = {
     store,
     repo,
@@ -104,13 +104,13 @@ async function device({ dbName = `account-test-${crypto.randomUUID()}`, cookie: 
     setOnline: (v) => void (online = v),
     async login(email) {
       cookie = await h.login(email);
-      session.setEmail(email);
+      session.setSession(h.signedInAs(email));
     },
     async logout() {
       const clean = await sync.prepareLogout();
       await sync.afterLogout();
       cookie = undefined;
-      session.setEmail(null);
+      session.setSession(null);
       return clean;
     },
     async reload() {

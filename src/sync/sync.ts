@@ -190,7 +190,7 @@ export function createSync({
     setOffline(error === 'unreachable');
     if (error === 'unauthenticated') {
       announcing = true;
-      session.setEmail(null);
+      session.setSession(null);
     }
   };
 
@@ -271,13 +271,13 @@ export function createSync({
   const applyWorkbookReply = (workbookId: string, reply: WorkbookDocReply) => {
     if ('doc' in reply) repo.adoptWorkbook(workbookId, reply.doc);
     else repo.receiveWorkbook(workbookId, reply);
-    const email = session.getEmail();
-    if (!email || !isShared(workbookId) || repo.workbookSeen(workbookId, email)) return;
+    const account = session.getAccount();
+    if (!account || !isShared(workbookId) || repo.workbookSeen(workbookId, account)) return;
     const entries = Object.fromEntries(songsIn(workbookId).flatMap((song) => {
       const heads = repo.songHeads(song.id);
       return heads ? [[song.id, heads]] : [];
     }));
-    if (repo.markSeen(workbookId, email, entries)) followUps.add(workbookId);
+    if (repo.markSeen(workbookId, account, entries)) followUps.add(workbookId);
   };
 
   const syncWorkbook = async (workbookId: string, started: number): Promise<boolean> => {
@@ -524,16 +524,19 @@ export function createSync({
     };
   };
 
+  /** Eigene Kennung und Adresse (account-id-authorship, design.md D5). */
+  const me = () => [session.getAccount(), session.getEmail()].filter((id): id is string => id !== null);
+
   /** Der geöffnete Song eines gemeinsamen Workbooks gilt als gesehen, sofern er Neues enthält oder noch keinen Eintrag hat (design.md D7). */
   const markOpenSeen = () => {
-    const email = session.getEmail();
+    const account = session.getAccount();
     const { openSongId, placement } = store.getState();
     const workbookId = openSongId ? placement[openSongId] : undefined;
-    if (!email || !openSongId || !workbookId || !isShared(workbookId)) return;
+    if (!account || !openSongId || !workbookId || !isShared(workbookId)) return;
     const heads = repo.songHeads(openSongId);
-    const stored = repo.workbookSeen(workbookId, email)?.[openSongId] ?? null;
-    if (!heads || (stored && !repo.isNew(openSongId, stored, email))) return;
-    if (repo.markSeen(workbookId, email, { [openSongId]: heads })) void requestSync(workbookId);
+    const stored = repo.workbookSeen(workbookId, account)?.[openSongId] ?? null;
+    if (!heads || (stored && !repo.isNew(openSongId, stored, me()))) return;
+    if (repo.markSeen(workbookId, account, { [openSongId]: heads })) void requestSync(workbookId);
   };
 
   const watchSeen = () => {

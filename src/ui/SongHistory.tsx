@@ -13,7 +13,8 @@ import {
   type HistoryInput,
   type RestoreScope,
 } from '../domain/history';
-import { DEFAULT_METER, type Pattern, type Song } from '../domain/types';
+import { memberOf } from '../domain/members';
+import { DEFAULT_METER, type Member, type Pattern, type Song } from '../domain/types';
 import type { HistoryStep, SongHistory as History } from '../persistence/history';
 import { Breadcrumbs } from './Breadcrumbs';
 import { Consequences, useConfirm } from './ConfirmDialog';
@@ -25,7 +26,7 @@ import { OldNew } from './OldNew';
 import { patternStyle } from './patternStyle';
 import { Sequencer } from './Sequencer';
 import { useNotebook, useOpenSong, useStore } from './useLibrary';
-import { useEmail } from './useWorkbooks';
+import { useMe } from './useWorkbooks';
 
 /** Historie eines Songs; in der App aus dem Repository, ohne sie bleibt der Verlauf leer. */
 export type HistoryOf = (songId: string) => History | null;
@@ -43,10 +44,14 @@ interface Selection {
   step: string | 'before' | null;
 }
 
+/** Mitglied hinter einem Autor; ohne Mitgliedschaft „Unbekannt“. */
 interface Person {
-  email: string | null;
+  member?: Member;
   name: string;
 }
+
+const PersonAvatar = ({ person: { member } }: { person: Person }) =>
+  member ? <MemberAvatar email={member.email} profile={member.profile} /> : <span className="avatar">?</span>;
 
 /** Verlauf des geöffneten Songs (song-history). */
 export function SongHistory() {
@@ -78,10 +83,10 @@ function HistoryBody({ history }: { history: History }) {
 
   const workbook = workbooks.find((w) => w.id === placement[song.id]);
   const shared = workbook !== undefined && !workbook.personal;
-  const personOf = (email: string | null): Person => ({
-    email,
-    name: email ? (workbook?.profiles?.[email]?.name ?? email) : 'Unbekannt',
-  });
+  const personOf = (author: string | null): Person => {
+    const member = memberOf(workbook?.members ?? [], author);
+    return { member, name: member ? (member.profile?.name ?? member.email) : 'Unbekannt' };
+  };
 
   const keyOf = (edit: Edit) => history.steps[edit.first]!.hash;
   const selected = edits.find((e) => keyOf(e) === selection.edit) ?? edits.at(-1)!;
@@ -94,7 +99,6 @@ function HistoryBody({ history }: { history: History }) {
         selected={selected}
         shared={shared}
         personOf={personOf}
-        workbookProfile={(email) => (email ? workbook?.profiles?.[email] : undefined)}
         onSelect={(edit) => setSelection({ edit: keyOf(edit), step: null })}
       />
       <EditDetail
@@ -120,15 +124,13 @@ function EditList({
   selected,
   shared,
   personOf,
-  workbookProfile,
   onSelect,
 }: {
   edits: Edit[];
   input: Input;
   selected: Edit;
   shared: boolean;
-  personOf: (email: string | null) => Person;
-  workbookProfile: (email: string | null) => Parameters<typeof MemberAvatar>[0]['profile'];
+  personOf: (author: string | null) => Person;
   onSelect: (edit: Edit) => void;
 }) {
   // Neueste zuerst; Tage, darin Läufe derselben Person
@@ -184,7 +186,7 @@ function EditList({
             shared ? (
               <div key={r} role="group" aria-label={personOf(run.author).name} className="history-person">
                 <div className="history-person-head" aria-hidden="true">
-                  {run.author ? <MemberAvatar email={run.author} profile={workbookProfile(run.author)} /> : <span className="avatar">?</span>}
+                  <PersonAvatar person={personOf(run.author)} />
                   {personOf(run.author).name}
                 </div>
                 <ul>{run.edits.map(item)}</ul>
@@ -215,7 +217,7 @@ function EditDetail({
   input: Input;
   latest: boolean;
   shared: boolean;
-  personOf: (email: string | null) => Person;
+  personOf: (author: string | null) => Person;
   step: string | 'before' | null;
   onStep: (step: string | 'before') => void;
   onRestore: () => void;
@@ -241,7 +243,7 @@ function EditDetail({
   const store = useStore();
   const song = useOpenSong();
   const confirm = useConfirm();
-  const me = useEmail();
+  const me = useMe();
 
   /** Bestätigen lassen, dann als neue Änderung auf den aktuellen Stand (song-history, design.md D3, D6). */
   const restore = async (scope: RestoreScope) => {
@@ -249,7 +251,7 @@ function EditDetail({
     const what = scope === 'song' ? 'Ganzen Song' : kind;
     const ok = await confirm({
       title: `${what} auf den Stand vom ${formatMoment(time)} setzen?`,
-      content: <RestoreContent items={items} others={others.map((email) => personOf(email).name)} current={song} target={after} scope={scope} />,
+      content: <RestoreContent items={items} others={others.map((author) => personOf(author).name)} current={song} target={after} scope={scope} />,
       confirmLabel: 'Wiederherstellen',
       canConfirm: items.length > 0,
     });

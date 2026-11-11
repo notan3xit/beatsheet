@@ -6,6 +6,7 @@ import { createNotebookStore } from '../state/notebookStore';
 import { fakePlayer } from '../test/fakePlayer';
 import { songWith } from '../test/songs';
 import { App } from './App';
+import { signedInAs } from '../test/accounts';
 
 const fail = (error: AccountError) => ({ ok: false as const, error });
 
@@ -13,7 +14,7 @@ function fakeAccount(overrides: Partial<AccountApi> = {}): AccountApi {
   return {
     session: vi.fn(async () => null),
     requestCode: vi.fn(async () => ({ ok: true as const })),
-    verify: vi.fn(async (email: string) => ({ ok: true as const, email: email.trim().toLowerCase() })),
+    verify: vi.fn(async (email: string) => ({ ok: true as const, ...signedInAs(email.trim().toLowerCase()) })),
     logout: vi.fn(async () => ({ ok: true as const })),
     ...overrides,
   };
@@ -29,7 +30,7 @@ function setup(account: AccountApi = fakeAccount()) {
 const header = () => screen.getByRole('banner');
 const form = () => screen.getByRole('form', { name: 'Anmelden' });
 const accountButton = (email = 'ich@example.com') => within(header()).getByRole('button', { name: `Konto ${email}` });
-const signedIn = () => setup(fakeAccount({ session: vi.fn(async () => 'ich@example.com') }));
+const signedIn = () => setup(fakeAccount({ session: vi.fn(async () => signedInAs('ich@example.com')) }));
 
 async function requestCodeFor(user: ReturnType<typeof userEvent.setup>, email: string) {
   await user.click(within(header()).getByRole('button', { name: 'Anmelden' }));

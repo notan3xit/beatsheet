@@ -408,23 +408,25 @@ describe('Workbook-Dokument', () => {
     return { doc: A.loadIncremental(A.init(), fromBase64(entry.changes!)) as WorkbookDocument, base: entry.heads! };
   };
 
+  const accountOf = (email: string) => (h.db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: string }).id;
+
   const push = async (doc: WorkbookDocument, base: string[], cookie = owner) => (await syncPart({ base, changes: toBase64(A.saveSince(doc, base)) }, cookie))!;
 
   it('legt das Dokument beim ersten Abgleich an und liefert es jedem Gerät gleich', async () => {
     const first = await fetchDoc();
     const second = await fetchDoc();
     expect(second.base).toEqual(first.base);
-    expect(seenOf(first.doc, OWNER)).toBeNull();
+    expect(seenOf(first.doc, accountOf(OWNER))).toBeNull();
   });
 
   it('nimmt eigene Einträge an und gibt sie anderen Mitgliedern weiter', async () => {
     await invite(ANNA);
     const anna = await h.login(ANNA);
     const { doc, base } = await fetchDoc();
-    const entry = await push(markSeen(doc, OWNER, { intro: HEADS }), base);
+    const entry = await push(markSeen(doc, accountOf(OWNER), { intro: HEADS }), base);
     expect(entry.status).toBe('ok');
     expect(entry.changes).toBeUndefined();
-    expect(seenOf((await fetchDoc(anna)).doc, OWNER)).toEqual({ intro: HEADS });
+    expect(seenOf((await fetchDoc(anna)).doc, accountOf(OWNER))).toEqual({ intro: HEADS });
   });
 
   it('führt gleichzeitig gesehene Stände zweier Mitglieder zusammen', async () => {
@@ -432,35 +434,41 @@ describe('Workbook-Dokument', () => {
     const anna = await h.login(ANNA);
     const mine = await fetchDoc();
     const hers = await fetchDoc(anna);
-    await push(markSeen(mine.doc, OWNER, { intro: HEADS }), mine.base);
-    const reply = await push(markSeen(hers.doc, ANNA, { intro: HEADS }), hers.base, anna);
+    await push(markSeen(mine.doc, accountOf(OWNER), { intro: HEADS }), mine.base);
+    const reply = await push(markSeen(hers.doc, accountOf(ANNA), { intro: HEADS }), hers.base, anna);
     expect(reply.status).toBe('ok');
     expect(reply.changes).toBeDefined();
     const { doc } = await fetchDoc();
-    expect(seenOf(doc, OWNER)).toEqual({ intro: HEADS });
-    expect(seenOf(doc, ANNA)).toEqual({ intro: HEADS });
+    expect(seenOf(doc, accountOf(OWNER))).toEqual({ intro: HEADS });
+    expect(seenOf(doc, accountOf(ANNA))).toEqual({ intro: HEADS });
   });
 
   it('weist die Änderung eines fremden Eintrags zurück und behält den Stand', async () => {
     await invite(ANNA);
     const anna = await h.login(ANNA);
     const mine = await fetchDoc();
-    await push(markSeen(mine.doc, OWNER, { intro: HEADS }), mine.base);
+    await push(markSeen(mine.doc, accountOf(OWNER), { intro: HEADS }), mine.base);
     const hers = await fetchDoc(anna);
-    const reply = await push(markSeen(hers.doc, OWNER, { intro: ['b'.repeat(64)] }), hers.base, anna);
+    const reply = await push(markSeen(hers.doc, accountOf(OWNER), { intro: ['b'.repeat(64)] }), hers.base, anna);
     expect(reply.status).toBe('invalid');
     expect(reply.doc).toBeDefined();
-    expect(seenOf((await fetchDoc()).doc, OWNER)).toEqual({ intro: HEADS });
+    expect(seenOf((await fetchDoc()).doc, accountOf(OWNER))).toEqual({ intro: HEADS });
+  });
+
+  it('weist Einträge unter der eigenen Adresse zurück', async () => {
+    const { doc, base } = await fetchDoc();
+    expect((await push(markSeen(A.clone(doc), OWNER, { intro: HEADS }), base)).status).toBe('invalid');
+    expect((await push(markSeen(doc, accountOf(OWNER), { intro: HEADS }), base)).status).toBe('ok');
   });
 
   it('weist ein Dokument in falscher Form ab', async () => {
     const { doc, base } = await fetchDoc();
     const broken = [
-      A.change(A.clone(doc), (d: Record<string, unknown>) => void ((d.seen as Record<string, unknown>)[OWNER] = { intro: 'kaputt' })),
-      A.change(A.clone(doc), (d: Record<string, unknown>) => void ((d.seen as Record<string, unknown>)[OWNER] = 'kaputt')),
+      A.change(A.clone(doc), (d: Record<string, unknown>) => void ((d.seen as Record<string, unknown>)[accountOf(OWNER)] = { intro: 'kaputt' })),
+      A.change(A.clone(doc), (d: Record<string, unknown>) => void ((d.seen as Record<string, unknown>)[accountOf(OWNER)] = 'kaputt')),
     ];
     for (const next of broken) expect((await push(next, base)).status).toBe('invalid');
-    expect(seenOf((await fetchDoc()).doc, OWNER)).toBeNull();
+    expect(seenOf((await fetchDoc()).doc, accountOf(OWNER))).toBeNull();
   });
 
   it('meldet unrelated bei unbekannter base mit dem Dokument des Servers', async () => {
@@ -501,7 +509,7 @@ describe('Workbook-Dokument', () => {
     const personal = await personalId();
     const entry = (await syncPart({ base: [] }, owner, personal))!;
     const doc = A.loadIncremental(A.init(), fromBase64(entry.changes!)) as WorkbookDocument;
-    const reply = (await syncPart({ base: entry.heads!, changes: toBase64(A.saveSince(markSeen(doc, OWNER, { intro: HEADS }), entry.heads!)) }, owner, personal))!;
+    const reply = (await syncPart({ base: entry.heads!, changes: toBase64(A.saveSince(markSeen(doc, accountOf(OWNER), { intro: HEADS }), entry.heads!)) }, owner, personal))!;
     expect(reply.status).toBe('invalid');
   });
 
@@ -533,7 +541,7 @@ describe('Workbook-Dokument', () => {
     await fetchDoc();
     await settle();
     expect(stream.events).toEqual([]);
-    await push(markSeen(doc, OWNER, { intro: HEADS }), base);
+    await push(markSeen(doc, accountOf(OWNER), { intro: HEADS }), base);
     await waitFor(() => stream.events.length === 1);
     expect(stream.events[0]).toEqual({ event: 'workbook', data: { id: workbook } });
     stream.close();

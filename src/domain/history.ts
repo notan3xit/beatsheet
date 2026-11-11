@@ -419,7 +419,8 @@ export function restoreConsequences(
   subject: Subject,
   scope: RestoreScope,
   later: readonly Step[],
-  me: string | null,
+  /** Eigene Kennung und Adresse (account-id-authorship, design.md D5). */
+  me: readonly string[],
 ): RestoreConsequences {
   const items: RestoreConsequence[] = [];
   const push = (item: RestoreConsequence | null) => item && items.push(item);
@@ -436,6 +437,6 @@ export function restoreConsequences(
     if (scope === 'subject') missingForStructure(current, target).forEach((p) => items.push({ type: 're-added', patternId: p.id }));
   }
   const affected = later.filter((step) => scope === 'song' || step.subject === subject);
-  const others = [...new Set(affected.map((step) => step.author).filter((author): author is string => author !== null && author !== me))];
+  const others = [...new Set(affected.map((step) => step.author).filter((author): author is string => author !== null && !me.includes(author)))];
   return { items, others: items.length > 0 ? others : [] };
 }

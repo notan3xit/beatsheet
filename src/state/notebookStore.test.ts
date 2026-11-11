@@ -10,6 +10,7 @@ import { emptyBeats, patternOf } from '../test/patterns';
 import { songWith } from '../test/songs';
 import exampleFile from './exampleSong.json?raw';
 import { createNotebookStore } from './notebookStore';
+import { memberList } from '../test/accounts';
 
 describe('Spec song-library › Song anlegen', () => {
   it('Song mit Titel anlegen', () => {
@@ -27,7 +28,7 @@ describe('Spec song-library › Song anlegen', () => {
 });
 
 describe('Spec song-library › Song kopieren', () => {
-  const band: Workbook = { id: 'wb', title: 'Band', owner: 'ich@example.com', members: ['ich@example.com'] };
+  const band: Workbook = { id: 'wb', title: 'Band', owner: 'ich@example.com', members: memberList(['ich@example.com']) };
   const original = () =>
     appendSegment({ ...songWith({ title: 'Uprising', tempo: 128, patterns: [patternOf(emptyBeats(4))] }), meter: 3 }, { name: 'V', bars: 4 });
 
@@ -216,7 +217,7 @@ describe('Pattern-API wirkt im geöffneten Song', () => {
 });
 
 describe('Spec workbook-sync › Store', () => {
-  const band: Workbook = { id: 'wb', title: 'Band', owner: 'ich@example.com', members: ['ich@example.com'] };
+  const band: Workbook = { id: 'wb', title: 'Band', owner: 'ich@example.com', members: memberList(['ich@example.com']) };
 
   it('applyRemote übernimmt Songs ohne Revisionserhöhung und ohne Ansichtswechsel', () => {
     const store = createNotebookStore();

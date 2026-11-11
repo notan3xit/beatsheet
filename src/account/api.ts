@@ -10,12 +10,23 @@ export type AccountError =
 
 export type AccountResult<T = object> = ({ ok: true } & T) | { ok: false; error: AccountError };
 
+/** Angemeldetes Konto: Adresse und Kennung (account-id-authorship, design.md D2). */
+export interface Account {
+  email: string;
+  account: string;
+}
+
+const accountOf = (body: unknown): Account | null => {
+  const { email, account } = (body ?? {}) as { email?: unknown; account?: unknown };
+  return typeof email === 'string' && typeof account === 'string' ? { email, account } : null;
+};
+
 /** Schnittstelle zum Anmeldeserver (server-auth, design.md D8). */
 export interface AccountApi {
-  /** Adresse der laufenden Sitzung; `null` ohne Sitzung oder ohne erreichbaren Server. */
-  session(): Promise<string | null>;
+  /** Konto der laufenden Sitzung; `null` ohne Sitzung oder ohne erreichbaren Server. */
+  session(): Promise<Account | null>;
   requestCode(email: string): Promise<AccountResult>;
-  verify(email: string, code: string): Promise<AccountResult<{ email: string }>>;
+  verify(email: string, code: string): Promise<AccountResult<Account>>;
   logout(): Promise<AccountResult>;
 }
 
@@ -41,8 +52,7 @@ export function createHttpAccountApi(base = '/api/auth'): AccountApi {
       try {
         const response = await fetch(`${base}/session`);
         if (!response.ok) return null;
-        const { email } = (await response.json()) as { email?: unknown };
-        return typeof email === 'string' ? email : null;
+        return accountOf(await response.json());
       } catch {
         return null;
       }
@@ -59,8 +69,8 @@ export function createHttpAccountApi(base = '/api/auth'): AccountApi {
       try {
         const response = await post('verify', { email, code });
         if (response.status !== 200) return await errorOf(response);
-        const body = (await response.json()) as { email?: unknown };
-        return typeof body.email === 'string' ? { ok: true, email: body.email } : unreachable;
+        const account = accountOf(await response.json());
+        return account ? { ok: true, ...account } : unreachable;
       } catch {
         return unreachable;
       }

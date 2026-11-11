@@ -375,14 +375,14 @@ describe('Spec song-history › Wiederherstellen', () => {
     const { song, pattern } = addPattern(removePattern(target, chorus.id), { kind: 'fill', name: 'Intro Fill' });
     const current = { ...song, tempo: 90, patterns: song.patterns.map((p) => (p.id === verse.id ? toggleHit(p, 0, 'kick', 0) : p)) };
 
-    expect(restoreConsequences(current, target, patternSubject(verse.id), 'subject', [], ARTJOM)).toEqual({
+    expect(restoreConsequences(current, target, patternSubject(verse.id), 'subject', [], [ARTJOM])).toEqual({
       items: [{ type: 'reset', patternId: verse.id }],
       others: [],
     });
-    expect(restoreConsequences(current, target, patternSubject(chorus.id), 'subject', [], ARTJOM).items).toEqual([{ type: 're-added', patternId: chorus.id }]);
-    expect(restoreConsequences(current, target, patternSubject(pattern.id), 'subject', [], ARTJOM).items).toEqual([{ type: 'deleted', patternId: pattern.id }]);
-    expect(restoreConsequences(current, target, 'song', 'subject', [], ARTJOM).items).toEqual([{ type: 'song', tempo: { from: 90, to: 120 } }]);
-    const whole = restoreConsequences(current, target, 'song', 'song', [], ARTJOM).items;
+    expect(restoreConsequences(current, target, patternSubject(chorus.id), 'subject', [], [ARTJOM]).items).toEqual([{ type: 're-added', patternId: chorus.id }]);
+    expect(restoreConsequences(current, target, patternSubject(pattern.id), 'subject', [], [ARTJOM]).items).toEqual([{ type: 'deleted', patternId: pattern.id }]);
+    expect(restoreConsequences(current, target, 'song', 'subject', [], [ARTJOM]).items).toEqual([{ type: 'song', tempo: { from: 90, to: 120 } }]);
+    const whole = restoreConsequences(current, target, 'song', 'song', [], [ARTJOM]).items;
     expect(whole).toEqual(
       expect.arrayContaining([
         { type: 'song', tempo: { from: 90, to: 120 } },
@@ -398,7 +398,7 @@ describe('Spec song-history › Wiederherstellen', () => {
     const verse = verseOf(base)!;
     const target = setBarProps(base, [bars(base)[0]!.id], { grooveId: verse.id });
     const current = removePattern(target, verse.id);
-    expect(restoreConsequences(current, target, 'structure', 'subject', [], ARTJOM).items).toEqual([
+    expect(restoreConsequences(current, target, 'structure', 'subject', [], [ARTJOM]).items).toEqual([
       { type: 'structure' },
       { type: 're-added', patternId: verse.id },
     ]);
@@ -414,14 +414,14 @@ describe('Spec song-history › Wiederherstellen', () => {
       { time: MONDAY, author: ARTJOM, subject: patternSubject(verse.id) },
       { time: MONDAY, author: null, subject: patternSubject(verse.id) },
     ];
-    expect(restoreConsequences(current, target, patternSubject(verse.id), 'subject', later, ARTJOM).others).toEqual([MAX]);
-    expect(restoreConsequences(current, target, 'song', 'song', later, ARTJOM).others).toEqual([MAX, 'anna@example.com']);
+    expect(restoreConsequences(current, target, patternSubject(verse.id), 'subject', later, [ARTJOM]).others).toEqual([MAX]);
+    expect(restoreConsequences(current, target, 'song', 'song', later, [ARTJOM]).others).toEqual([MAX, 'anna@example.com']);
   });
 
   it('Nichts zu tun', () => {
     const target = withVerseHits();
-    expect(restoreConsequences(target, target, patternSubject(verseOf(target)!.id), 'subject', [], ARTJOM).items).toEqual([]);
-    expect(restoreConsequences(target, target, 'structure', 'subject', [], ARTJOM).items).toEqual([]);
-    expect(restoreConsequences(target, target, 'song', 'song', [], ARTJOM).items).toEqual([]);
+    expect(restoreConsequences(target, target, patternSubject(verseOf(target)!.id), 'subject', [], [ARTJOM]).items).toEqual([]);
+    expect(restoreConsequences(target, target, 'structure', 'subject', [], [ARTJOM]).items).toEqual([]);
+    expect(restoreConsequences(target, target, 'song', 'song', [], [ARTJOM]).items).toEqual([]);
   });
 });

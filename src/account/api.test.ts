@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createHttpAccountApi } from './api';
 
+const ACCOUNT = '0f8fad5b-d9cb-469f-a165-70867728950e';
+
 const json = (status: number, body?: unknown) =>
   new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
@@ -45,15 +47,15 @@ describe('HTTP-Client der Anmeldung (server-auth, design.md D8)', () => {
     expect(await api.logout()).toEqual({ ok: false, error: 'unreachable' });
   });
 
-  it('liefert nach der Anmeldung die Adresse', async () => {
-    stubFetch(json(200, { email: 'ich@example.com' }));
-    expect(await createHttpAccountApi().verify('ich@example.com', '123456')).toEqual({ ok: true, email: 'ich@example.com' });
+  it('liefert nach der Anmeldung Adresse und Kennung', async () => {
+    stubFetch(json(200, { email: 'ich@example.com', account: ACCOUNT }));
+    expect(await createHttpAccountApi().verify('ich@example.com', '123456')).toEqual({ ok: true, email: 'ich@example.com', account: ACCOUNT });
   });
 
   it('fragt die Sitzung ab; ohne Sitzung oder Server ergibt das null', async () => {
-    stubFetch(json(200, { email: 'ich@example.com' }), json(401, { error: 'unauthenticated' }), new TypeError('offline'));
+    stubFetch(json(200, { email: 'ich@example.com', account: ACCOUNT }), json(401, { error: 'unauthenticated' }), new TypeError('offline'));
     const api = createHttpAccountApi();
-    expect(await api.session()).toBe('ich@example.com');
+    expect(await api.session()).toEqual({ email: 'ich@example.com', account: ACCOUNT });
     expect(await api.session()).toBeNull();
     expect(await api.session()).toBeNull();
   });

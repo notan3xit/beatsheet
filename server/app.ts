@@ -1,5 +1,5 @@
 import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http';
-import { endSession, requestCode, SESSION_TTL, sessionEmail, verifyCode, type AuthDeps } from './auth.ts';
+import { endSession, requestCode, SESSION_TTL, sessionAccount, verifyCode, type AuthDeps } from './auth.ts';
 import { createEvents } from './events.ts';
 import { HttpError } from './http.ts';
 import { createQuota, DEFAULT_LIMITS, type Limits } from './limits.ts';
@@ -98,14 +98,14 @@ export function createApp(deps: AppDeps): RequestListener {
       const body = await readJson(request);
       const result = verifyCode(deps, body.email, body.code);
       if (!result.ok) return send(response, 400, { error: result.error });
-      return send(response, 200, { email: result.email }, { 'Set-Cookie': cookie(result.token, SESSION_TTL / 1000, deps.secureCookie) });
+      return send(response, 200, { email: result.email, account: result.account }, { 'Set-Cookie': cookie(result.token, SESSION_TTL / 1000, deps.secureCookie) });
     }
     if (route === 'GET /api/auth/session') {
-      const email = sessionEmail(deps, tokenOf(request));
-      return email ? send(response, 200, { email }) : send(response, 401, { error: 'unauthenticated' });
+      const session = sessionAccount(deps, tokenOf(request));
+      return session ? send(response, 200, session) : send(response, 401, { error: 'unauthenticated' });
     }
     if (route === 'GET /api/auth/profile' || route === 'PUT /api/auth/profile') {
-      const email = sessionEmail(deps, tokenOf(request));
+      const email = sessionAccount(deps, tokenOf(request))?.email;
       if (!email) return send(response, 401, { error: 'unauthenticated' });
       if (request.method === 'GET') return send(response, 200, { profile: profileOf(deps.db, email) });
       const profile = parseProfile(await readJson(request));
@@ -117,16 +117,16 @@ export function createApp(deps: AppDeps): RequestListener {
       return send(response, 204, undefined, { 'Set-Cookie': cookie('', 0, deps.secureCookie) });
     }
     if (route === 'GET /api/events') {
-      const email = sessionEmail(deps, tokenOf(request));
+      const email = sessionAccount(deps, tokenOf(request))?.email;
       if (!email) return send(response, 401, { error: 'unauthenticated' });
       if (!events.connect(email, response)) send(response, 429, { error: 'too-many-connections' });
       return;
     }
     if (path === '/api/workbooks' || path?.startsWith('/api/workbooks/')) {
-      const email = sessionEmail(deps, tokenOf(request));
-      if (!email) return send(response, 401, { error: 'unauthenticated' });
+      const session = sessionAccount(deps, tokenOf(request));
+      if (!session) return send(response, 401, { error: 'unauthenticated' });
       const reply = await handleWorkbookRequest({ ...deps, version: deps.version ?? PACKAGE_VERSION, events, limits, quota }, {
-        email,
+        ...session,
         method: request.method ?? 'GET',
         version: headerOf(request, VERSION_HEADER),
         path: path.split('/').slice(3),

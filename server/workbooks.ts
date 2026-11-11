@@ -19,6 +19,8 @@ export interface WorkbookDeps extends AuthDeps {
 export interface WorkbookRequest {
   /** Adresse der Sitzung. */
   email: string;
+  /** Kennung des Kontos der Sitzung. */
+  account: string;
   method: string;
   /** Version der App aus dem Header, falls gesendet. */
   version?: string;
@@ -55,26 +57,22 @@ export const membersOf = (db: Database, id: string, owner: string) => {
 
 const isPersonal = (db: Database, id: string) => db.prepare('SELECT 1 FROM personal_workbooks WHERE workbook_id = ?').get(id) !== undefined;
 
-/** Profile der Mitglieder, die eines haben; nur Mitglieder sehen das Workbook (member-profiles, design.md D3). */
-function profilesOf(db: Database, members: readonly string[]) {
-  const entries = members.flatMap((email) => {
+/** Mitglieder mit Kennung, falls sie ein Konto haben, und Profil, falls gespeichert (design.md D3). */
+function memberList(db: Database, members: readonly string[]) {
+  return members.map((email) => {
+    const user = db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: string } | undefined;
     const profile = profileOf(db, email);
-    return profile ? [[email, profile] as const] : [];
+    return { email, ...(user ? { account: String(user.id) } : {}), ...(profile ? { profile } : {}) };
   });
-  return entries.length > 0 ? { profiles: Object.fromEntries(entries) } : {};
 }
 
-const present = (db: Database, row: WorkbookRow) => {
-  const members = membersOf(db, row.id, row.owner);
-  return {
-    id: row.id,
-    title: row.title,
-    owner: row.owner,
-    members,
-    ...profilesOf(db, members),
-    ...(isPersonal(db, row.id) ? { personal: true } : {}),
-  };
-};
+const present = (db: Database, row: WorkbookRow) => ({
+  id: row.id,
+  title: row.title,
+  owner: row.owner,
+  members: memberList(db, membersOf(db, row.id, row.owner)),
+  ...(isPersonal(db, row.id) ? { personal: true } : {}),
+});
 
 /** Der eigene Bestand eines Accounts, beim ersten Abruf angelegt (account-songs, design.md D1). */
 function ensurePersonal(deps: WorkbookDeps, email: string) {
@@ -181,7 +179,7 @@ function removeMember({ db, events }: WorkbookDeps, row: WorkbookRow, email: str
 /** Endpunkte unter `/api/workbooks` (design.md D3); die Sitzung ist bereits geprüft. */
 export async function handleWorkbookRequest(deps: WorkbookDeps, request: WorkbookRequest): Promise<Reply> {
   const { db, events } = deps;
-  const { email, method, body } = request;
+  const { email, account, method, body } = request;
   let path: string[];
   try {
     path = request.path.map(decodeURIComponent);
@@ -255,7 +253,7 @@ export async function handleWorkbookRequest(deps: WorkbookDeps, request: Workboo
     const part = parseWorkbookPart(request);
     const check = (growth: number) => deps.quota.check(row.owner, growth);
     const { changed, ...reply } = await syncSongs(db, id, email, request, deps.now(), check);
-    const wb = part ? await syncWorkbookDoc(db, id, email, part, check, isPersonal(db, id)) : undefined;
+    const wb = part ? await syncWorkbookDoc(db, id, account, part, check, isPersonal(db, id)) : undefined;
     if (changed || wb?.changed) songsChanged();
     return wb ? { ...reply, body: { ...(reply.body as object), workbook: wb.reply } } : reply;
   }

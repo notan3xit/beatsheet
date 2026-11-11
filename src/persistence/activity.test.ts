@@ -6,7 +6,8 @@ import { songWith } from '../test/songs';
 import { isNew, lastChange } from './activity';
 import { applySong, changeMessage, createSongDoc, songOf, type SongDocument } from './songDoc';
 
-const ME = 'artjom@example.org';
+const ME = '0f8fad5b-d9cb-469f-a165-70867728950e';
+const ME_ADDRESS = 'artjom@example.org';
 const MAX = 'max@example.org';
 
 const by = (author: string | null) => changeMessage({ by: author ?? undefined });
@@ -47,31 +48,37 @@ describe('Spec song-activity › Neues auf der Kachel', () => {
   it('Max ändert', () => {
     const doc = start();
     const seen = A.getHeads(doc);
-    expect(isNew(doc, seen, ME)).toBe(false);
-    expect(isNew(edit(doc, MAX, tempo(90)), seen, ME)).toBe(true);
+    expect(isNew(doc, seen, [ME])).toBe(false);
+    expect(isNew(edit(doc, MAX, tempo(90)), seen, [ME])).toBe(true);
   });
 
   it('Hin und zurück', () => {
     const doc = start();
     const seen = A.getHeads(doc);
     const back = edit(edit(doc, MAX, tempo(90)), MAX, tempo(120));
-    expect(isNew(back, seen, ME)).toBe(false);
+    expect(isNew(back, seen, [ME])).toBe(false);
   });
 
   it('Eigenes anderes Gerät', () => {
     const doc = start();
-    expect(isNew(edit(doc, ME, tempo(90)), A.getHeads(doc), ME)).toBe(false);
+    expect(isNew(edit(doc, ME, tempo(90)), A.getHeads(doc), [ME])).toBe(false);
+  });
+
+  it('Eigenes anderes Gerät: eigene Adresse aus älteren Änderungen zählt als eigene', () => {
+    const doc = start();
+    expect(isNew(edit(A.clone(doc), ME_ADDRESS, tempo(90)), A.getHeads(doc), [ME, ME_ADDRESS])).toBe(false);
+    expect(isNew(edit(doc, MAX, tempo(90)), A.getHeads(doc), [ME, ME_ADDRESS])).toBe(true);
   });
 
   it('Neuer Song eines anderen', () => {
     const doc = createSongDoc(songWith({ title: 'Neu' }), by(MAX));
-    expect(isNew(doc, null, ME)).toBe(true);
-    expect(isNew(start(), null, ME)).toBe(false);
+    expect(isNew(doc, null, [ME])).toBe(true);
+    expect(isNew(start(), null, [ME])).toBe(false);
   });
 
   it('Änderung ohne Autor zählt als fremd', () => {
     const doc = start();
-    expect(isNew(edit(doc, null, tempo(90)), A.getHeads(doc), ME)).toBe(true);
+    expect(isNew(edit(doc, null, tempo(90)), A.getHeads(doc), [ME])).toBe(true);
   });
 });
 
@@ -81,11 +88,11 @@ describe('Spec song-activity › Spät eintreffende Änderungen', () => {
     const offline = edit(A.clone(base), MAX, tempo(90), 1000);
     const seen = A.getHeads(base);
     const arrived = A.merge(A.clone(base), offline);
-    expect(isNew(arrived, seen, ME)).toBe(true);
+    expect(isNew(arrived, seen, [ME])).toBe(true);
   });
 
   it('Ein unbekannter Head im gesehenen Stand zeigt nichts als neu', () => {
     const doc = edit(createSongDoc(songWith({}), by(ME)), MAX, tempo(90));
-    expect(isNew(doc, ['f'.repeat(64)], ME)).toBe(false);
+    expect(isNew(doc, ['f'.repeat(64)], [ME])).toBe(false);
   });
 });

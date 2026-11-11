@@ -26,13 +26,18 @@ const content = (song: Song): Song => ({
   patterns: song.patterns.map((p) => ({ ...p, revision: 0, updatedAt: '' })),
 });
 
-const byOthers = (changes: A.ChangeMetadata[], me: string) => changes.some((c) => readChangeMessage(c.message).by !== me);
+const byOthers = (changes: A.ChangeMetadata[], me: readonly string[]) =>
+  changes.some((c) => {
+    const { by } = readChangeMessage(c.message);
+    return by === undefined || !me.includes(by);
+  });
 
 /**
  * Haben andere seit `seen` sichtbar geändert (design.md D6)? Ohne gesehenen Stand: Enthält der Song Änderungen anderer?
  * Ist ein gesehener Head unbekannt, lässt sich sicher Neues nicht bestimmen: nicht neu.
+ * `me`: eigene Kennung und Adresse (account-id-authorship, design.md D5).
  */
-export function isNew(doc: SongDocument, seen: A.Heads | null, me: string): boolean {
+export function isNew(doc: SongDocument, seen: A.Heads | null, me: readonly string[]): boolean {
   if (!seen) return byOthers(A.getChangesMetaSince(doc, []), me);
   if (!seen.every((head) => A.hasHeads(doc, [head]))) return false;
   if (!byOthers(A.getChangesMetaSince(doc, seen), me)) return false;

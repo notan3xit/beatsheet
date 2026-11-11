@@ -186,14 +186,21 @@ export interface MemberProfile {
   color: PatternColor;
 }
 
-/** Workbook, wie es der Server liefert; Mitglieder als Mail-Adressen, der Besitzer zuerst. */
+/** Mitglied eines Workbooks (account-id-authorship, design.md D3). */
+export interface Member {
+  email: string;
+  /** Kennung des Kontos; fehlt, solange sich die Adresse nie angemeldet hat. */
+  account?: string;
+  profile?: MemberProfile;
+}
+
+/** Workbook, wie es der Server liefert; der Besitzer zuerst unter den Mitgliedern. */
 export interface Workbook {
   id: string;
   title: string;
+  /** Adresse des Besitzers. */
   owner: string;
-  members: string[];
-  /** Name und Farbe je Adresse, nur für Mitglieder mit Profil. */
-  profiles?: Record<string, MemberProfile>;
+  members: Member[];
   /** Der eigene Bestand des Accounts; erscheint als „Meine Songs“, nicht als Workbook. */
   personal?: boolean;
 }

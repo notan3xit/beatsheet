@@ -5,11 +5,17 @@ const HOUR = 3_600_000;
 const OWNER = 'ich@example.com';
 const ANNA = 'anna@example.com';
 
+interface Member {
+  email: string;
+  account?: string;
+  profile?: { name: string; initials: string; color: string };
+}
+
 interface Workbook {
   id: string;
   title: string;
   owner: string;
-  members: string[];
+  members: Member[];
 }
 
 let h: Harness;
@@ -33,11 +39,14 @@ const list = async (cookie: string) =>
 const invite = (id: string, email: string, cookie = owner) => h.api('POST', `/api/workbooks/${id}/members`, { cookie, body: { email } });
 const removeMember = (id: string, email: string, cookie = owner) =>
   h.api('DELETE', `/api/workbooks/${id}/members/${encodeURIComponent(email)}`, { cookie });
+const emails = (workbook: Workbook) => workbook.members.map((m) => m.email);
+const accountOf = (email: string) => (h.db.prepare('SELECT id FROM users WHERE email = ?').get(email) as { id: string }).id;
 
 describe('Workbook anlegen', () => {
   it('legt ein Workbook mit Titel an, der Nutzer ist Besitzer und einziges Mitglied', async () => {
     const workbook = await create(owner, 'Band');
-    expect(workbook).toMatchObject({ title: 'Band', owner: OWNER, members: [OWNER] });
+    expect(workbook).toMatchObject({ title: 'Band', owner: OWNER });
+    expect(emails(workbook)).toEqual([OWNER]);
     expect(await list(owner)).toEqual([workbook]);
   });
 
@@ -116,7 +125,7 @@ describe('Mitglied einladen', () => {
   it('macht die Person sofort zum Mitglied und schickt eine Mail mit Titel und Besitzer', async () => {
     const { id } = await create(owner, 'Band');
     expect((await invite(id, ' Anna@Example.com ')).status).toBe(204);
-    expect((await list(owner))[0]!.members).toEqual([OWNER, ANNA]);
+    expect(emails((await list(owner))[0]!)).toEqual([OWNER, ANNA]);
     expect(h.mails).toHaveLength(1);
     const [mail] = h.mails;
     expect(mail!.to).toBe(ANNA);
@@ -175,24 +184,48 @@ describe('Spec workbooks › Mitglieder mit Profil (Server)', () => {
   };
   const saveProfile = (cookie: string, name: string, color: string) =>
     h.api('PUT', '/api/auth/profile', { cookie, body: { name, initials: initialsOf(name), color } });
-  const profilesOf = async (cookie: string) => ((await list(cookie))[0] as Workbook & { profiles?: Record<string, unknown> }).profiles;
+  const profilesOf = async (cookie: string) => (await list(cookie))[0]!.members.map((m) => m.profile);
 
   it('Profile nur für Mitglieder mit Profil; ohne Profile kein Feld', async () => {
     const { id } = await create(owner, 'Band');
-    expect(await profilesOf(owner)).toBeUndefined();
+    expect(await profilesOf(owner)).toEqual([undefined]);
     await saveProfile(owner, 'Artjom', 'green');
     await invite(id, ANNA);
-    expect(await profilesOf(owner)).toEqual({ [OWNER]: { name: 'Artjom', initials: 'AR', color: 'green' } });
+    expect(await profilesOf(owner)).toEqual([{ name: 'Artjom', initials: 'AR', color: 'green' }, undefined]);
     const anna = await h.login(ANNA);
     await saveProfile(anna, 'Anna Berg', 'blue');
-    expect(await profilesOf(owner)).toEqual({ [OWNER]: { name: 'Artjom', initials: 'AR', color: 'green' }, [ANNA]: { name: 'Anna Berg', initials: 'AB', color: 'blue' } });
+    expect(await profilesOf(owner)).toEqual([{ name: 'Artjom', initials: 'AR', color: 'green' }, { name: 'Anna Berg', initials: 'AB', color: 'blue' }]);
+    expect(Object.keys((await list(owner))[0]!)).not.toContain('profiles');
   });
 
   it('Profile anderer Accounts erscheinen nicht', async () => {
     await create(owner, 'Band');
     const stranger = await h.login('fremd@example.com');
     await saveProfile(stranger, 'Fremd', 'blue');
-    expect(await profilesOf(owner)).toBeUndefined();
+    expect(JSON.stringify(await list(owner))).not.toContain('Fremd');
+  });
+});
+
+describe('Kennung der Mitglieder', () => {
+  it('nennt die Kennung für Mitglieder mit Konto, nicht für Eingeladene ohne Konto', async () => {
+    const { id } = await create(owner, 'Band');
+    await invite(id, ANNA);
+    expect((await list(owner))[0]!.members).toEqual([{ email: OWNER, account: accountOf(OWNER) }, { email: ANNA }]);
+    await h.login(ANNA);
+    expect((await list(owner))[0]!.members[1]).toEqual({ email: ANNA, account: accountOf(ANNA) });
+  });
+
+  it('nennt entfernte Mitglieder nicht mehr und nach erneuter Einladung mit derselben Kennung', async () => {
+    const { id } = await create(owner, 'Band');
+    await invite(id, ANNA);
+    const anna = await h.login(ANNA);
+    const account = accountOf(ANNA);
+    await removeMember(id, ANNA);
+    expect(JSON.stringify(await list(owner))).not.toContain(account);
+    await invite(id, ANNA);
+    expect((await list(owner))[0]!.members[1]).toEqual({ email: ANNA, account });
+    await removeMember(id, ANNA, anna);
+    expect(JSON.stringify(await list(owner))).not.toContain(account);
   });
 });
 
@@ -216,7 +249,7 @@ describe('Begrenzung der Einladungen', () => {
     expect(response.status).toBe(429);
     expect(await errorOf(response)).toBe('rate-limited');
     expect(h.mails).toHaveLength(0);
-    expect((await list(owner))[0]!.members).not.toContain('p20@example.com');
+    expect(emails((await list(owner))[0]!)).not.toContain('p20@example.com');
 
     h.advance(HOUR + 1);
     expect((await invite(id, 'p20@example.com')).status).toBe(204);
@@ -243,7 +276,7 @@ describe('Mitglied entfernen und austreten', () => {
     await invite(id, ANNA);
     const anna = await h.login(ANNA);
     expect((await removeMember(id, ANNA)).status).toBe(204);
-    expect((await list(owner))[0]!.members).toEqual([OWNER]);
+    expect(emails((await list(owner))[0]!)).toEqual([OWNER]);
     expect(await list(anna)).toEqual([]);
   });
 
@@ -258,7 +291,7 @@ describe('Mitglied entfernen und austreten', () => {
   it('verbietet dem Besitzer, sein Workbook zu verlassen', async () => {
     const { id } = await create(owner, 'Band');
     expect((await removeMember(id, OWNER)).status).toBe(403);
-    expect((await list(owner))[0]!.members).toEqual([OWNER]);
+    expect(emails((await list(owner))[0]!)).toEqual([OWNER]);
   });
 
   it('verbietet Mitgliedern, andere zu entfernen', async () => {
@@ -266,7 +299,7 @@ describe('Mitglied entfernen und austreten', () => {
     await invite(id, ANNA);
     await invite(id, 'ben@example.com');
     expect((await removeMember(id, 'ben@example.com', await h.login(ANNA))).status).toBe(403);
-    expect((await list(owner))[0]!.members).toContain('ben@example.com');
+    expect(emails((await list(owner))[0]!)).toContain('ben@example.com');
   });
 
   it('antwortet 404 für eine Adresse, die nicht Mitglied ist', async () => {
@@ -286,7 +319,8 @@ describe('Zugriff nur für Mitglieder', () => {
       removeMember(id, OWNER, stranger),
     ];
     for (const response of await Promise.all(requests)) expect(response.status).toBe(404);
-    expect((await list(owner))[0]).toMatchObject({ title: 'Band', members: [OWNER] });
+    expect((await list(owner))[0]).toMatchObject({ title: 'Band' });
+    expect(emails((await list(owner))[0]!)).toEqual([OWNER]);
   });
 
   it('antwortet ohne Sitzung mit 401', async () => {

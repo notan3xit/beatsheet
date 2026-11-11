@@ -1,7 +1,7 @@
 import * as A from '@automerge/automerge/slim';
 import type { Positions } from '../domain/songOrder';
 
-/** Gesehene Stände je Adresse und Song (song-activity, design.md D1) und Positionen je Song (sort-songs, design.md D1). */
+/** Gesehene Stände je Kennung des Kontos und Song (song-activity, design.md D1) und Positionen je Song (sort-songs, design.md D1). */
 export type WorkbookDocument = A.Doc<{ v: number }>;
 
 type Entries = Record<string, A.Heads>;
@@ -30,10 +30,10 @@ export function withOrder(doc: WorkbookDocument): WorkbookDocument {
   });
 }
 
-/** Gesehene Stände einer Adresse; `null`, solange sie keinen Eintrag hat. */
-export function seenOf(doc: WorkbookDocument, email: string): Entries | null {
+/** Gesehene Stände eines Kontos; `null`, solange es keinen Eintrag hat. */
+export function seenOf(doc: WorkbookDocument, account: string): Entries | null {
   const seen = fields(doc).seen as Record<string, unknown> | undefined;
-  const own = seen?.[email];
+  const own = seen?.[account];
   if (!isObject(own)) return null;
   const entries: Entries = {};
   for (const [id, value] of Object.entries(own)) {
@@ -44,14 +44,14 @@ export function seenOf(doc: WorkbookDocument, email: string): Entries | null {
 }
 
 /** Setzt eigene Einträge; ändert sich nichts, bleibt das Dokument dasselbe. */
-export function markSeen(doc: WorkbookDocument, email: string, entries: Entries): WorkbookDocument {
-  const current = seenOf(doc, email);
+export function markSeen(doc: WorkbookDocument, account: string, entries: Entries): WorkbookDocument {
+  const current = seenOf(doc, account);
   const changed = Object.entries(entries).filter(([id, heads]) => !current?.[id] || joined(current[id]!) !== joined(heads));
   if (current && changed.length === 0) return doc;
   return A.change(doc, (d) => {
     const seen = (d as unknown as { seen: Record<string, Record<string, unknown>> }).seen;
-    seen[email] ??= {};
-    for (const [id, heads] of changed) seen[email]![id] = new A.ImmutableString(joined(heads));
+    seen[account] ??= {};
+    for (const [id, heads] of changed) seen[account]![id] = new A.ImmutableString(joined(heads));
   });
 }
 
@@ -96,8 +96,8 @@ export function isValidWorkbookDoc(doc: WorkbookDocument): boolean {
  * Berühren die Changes zwischen `before` und `after` nur Erlaubtes? Positionen darf jedes Mitglied ändern,
  * gesehene Stände nur die eigenen und nur in gemeinsamen Workbooks (sort-songs, design.md D4).
  */
-export function changesAllowed(doc: WorkbookDocument, before: A.Heads, after: A.Heads, email: string, personal: boolean): boolean {
+export function changesAllowed(doc: WorkbookDocument, before: A.Heads, after: A.Heads, account: string, personal: boolean): boolean {
   return A.diff(doc, before, after).every(
-    ({ path }) => (path[0] === 'order' && path.length >= 2) || (!personal && path[0] === 'seen' && path[1] === email && path.length >= 2),
+    ({ path }) => (path[0] === 'order' && path.length >= 2) || (!personal && path[0] === 'seen' && path[1] === account && path.length >= 2),
   );
 }

@@ -7,15 +7,16 @@ import type { MemberProfile } from '../domain/types';
 import { createNotebookStore } from '../state/notebookStore';
 import { fakePlayer } from '../test/fakePlayer';
 import { App } from './App';
+import { signedInAs } from '../test/accounts';
 
 const ME = 'ich@example.com';
 
 function setup({ signedIn = true, stored = null as MemberProfile | null, load }: { signedIn?: boolean; stored?: MemberProfile | null; load?: () => Promise<ProfileResult> } = {}) {
   let current = stored;
   const account: AccountApi = {
-    session: vi.fn(async () => (signedIn ? ME : null)),
+    session: vi.fn(async () => (signedIn ? signedInAs(ME) : null)),
     requestCode: vi.fn(async () => ({ ok: true as const })),
-    verify: vi.fn(async () => ({ ok: true as const, email: ME })),
+    verify: vi.fn(async () => ({ ok: true as const, ...signedInAs(ME) })),
     logout: vi.fn(async () => ({ ok: true as const })),
   };
   const profile: ProfileApi = {

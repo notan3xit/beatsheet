@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createHttpAccountApi } from './account/api';
-import { createAccountSession, type AccountSession } from './account/session';
+import { authorOf, createAccountSession, type AccountSession } from './account/session';
 import { connectStore, openRepository, requestPersistentStorage, type Repository } from './persistence/repository';
 import { initAutomerge } from './persistence/songDoc';
 import { createNotebookStore, type NotebookStore } from './state/notebookStore';
@@ -40,7 +40,7 @@ async function start() {
   try {
     await initAutomerge();
     const session = createAccountSession(createHttpAccountApi(), { storage: window.localStorage });
-    const repo = await openRepository(undefined, { author: () => session.getEmail() });
+    const repo = await openRepository(undefined, { author: authorOf(session) });
     const songs = await repo.loadAll();
     const store = createNotebookStore(songs, undefined, await repo.loadSyncState());
     const connection = connectStore(store, repo);

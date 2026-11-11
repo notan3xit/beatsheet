@@ -43,6 +43,8 @@ afterEach(async () => {
 });
 
 const unreachable = () => new TypeError('fetch failed');
+/** Kennung eines Kontos auf dem Server. */
+const idOf = (email: string) => h.signedInAs(email).account;
 
 /** Ein Gerät mit eigener Datenbank und Sitzung gegen den echten Server. */
 async function device(
@@ -102,9 +104,9 @@ async function device(
   };
 
   const api: AccountApi = {
-    session: vi.fn(async () => (online ? email : null)),
+    session: vi.fn(async () => (online && email ? h.signedInAs(email) : null)),
     requestCode: vi.fn(async () => ({ ok: true as const })),
-    verify: vi.fn(async () => ({ ok: true as const, email })),
+    verify: vi.fn(async () => ({ ok: true as const, ...h.signedInAs(email) })),
     logout: vi.fn(async () => ({ ok: true as const })),
   };
   const session = createAccountSession(api);
@@ -125,7 +127,7 @@ async function device(
     seenDebounceMs: 10,
     reload,
   });
-  session.setEmail(email);
+  session.setSession(h.signedInAs(email));
   const result: Device = { store, repo, connection, sync, setOnline: (v) => void (online = v), concurrency, dbName, session, requests, reload };
   devices.push(result);
   return result;
@@ -396,7 +398,7 @@ describe('Spec workbook-sync › Hinweis ohne Verbindung', () => {
   it('Ohne Sitzung, aber mit bekannten Workbooks: Der Auslöser erkennt den fehlenden Server', async () => {
     const { me } = await bandWithIntro();
     me.sync.start();
-    me.session.setEmail(null);
+    me.session.setSession(null);
     me.setOnline(false);
     window.dispatchEvent(new Event('online'));
     await eventually(() => expect(me.sync.isOffline()).toBe(true));
@@ -497,7 +499,7 @@ describe('Spec workbooks › Mitglied einladen', () => {
     await newDevice.sync.syncAll();
     expect(workbookNamed(newDevice, 'Band').id).toBe(workbook);
     expect(inWorkbook(newDevice, workbook)).toEqual(['Intro']);
-    expect(me.store.getState().workbooks[0]!.members).toEqual([OWNER, ANNA]);
+    expect(me.store.getState().workbooks[0]!.members.map((m) => m.email)).toEqual([OWNER, ANNA]);
   });
 });
 
@@ -595,15 +597,15 @@ describe('Spec workbook-sync › Abmelden mit Workbook-Songs', () => {
 describe('Spec workbook-sync › Gesehene Stände abgleichen', () => {
   it('Beide Mitglieder erhalten das Workbook-Dokument, der eigene Bestand eines ohne gesehene Stände', async () => {
     const { me, anna, workbook } = await band();
-    expect(me.repo.workbookSeen(workbook, OWNER)).not.toBeNull();
-    expect(anna.repo.workbookSeen(workbook, ANNA)).not.toBeNull();
+    expect(me.repo.workbookSeen(workbook, idOf(OWNER))).not.toBeNull();
+    expect(anna.repo.workbookSeen(workbook, idOf(ANNA))).not.toBeNull();
     const personal = me.store.getState().workbooks.find((w) => w.personal)!.id;
     me.store.openSong(me.store.createSong('Skizze').id);
     await me.sync.syncAll();
     await new Promise((resolve) => setTimeout(resolve, 50));
     await me.sync.syncAll();
     expect(me.repo.workbookOrder(personal)).toEqual({});
-    expect(me.repo.workbookSeen(personal, OWNER)).toBeNull();
+    expect(me.repo.workbookSeen(personal, idOf(OWNER))).toBeNull();
     expect(me.repo.workbookOutgoing(personal).changes).toHaveLength(0);
   });
 
@@ -612,16 +614,16 @@ describe('Spec workbook-sync › Gesehene Stände abgleichen', () => {
     me.setOnline(false);
     anna.setOnline(false);
     const heads = me.repo.songHeads(intro.id)!;
-    me.repo.markSeen(workbook, OWNER, { [intro.id]: heads });
-    anna.repo.markSeen(workbook, ANNA, { [intro.id]: heads });
+    me.repo.markSeen(workbook, idOf(OWNER), { [intro.id]: heads });
+    anna.repo.markSeen(workbook, idOf(ANNA), { [intro.id]: heads });
     me.setOnline(true);
     anna.setOnline(true);
     await me.sync.syncAll();
     await anna.sync.syncAll();
     await me.sync.syncAll();
     for (const d of [me, anna]) {
-      expect(d.repo.workbookSeen(workbook, OWNER)![intro.id]).toEqual(heads);
-      expect(d.repo.workbookSeen(workbook, ANNA)![intro.id]).toEqual(heads);
+      expect(d.repo.workbookSeen(workbook, idOf(OWNER))![intro.id]).toEqual(heads);
+      expect(d.repo.workbookSeen(workbook, idOf(ANNA))![intro.id]).toEqual(heads);
     }
   });
 
@@ -636,20 +638,49 @@ describe('Spec workbook-sync › Gesehene Stände abgleichen', () => {
     await me.sync.invite(workbook, ANNA);
     const anna = await device(ANNA, { live: false });
     await anna.sync.syncAll();
-    expect(anna.repo.workbookSeen(workbook, ANNA)).toEqual({ [intro.id]: anna.repo.songHeads(intro.id) });
+    expect(anna.repo.workbookSeen(workbook, idOf(ANNA))).toEqual({ [intro.id]: anna.repo.songHeads(intro.id) });
     expect(h.db.prepare('SELECT doc FROM workbook_docs').get()).toBeDefined();
     await anna.sync.syncAll();
     expect(anna.repo.workbookOutgoing(workbook).changes).toHaveLength(0);
+  });
+
+  it('Keine Adresse im Workbook-Dokument: Einträge stehen unter der Kennung', async () => {
+    const { me, workbook, intro } = await bandWithIntro();
+    me.sync.start();
+    me.store.openSong(intro.id);
+    await eventually(() => expect(me.repo.workbookOutgoing(workbook).changes).toHaveLength(0));
+    const { doc } = h.db.prepare('SELECT doc FROM workbook_docs WHERE workbook_id = ?').get(workbook) as { doc: Uint8Array };
+    const seen = (A.load(doc) as unknown as { seen: Record<string, unknown> }).seen;
+    expect(Object.keys(seen)).toContain(idOf(OWNER));
+    expect(JSON.stringify(Object.keys(seen))).not.toContain('@');
+  });
+
+  it('Ein Eintrag unter der eigenen Adresse wird nicht gelesen; der erste Abgleich legt ihn unter der Kennung an', async () => {
+    h = await startServer();
+    const me = await device(OWNER, { live: false });
+    await me.sync.syncAll();
+    await me.sync.createWorkbook('Band');
+    const workbook = workbookNamed(me, 'Band').id;
+    const intro = me.store.createSong('Intro');
+    await me.sync.moveSong(intro.id, workbook);
+    await me.sync.invite(workbook, ANNA);
+    await me.sync.syncAll();
+    const row = h.db.prepare('SELECT doc FROM workbook_docs WHERE workbook_id = ?').get(workbook) as { doc: Uint8Array };
+    const old = A.change(A.load<Record<string, unknown>>(row.doc), (d) => void ((d.seen as Record<string, unknown>)[ANNA] = { [intro.id]: new A.ImmutableString('f'.repeat(64)) }));
+    h.db.prepare('UPDATE workbook_docs SET doc = ? WHERE workbook_id = ?').run(A.save(old), workbook);
+    const anna = await device(ANNA, { live: false });
+    await anna.sync.syncAll();
+    expect(anna.repo.workbookSeen(workbook, idOf(ANNA))).toEqual({ [intro.id]: anna.repo.songHeads(intro.id) });
   });
 
   it('Ein Dokument mit unbekanntem Stand wird durch das des Servers ersetzt', async () => {
     const { me, workbook, intro } = await bandWithIntro();
     h.db.prepare('DELETE FROM workbook_docs').run();
     await me.sync.syncAll();
-    me.repo.markSeen(workbook, OWNER, { [intro.id]: me.repo.songHeads(intro.id)! });
+    me.repo.markSeen(workbook, idOf(OWNER), { [intro.id]: me.repo.songHeads(intro.id)! });
     await me.sync.syncAll();
     expect(me.repo.workbookOutgoing(workbook).changes).toHaveLength(0);
-    expect(me.repo.workbookSeen(workbook, OWNER)).not.toBeNull();
+    expect(me.repo.workbookSeen(workbook, idOf(OWNER))).not.toBeNull();
   });
 
   it('Austritt und Abmelden entfernen das Dokument vom Gerät', async () => {
@@ -713,7 +744,7 @@ describe('Spec song-order › Gemeinsame Reihenfolge', () => {
 
 describe('Spec song-activity › Gesehen', () => {
   /** Neues in „Intro“ für den Besitzer, nach seinem gesehenen Stand. */
-  const newFor = (d: Device, workbook: string, id: string) => d.repo.isNew(id, d.repo.workbookSeen(workbook, OWNER)?.[id] ?? null, OWNER);
+  const newFor = (d: Device, workbook: string, id: string) => d.repo.isNew(id, d.repo.workbookSeen(workbook, idOf(OWNER))?.[id] ?? null, [idOf(OWNER), OWNER]);
   const annaChangesTempo = async (anna: Device, bpm: number) => {
     edit(anna, 'Intro', (s) => setTempo(s, bpm));
     await anna.connection.flush();
@@ -764,8 +795,8 @@ describe('Spec song-activity › Gesehen', () => {
     await me.sync.syncAll();
     me.store.openSong(own.id);
     const personal = me.store.getState().workbooks.find((w) => w.personal)!.id;
-    expect(me.repo.workbookSeen(personal, OWNER)).toBeNull();
-    me.session.setEmail(null);
+    expect(me.repo.workbookSeen(personal, idOf(OWNER))).toBeNull();
+    me.session.setSession(null);
     me.store.openSong(intro.id);
     expect(newFor(me, workbook, intro.id)).toBe(true);
   });

@@ -80,11 +80,11 @@ export interface Repository {
   /** Letzte Änderung eines Songs; zwischengespeichert bis zur nächsten Änderung (song-activity, design.md D5). */
   lastChange(id: string): LastChange | null;
   /** Neues seit dem gesehenen Stand, für `me`; zwischengespeichert (design.md D6). */
-  isNew(id: string, seen: A.Heads | null, me: string): boolean;
-  /** Gesehene Stände einer Adresse im Workbook-Dokument; `null` ohne Dokument oder Eintrag (song-activity). */
-  workbookSeen(workbookId: string, email: string): Record<string, A.Heads> | null;
+  isNew(id: string, seen: A.Heads | null, me: readonly string[]): boolean;
+  /** Gesehene Stände eines Kontos im Workbook-Dokument; `null` ohne Dokument oder Eintrag (song-activity). */
+  workbookSeen(workbookId: string, account: string): Record<string, A.Heads> | null;
   /** Setzt eigene Einträge; `false`, wenn sich nichts ändert oder das Dokument fehlt. */
-  markSeen(workbookId: string, email: string, entries: Record<string, A.Heads>): boolean;
+  markSeen(workbookId: string, account: string, entries: Record<string, A.Heads>): boolean;
   /** Positionen im Workbook-Dokument; `null` ohne Dokument oder Reihenfolge (song-order). */
   workbookOrder(workbookId: string): Positions | null;
   /** Setzt Positionen; `false`, wenn sich nichts ändert oder Dokument bzw. Reihenfolge fehlen. */
@@ -308,21 +308,21 @@ export async function openRepository(name = 'beatsheet', { author = () => null }
     isNew(id, seen, me) {
       const doc = docs.get(id);
       if (!doc) return false;
-      const key = `${A.getHeads(doc).join()}|${seen?.join() ?? ''}|${me}`;
+      const key = `${A.getHeads(doc).join()}|${seen?.join() ?? ''}|${me.join()}`;
       const cached = news.get(id);
       if (cached?.key === key) return cached.value;
       const value = isNew(doc, seen, me);
       news.set(id, { key, value });
       return value;
     },
-    workbookSeen(workbookId, email) {
+    workbookSeen(workbookId, account) {
       const entry = workbookDocs.get(workbookId);
-      return entry ? seenOf(entry.doc, email) : null;
+      return entry ? seenOf(entry.doc, account) : null;
     },
-    markSeen(workbookId, email, entries) {
+    markSeen(workbookId, account, entries) {
       const entry = workbookDocs.get(workbookId);
       if (!entry) return false;
-      const doc = markSeen(entry.doc, email, entries);
+      const doc = markSeen(entry.doc, account, entries);
       if (doc === entry.doc) return false;
       setWorkbookDoc(workbookId, doc, entry.serverHeads);
       return true;

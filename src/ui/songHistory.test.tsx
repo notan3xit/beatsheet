@@ -12,9 +12,13 @@ import { applySong, changeMessage, createSongDoc, songOf, type SongDocument } fr
 import { createNotebookStore } from '../state/notebookStore';
 import { songWith } from '../test/songs';
 import { App } from './App';
+import { accountOf, memberList, signedInAs } from '../test/accounts';
+import { createAccountSession } from '../account/session';
 
 const ARTJOM = 'artjom@example.com';
 const MAX = 'max@example.org';
+const ANNA = 'anna@example.com';
+const BEN = 'ben@example.com';
 /** Montag, 2. November 2026, 20:00 Ortszeit. */
 const MONDAY = new Date(2026, 10, 2, 20, 0);
 const minutes = (date: Date, n: number) => new Date(date.getTime() + n * 60_000);
@@ -26,11 +30,10 @@ const band: Workbook = {
   id: 'band',
   title: 'Band',
   owner: ARTJOM,
-  members: [ARTJOM, MAX],
-  profiles: {
+  members: memberList([ARTJOM, MAX, ANNA], {
     [ARTJOM]: { name: 'Artjom', initials: 'AW', color: 'blue' },
     [MAX]: { name: 'Max', initials: 'MK', color: 'peach' },
-  },
+  }),
 };
 
 /** „Verse“ mit einem Schlag, „Into Chorus“ als Fill; Segment „Intro“ mit 4 Takten, der erste mit beiden. */
@@ -53,7 +56,7 @@ function scenario(start: Song = startSong()) {
     get song() {
       return songOf(doc);
     },
-    edit(change: (song: Song) => Song, { by = ARTJOM, at }: { by?: string | null; at?: Date } = {}) {
+    edit(change: (song: Song) => Song, { by = accountOf(ARTJOM), at }: { by?: string | null; at?: Date } = {}) {
       vi.setSystemTime(at ?? minutes(new Date(), 1));
       const song = songOf(doc);
       doc = applySong(doc, { ...change(song), revision: song.revision + 1 }, changeMessage({ by: by ?? undefined }));
@@ -66,14 +69,25 @@ function scenario(start: Song = startSong()) {
   return api;
 }
 
-function open(history: ReturnType<typeof scenario>, { shared = false, locked = false, view = 'history' }: { shared?: boolean; locked?: boolean; view?: 'history' | 'book' } = {}) {
+/** Angemeldet als Artjom, ohne Server. */
+function artjomSession() {
+  const offline = async () => ({ ok: false as const, error: 'unreachable' as const });
+  const session = createAccountSession({ session: async () => null, requestCode: offline, verify: offline, logout: offline });
+  session.setSession(signedInAs(ARTJOM));
+  return session;
+}
+
+function open(
+  history: ReturnType<typeof scenario>,
+  { shared = false, locked = false, view = 'history', workbook = band }: { shared?: boolean; locked?: boolean; view?: 'history' | 'book'; workbook?: Workbook } = {},
+) {
   const song = history.song;
-  const store = createNotebookStore([song], undefined, shared ? { placement: { [song.id]: band.id }, workbooks: [band] } : undefined);
+  const store = createNotebookStore([song], undefined, shared ? { placement: { [song.id]: workbook.id }, workbooks: [workbook] } : undefined);
   store.openSong(song.id);
   store.setLocked(locked);
   if (view === 'history') store.openHistory();
   const user = userEvent.setup();
-  render(<App store={store} historyOf={() => readHistory(history.doc)} />);
+  render(<App store={store} session={artjomSession()} historyOf={() => readHistory(history.doc)} />);
   return { store, user };
 }
 
@@ -133,19 +147,37 @@ describe('Spec song-history › Personen im Verlauf', () => {
   const people = () => within(list()).queryAllByRole('group').map((g) => g.getAttribute('aria-label'));
 
   it('Zwei Personen', () => {
-    open(scenario().edit((s) => ({ ...s, tempo: 117 })).pattern('Verse', (p) => toggleHit(p, 1, 'snare', 0), { by: MAX }), { shared: true });
+    open(scenario().edit((s) => ({ ...s, tempo: 117 })).pattern('Verse', (p) => toggleHit(p, 1, 'snare', 0), { by: accountOf(MAX) }), { shared: true });
     // Das Anlegen des Songs trägt keinen Autor
     expect(people()).toEqual(['Max', 'Artjom', 'Unbekannt']);
   });
 
   it('Eigener Song', () => {
-    open(scenario().pattern('Verse', (p) => toggleHit(p, 1, 'snare', 0), { by: MAX }));
+    open(scenario().pattern('Verse', (p) => toggleHit(p, 1, 'snare', 0), { by: accountOf(MAX) }));
     expect(people()).toEqual([]);
   });
 
   it('Autor ohne Profil und ohne Autor', () => {
-    open(scenario().edit((s) => ({ ...s, tempo: 90 }), { by: null }).edit((s) => ({ ...s, tempo: 117 }), { by: 'anna@example.com' }), { shared: true });
-    expect(people().slice(0, 2)).toEqual(['anna@example.com', 'Unbekannt']);
+    open(scenario().edit((s) => ({ ...s, tempo: 90 }), { by: null }).edit((s) => ({ ...s, tempo: 117 }), { by: accountOf(ANNA) }), { shared: true });
+    expect(people().slice(0, 2)).toEqual([ANNA, 'Unbekannt']);
+  });
+
+  it('Adresse als Autor', () => {
+    open(scenario().edit((s) => ({ ...s, tempo: 117 }), { by: MAX }), { shared: true });
+    expect(people()[0]).toBe('Max');
+  });
+
+  it('Ausgetretenes Mitglied, mit Kennung und mit Adresse', () => {
+    open(scenario().edit((s) => ({ ...s, tempo: 117 }), { by: accountOf(BEN) }).pattern('Verse', (p) => toggleHit(p, 1, 'snare', 0), { by: BEN }), { shared: true });
+    expect(people().slice(0, 2)).toEqual(['Unbekannt', 'Unbekannt']);
+  });
+
+  it('Wieder eingeladen', () => {
+    const history = scenario().edit((s) => ({ ...s, tempo: 117 }), { by: accountOf(MAX) });
+    const { store } = open(history, { shared: true, workbook: { ...band, members: band.members.filter((m) => m.email !== MAX) } });
+    expect(people()[0]).toBe('Unbekannt');
+    act(() => store.setWorkbooks([band]));
+    expect(people()[0]).toBe('Max');
   });
 });
 
@@ -310,7 +342,7 @@ describe('Spec song-history › Wiederherstellen', () => {
 
   /** Mit Repository, damit eine Wiederherstellung ins Dokument geschrieben wird. */
   async function openWithRepository(history: ReturnType<typeof scenario>) {
-    const repo = await openRepository(`history-ui-${crypto.randomUUID()}`, { author: () => ARTJOM });
+    const repo = await openRepository(`history-ui-${crypto.randomUUID()}`, { author: () => accountOf(ARTJOM) });
     const song = repo.adopt(history.song.id, A.save(history.doc), band.id);
     const store = createNotebookStore([song], undefined, { placement: { [song.id]: band.id }, workbooks: [band] });
     connectStore(store, repo);
@@ -318,7 +350,7 @@ describe('Spec song-history › Wiederherstellen', () => {
     store.setLocked(false);
     store.openHistory();
     const user = userEvent.setup();
-    render(<App store={store} historyOf={(id) => repo.history(id)} />);
+    render(<App store={store} session={artjomSession()} historyOf={(id) => repo.history(id)} />);
     return { store, user };
   }
 
@@ -342,12 +374,23 @@ describe('Spec song-history › Wiederherstellen', () => {
   it('Änderungen anderer', async () => {
     const history = scenario()
       .pattern('Verse', (p) => toggleHit(p, 1, 'snare', 0))
-      .pattern('Verse', (p) => toggleHit(p, 2, 'snare', 0), { by: MAX });
+      .pattern('Verse', (p) => toggleHit(p, 2, 'snare', 0), { by: accountOf(MAX) });
     const { user } = open(history, { shared: true });
     await user.click(entries()[1]!);
     await user.click(screen.getByRole('button', { name: 'Groove auf diesen Stand' }));
     expect(dialog()).toHaveTextContent('Verse');
     expect(within(dialog()).getByRole('note')).toHaveTextContent('Max');
+  });
+
+  it('Eigene Adresse', async () => {
+    const history = scenario()
+      .pattern('Verse', (p) => toggleHit(p, 1, 'snare', 0))
+      .pattern('Verse', (p) => toggleHit(p, 2, 'snare', 0), { by: ARTJOM });
+    const { user } = open(history, { shared: true });
+    await user.click(entries()[1]!);
+    await user.click(screen.getByRole('button', { name: 'Groove auf diesen Stand' }));
+    expect(dialog()).toHaveTextContent('Verse');
+    expect(within(dialog()).queryByRole('note')).not.toBeInTheDocument();
   });
 
   it('Abbrechen', async () => {

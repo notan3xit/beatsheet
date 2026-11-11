@@ -7,6 +7,7 @@ import { createAccountSession } from '../account/session';
 import { createNotebookStore } from '../state/notebookStore';
 import { fakePlayer } from '../test/fakePlayer';
 import { App } from './App';
+import { signedInAs } from '../test/accounts';
 
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 const css = read('src/ui/styles.css').replace(/\/\*[\s\S]*?\*\//g, '');
@@ -18,11 +19,11 @@ function setup() {
   const account: AccountApi = {
     session: vi.fn(async () => null),
     requestCode: vi.fn(async () => ({ ok: true as const })),
-    verify: vi.fn(async () => ({ ok: true as const, email: 'ich@example.com' })),
+    verify: vi.fn(async () => ({ ok: true as const, ...signedInAs('ich@example.com') })),
     logout: vi.fn(async () => ({ ok: true as const })),
   };
   const session = createAccountSession(account);
-  session.setEmail(null);
+  session.setSession(null);
   render(<App store={createNotebookStore([])} session={session} player={fakePlayer().player} />);
   const heading = screen.getByRole('heading', { name: 'Beatsheet' });
   return { heading, beet: heading.querySelector('svg.logo-beet'), word: heading.querySelector('.logo-word') };
