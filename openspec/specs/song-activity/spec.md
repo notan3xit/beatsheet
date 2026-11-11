@@ -7,12 +7,17 @@ Zeigt, wann und von wem ein Song zuletzt geändert wurde, und macht in gemeinsam
 ## Requirements
 
 ### Requirement: Letzte Änderung auf der Kachel
-Jede Song-Kachel MUST die Zeit der letzten Änderung des Songs nennen. In einem gemeinsamen Workbook MUST sie dazu deren Autor nennen: den Namen aus seinem Profil, ohne Profil seine Adresse, ohne Autor niemanden. In „Meine Songs“ MUST sie keinen Autor nennen. Maßgeblich ist die neueste Änderung nach der Uhr des Geräts, das sie gemacht hat.
+Jede Song-Kachel MUST die Zeit der letzten Änderung des Songs nennen. In einem gemeinsamen Workbook MUST sie dazu deren Autor nennen: den Namen aus seinem Profil, ohne Profil seine Adresse, ohne Autor oder wenn der Autor kein Mitglied des Workbooks ist niemanden. In „Meine Songs“ MUST sie keinen Autor nennen. Maßgeblich ist die neueste Änderung nach der Uhr des Geräts, das sie gemacht hat.
 
 #### Scenario: Gemeinsames Workbook
 - **GIVEN** Max hat „Hysteria“ in „Band“ vor zwei Stunden zuletzt geändert
 - **WHEN** ein Mitglied „Band“ wählt
 - **THEN** nennt die Kachel „Hysteria“ die Zeit vor zwei Stunden und „Max“
+
+#### Scenario: Autor nicht mehr Mitglied
+- **GIVEN** Max hat „Hysteria“ in „Band“ zuletzt geändert und „Band“ danach verlassen
+- **WHEN** ein Mitglied „Band“ wählt
+- **THEN** nennt die Kachel „Hysteria“ die Zeit der Änderung und keinen Autor
 
 #### Scenario: Meine Songs
 - **WHEN** der Nutzer „Meine Songs“ ansieht
@@ -64,7 +69,7 @@ Der Eintrag eines gemeinsamen Workbooks in der Seitenleiste MUST denselben Punkt
 - **THEN** trägt der Eintrag „Proberaum“ keinen Punkt
 
 ### Requirement: Gesehen
-Öffnet der Nutzer eine Ansicht eines Songs in einem gemeinsamen Workbook, MUST dessen aktueller Stand als gesehen gelten; solange eine Ansicht des Songs offen ist, MUST das auch für eintreffende Änderungen gelten. Der gesehene Stand MUST zum Konto gehören: Er MUST auf jedem anderen Gerät desselben Kontos, das die App geöffnet hat und den Server erreicht, binnen 5 Sekunden gelten, und ohne Server MUST er lokal bleiben und beim nächsten Kontakt übertragen werden.
+Öffnet der Nutzer eine Ansicht eines Songs in einem gemeinsamen Workbook, MUST dessen aktueller Stand als gesehen gelten; solange eine Ansicht des Songs offen ist, MUST das auch für eintreffende Änderungen gelten. Der gesehene Stand MUST zum Konto gehören und unter einer Kennung des Kontos ohne Adresse gespeichert sein: Er MUST auf jedem anderen Gerät desselben Kontos, das die App geöffnet hat und den Server erreicht, binnen 5 Sekunden gelten, und ohne Server MUST er lokal bleiben und beim nächsten Kontakt übertragen werden.
 
 #### Scenario: Song öffnen
 - **GIVEN** die Kachel „Hysteria“ trägt einen Punkt
@@ -79,6 +84,10 @@ Der Eintrag eines gemeinsamen Workbooks in der Seitenleiste MUST denselben Punkt
 #### Scenario: Während der Song offen ist
 - **WHEN** Max „Hysteria“ ändert, während Artjom die Doppelseite von „Hysteria“ geöffnet hat, und Artjom danach zur Startseite zurückkehrt
 - **THEN** trägt die Kachel „Hysteria“ keinen Punkt
+
+#### Scenario: Keine Adresse im Workbook-Dokument
+- **WHEN** artjom@example.org „Hysteria“ in „Band“ öffnet
+- **THEN** enthält das gespeicherte Dokument von „Band“ die Adresse „artjom@example.org“ nicht
 
 ### Requirement: Spät eintreffende Änderungen
 Ob eine Änderung neu ist, MUST davon abhängen, ob der gesehene Stand sie enthält, nicht von ihrer Zeit. Eine Änderung, die ein anderer offline vor dem Ansehen gemacht hat und die erst danach eintrifft, MUST als neu gelten. Kennt ein Gerät den gesehenen Stand noch nicht vollständig, MUST es nur Änderungen als neu zählen, die der Stand sicher nicht enthält.
