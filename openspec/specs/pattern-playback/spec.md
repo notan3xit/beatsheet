@@ -51,19 +51,19 @@ Jeder gesetzte Schlag MUST zu dem Zeitpunkt erklingen, den Beat, Position und Un
 - **THEN** erklingt die Snare 1⅔ Sekunden nach Beginn des Durchlaufs
 
 #### Scenario: Gleichzeitige Schläge
-- **WHEN** an derselben Position Bassdrum und Crash gesetzt sind
+- **WHEN** an derselben Position Kick Drum und Crash gesetzt sind
 - **THEN** erklingen beide zum selben Zeitpunkt
 
 ### Requirement: Klang der Instrumente
-Jedes der zehn Instrumente MUST mit einem eigenen Klang erklingen, je nach gewähltem Klang aus einer Aufnahme oder im Browser erzeugt (siehe `playback-sound`). Die Klänge MUST sich so unterscheiden, dass Bassdrum, Snare, die drei Toms, Hi-Hat geschlossen, Hi-Hat offen, Hi-Hat-Pedal, Ride und Crash einzeln erkennbar sind; die Toms MUST in der Tonhöhe von Tom 1 über Tom 2 zum Standtom abfallen. Spielweisen und das Abstoppen der offenen Hi-Hat MUST für beide Klänge gelten.
+Jedes der zehn Instrumente MUST mit einem eigenen Klang erklingen, je nach gewähltem Klang aus einer Aufnahme oder im Browser erzeugt (siehe `playback-sound`). Die Klänge MUST sich so unterscheiden, dass Kick Drum, Snare, die drei Toms, Hi-Hat geschlossen, Hi-Hat offen, Hi-Hat-Pedal, Ride und Crash einzeln erkennbar sind; die Toms MUST in der Tonhöhe von Tom 1 über Tom 2 zur Floor Tom abfallen. Spielweisen und das Abstoppen der offenen Hi-Hat MUST für beide Klänge gelten.
 
 #### Scenario: Jedes Instrument klingt
 - **WHEN** ein Pattern auf je einer eigenen Position einen Schlag jedes der zehn Instrumente enthält und abgespielt wird
 - **THEN** erklingen zehn Schläge mit zehn verschiedenen Klängen
 
 #### Scenario: Tonhöhe der Toms
-- **WHEN** Tom 1, Tom 2 und Standtom nacheinander erklingen
-- **THEN** ist Tom 1 am höchsten und das Standtom am tiefsten
+- **WHEN** Tom 1, Tom 2 und Floor Tom nacheinander erklingen
+- **THEN** ist Tom 1 am höchsten und die Floor Tom am tiefsten
 
 #### Scenario: Offene Hi-Hat mit Aufnahmen abgestoppt
 - **GIVEN** der Klang ist „DRSKit“ und die Aufnahmen sind bereit
@@ -85,8 +85,8 @@ Eine Ghost Note MUST deutlich leiser erklingen als ein normaler Schlag desselben
 - **WHEN** die Snare auf der „1“ einen Drag hat
 - **THEN** erklingen kurz vor der „1“ zwei leise Snare-Schläge und auf der „1“ ein normaler
 
-### Requirement: Klang von Rim Shot, Cross-Stick, Glocke und Choke
-Rim Shot, Cross-Stick und Ride-Glocke MUST sich hörbar vom normalen Schlag des Instruments unterscheiden; ein Rim Shot MUST lauter und schärfer klingen als ein normaler Snare-Schlag, ein Cross-Stick leiser und kürzer. Ein Crash mit Choke MUST kurz nach seinem Einsatz abrupt enden.
+### Requirement: Klang von Rim Shot, Cross-Stick, Bell und Choke
+Rim Shot, Cross-Stick und Ride-Bell MUST sich hörbar vom normalen Schlag des Instruments unterscheiden; ein Rim Shot MUST lauter und schärfer klingen als ein normaler Snare-Schlag, ein Cross-Stick leiser und kürzer. Ein Crash mit Choke MUST kurz nach seinem Einsatz abrupt enden.
 
 #### Scenario: Rim Shot
 - **WHEN** die Snare auf Position 1 einen Rim Shot und auf Position 3 einen normalen Schlag hat
@@ -97,7 +97,7 @@ Rim Shot, Cross-Stick und Ride-Glocke MUST sich hörbar vom normalen Schlag des 
 - **THEN** erklingt der Schlag auf Position 1 leiser und kürzer als der auf Position 3
 
 #### Scenario: Ride-Bell
-- **WHEN** die Ride auf Position 1 eine Glocke und auf Position 3 einen normalen Schlag hat
+- **WHEN** die Ride auf Position 1 eine Bell und auf Position 3 einen normalen Schlag hat
 - **THEN** erklingen beide Schläge mit verschiedenem Klang
 
 #### Scenario: Choke

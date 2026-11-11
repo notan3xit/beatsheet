@@ -7,7 +7,7 @@ Ermöglicht das Eingeben und Bearbeiten des Inhalts eines Patterns in einem Step
 ## Requirements
 
 ### Requirement: Instrumentenset
-Der Sequencer MUST für jedes Pattern genau diese Instrumente als Zeilen anbieten, von oben nach unten: Crash, Ride, Hi-Hat (geschlossen), Hi-Hat (offen), Tom 1, Tom 2, Snare, Standtom, Bassdrum, Hi-Hat-Pedal.
+Der Sequencer MUST für jedes Pattern genau diese Instrumente als Zeilen anbieten, von oben nach unten: Crash, Ride, Hi-Hat (geschlossen), Hi-Hat (offen), Tom 1, Tom 2, Snare, Floor Tom, Kick Drum, Hi-Hat-Pedal.
 
 #### Scenario: Zeilen des Rasters
 - **WHEN** der Nutzer ein Pattern im Sequencer öffnet
@@ -24,8 +24,8 @@ Der Sequencer MUST je Beat so viele Spalten zeigen, wie die Unterteilung des Bea
 Der Nutzer MUST durch Aktivieren einer Rasterzelle einen Schlag für das Instrument an dieser Position setzen und durch erneutes Aktivieren wieder entfernen können. An einer Position MUST mehrere Instrumente gleichzeitig gesetzt sein können. Wird ein Schlag entfernt, MUST auch seine Spielweise entfallen; ein danach neu gesetzter Schlag MUST normal gespielt sein.
 
 #### Scenario: Schlag setzen
-- **WHEN** der Nutzer in Beat 1 die Zelle der Bassdrum an Position 1 aktiviert
-- **THEN** enthält das Pattern einen Bassdrum-Schlag auf der „1“
+- **WHEN** der Nutzer in Beat 1 die Zelle der Kick Drum an Position 1 aktiviert
+- **THEN** enthält das Pattern einen Kick-Drum-Schlag auf der „1“
 
 #### Scenario: Schlag entfernen
 - **WHEN** der Nutzer eine bereits gesetzte Zelle erneut aktiviert
@@ -123,7 +123,7 @@ Während der Nutzer im Sequencer arbeitet, MUST die Notendarstellung des Pattern
 - **THEN** zeigt die Notendarstellung den Snare-Schlag, ohne dass der Nutzer speichern oder neu laden muss
 
 ### Requirement: Spielweise eines Schlags
-Ein Schlag MUST diese Spielweisen haben können: Snare normal, Flam, Drag, Ghost Note, Rim Shot, Cross-Stick; Tom 1, Tom 2 und Standtom normal, Flam, Drag, Ghost Note; Ride normal, Glocke; Crash normal, Choke. Die Zelle MUST ihre Spielweise anzeigen.
+Ein Schlag MUST diese Spielweisen haben können: Snare normal, Flam, Drag, Ghost Note, Rim Shot, Cross-Stick; Tom 1, Tom 2 und Floor Tom normal, Flam, Drag, Ghost Note; Ride normal, Bell; Crash normal, Choke. Die Zelle MUST ihre Spielweise anzeigen.
 
 #### Scenario: Anzeige in der Zelle
 - **WHEN** die Snare auf der „1“ eine Ghost Note hat
@@ -142,7 +142,7 @@ Shift-Klick auf eine gesetzte Zelle eines Instruments mit Spielweisen nach „Sp
 
 #### Scenario: Bell auf der Ride
 - **WHEN** die Ride auf der „1“ gesetzt ist und der Nutzer die Zelle zweimal mit Shift aktiviert
-- **THEN** ist der Schlag nacheinander Glocke und wieder normal
+- **THEN** ist der Schlag nacheinander Bell und wieder normal
 
 #### Scenario: Choke auf leerer Crash-Zelle
 - **WHEN** der Nutzer eine leere Zelle der Crash mit Shift aktiviert
@@ -172,8 +172,8 @@ Jeder Schlag außer einer Ghost Note MUST zusätzlich zu seiner Spielweise beton
 - **THEN** ist der Schlag ein betonter Flam
 
 #### Scenario: Leere Zelle
-- **WHEN** der Nutzer eine leere Zelle der Bassdrum mit Strg aktiviert
-- **THEN** enthält das Pattern dort einen betonten normalen Bassdrum-Schlag
+- **WHEN** der Nutzer eine leere Zelle der Kick Drum mit Strg aktiviert
+- **THEN** enthält das Pattern dort einen betonten normalen Kick-Drum-Schlag
 
 #### Scenario: Ghost Note
 - **WHEN** die Snare auf der „1“ eine Ghost Note hat und der Nutzer die Zelle mit Strg aktiviert

@@ -62,7 +62,7 @@ Der Nutzer MUST alle Songs als JSON-Datei exportieren können. Die Datei MUST ei
 - **THEN** hat das importierte Pattern denselben Flam und dieselbe Ghost Note
 
 #### Scenario: Neue Spielweisen und Betonung im Export
-- **WHEN** ein Pattern einen betonten Rim Shot, einen Drag, eine Ride-Glocke, einen Crash mit Choke und eine betonte Hi-Hat enthält und exportiert und wieder importiert wird
+- **WHEN** ein Pattern einen betonten Rim Shot, einen Drag, eine Ride-Bell, einen Crash mit Choke und eine betonte Hi-Hat enthält und exportiert und wieder importiert wird
 - **THEN** hat das importierte Pattern dieselben Spielweisen und Betonungen
 
 #### Scenario: Tempo im Export

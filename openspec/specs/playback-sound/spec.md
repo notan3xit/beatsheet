@@ -35,7 +35,7 @@ Die Wahl des Klangs MUST auf dem Gerät gespeichert werden und nach einem Neulad
 - **THEN** ist „Synth“ als gewählt markiert
 
 ### Requirement: Klang der Aufnahmen
-Mit dem Klang „DRSKit“ MUST jedes der zehn Instrumente mit einer Aufnahme des DRSKit erklingen. Ein Schlag mit vollem Pegel MUST die Aufnahme eines normalen Schlags nutzen, eine Ghost Note sowie die Vorschläge von Flam und Drag die Aufnahme eines leisen Schlags desselben Instruments. Rim Shot, Cross-Stick und Ride-Glocke MUST je eine eigene, aus dem DRSKit gewonnene Aufnahme nutzen. Ein Choke MUST die Aufnahme des normalen Crash-Schlags nutzen.
+Mit dem Klang „DRSKit“ MUST jedes der zehn Instrumente mit einer Aufnahme des DRSKit erklingen. Ein Schlag mit vollem Pegel MUST die Aufnahme eines normalen Schlags nutzen, eine Ghost Note sowie die Vorschläge von Flam und Drag die Aufnahme eines leisen Schlags desselben Instruments. Rim Shot, Cross-Stick und Ride-Bell MUST je eine eigene, aus dem DRSKit gewonnene Aufnahme nutzen. Ein Choke MUST die Aufnahme des normalen Crash-Schlags nutzen.
 
 #### Scenario: Normaler Schlag
 - **GIVEN** der Klang ist „DRSKit“ und die Aufnahmen sind bereit
@@ -64,8 +64,8 @@ Mit dem Klang „DRSKit“ MUST jedes der zehn Instrumente mit einer Aufnahme de
 
 #### Scenario: Ride-Bell
 - **GIVEN** der Klang ist „DRSKit“ und die Aufnahmen sind bereit
-- **WHEN** eine Ride-Glocke erklingt
-- **THEN** spielt die Aufnahme der Glocke
+- **WHEN** eine Ride-Bell erklingt
+- **THEN** spielt die Aufnahme der Bell
 
 #### Scenario: Choke
 - **GIVEN** der Klang ist „DRSKit“ und die Aufnahmen sind bereit

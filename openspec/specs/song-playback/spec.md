@@ -84,16 +84,16 @@ Die Wiedergabe MUST jeden Takt so spielen, wie die Song-Struktur ihn festlegt: d
 - **THEN** erklingt die Snare 2 Sekunden nach Beginn, auf der Eins von Takt 2
 
 #### Scenario: Fill überdeckt den Groove
-- **WHEN** zwei 4-Beat-Takte einen Groove mit Bassdrum auf jedem Beat haben, Takt 2 einen 1-Beat-Fill mit Snare auf der Eins trägt und der Song bei 120 BPM abgespielt wird
-- **THEN** erklingt 3,5 Sekunden nach Beginn die Snare und keine Bassdrum
+- **WHEN** zwei 4-Beat-Takte einen Groove mit Kick Drum auf jedem Beat haben, Takt 2 einen 1-Beat-Fill mit Snare auf der Eins trägt und der Song bei 120 BPM abgespielt wird
+- **THEN** erklingt 3,5 Sekunden nach Beginn die Snare und keine Kick Drum
 
 #### Scenario: Akzent im leeren Takt
 - **WHEN** Takt 1 weder Groove noch Fill hat, aber einen Crash-Akzent auf der Eins
 - **THEN** erklingt beim Abspielen nur der Crash zu Beginn von Takt 1
 
 #### Scenario: Akzent zusätzlich zum Groove
-- **WHEN** Takt 1 einen Groove mit Bassdrum auf der Eins und einen Crash-Akzent auf der Eins hat
-- **THEN** erklingen zu Beginn von Takt 1 Bassdrum und Crash gleichzeitig
+- **WHEN** Takt 1 einen Groove mit Kick Drum auf der Eins und einen Crash-Akzent auf der Eins hat
+- **THEN** erklingen zu Beginn von Takt 1 Kick Drum und Crash gleichzeitig
 
 ### Requirement: Änderungen während der Song-Wiedergabe
 Ändert der Nutzer während der Wiedergabe die Struktur, ein Pattern oder das Song-Tempo, MUST die Wiedergabe ohne Neustart weiterlaufen und jede Stelle ab ihrem nächsten Erreichen mit dem geänderten Stand spielen.

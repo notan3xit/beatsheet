@@ -108,22 +108,22 @@ Ein Fill MUST als durchgehender Block in seiner Farbe über genau den Beats ersc
 - **AND** jeder Teil zeigt die Kurzschrift seines Zeitraums
 
 ### Requirement: Akzent-Markierungen
-Akzente MUST als Markierungen mit dem Kürzel des Instruments erscheinen, ohne Groove- oder Fill-Darstellung zu verdecken. Je Beat MUST höchstens eine Markierung über dem Takt für Hand-Instrumente und eine unter dem Takt für Bassdrum und Hi-Hat-Pedal stehen. Oben MUST das höchste, unten das niedrigste Instrument des Beats gezeigt werden, nach der Reihenfolge der Sequencer-Zeilen. Die Markierung MUST an der Position des gezeigten Akzents stehen.
+Akzente MUST als Markierungen mit dem Kürzel des Instruments erscheinen, ohne Groove- oder Fill-Darstellung zu verdecken. Je Beat MUST höchstens eine Markierung über dem Takt für Hand-Instrumente und eine unter dem Takt für Kick Drum und Hi-Hat-Pedal stehen. Oben MUST das höchste, unten das niedrigste Instrument des Beats gezeigt werden, nach der Reihenfolge der Sequencer-Zeilen. Die Markierung MUST an der Position des gezeigten Akzents stehen.
 
 #### Scenario: Crash auf der Eins
 - **WHEN** Takt 1 einen Crash-Akzent auf Beat 1, Position 1 hat
 - **THEN** zeigt Takt 1 am linken Rand oben die Markierung „Cr“
 
 #### Scenario: Hand und Fuß auf demselben Schlag
-- **WHEN** Takt 1 auf Beat 1, Position 1 einen Crash- und einen Bassdrum-Akzent hat
-- **THEN** zeigt Takt 1 am linken Rand oben „Cr“ und unten „BD“
+- **WHEN** Takt 1 auf Beat 1, Position 1 einen Crash- und einen Kick-Drum-Akzent hat
+- **THEN** zeigt Takt 1 am linken Rand oben „Cr“ und unten „K“
 
 #### Scenario: Mehrere Hand-Akzente in einem Beat
 - **WHEN** Takt 1 auf Beat 2 einen Snare-Akzent auf Position 1 und einen Crash-Akzent auf Position 3 hat
 - **THEN** zeigt Takt 1 auf Beat 2 oben nur „Cr“, an Position 3
 
 #### Scenario: Mehrere Fuß-Akzente in einem Beat
-- **WHEN** Takt 1 auf Beat 1, Position 1 einen Bassdrum- und einen Hi-Hat-Pedal-Akzent hat
+- **WHEN** Takt 1 auf Beat 1, Position 1 einen Kick-Drum- und einen Hi-Hat-Pedal-Akzent hat
 - **THEN** zeigt Takt 1 auf Beat 1 unten nur „HP“ und oben keine Markierung
 
 #### Scenario: Verschiedene Beats
@@ -435,7 +435,7 @@ Die Kopfzeile MUST einzeilig sein und nur den Namen in der mit „text“ gemisc
 Die Höhe des Notenbilds einer Pattern-Karte MUST seinen sichtbaren Zeichen folgen: Kein Zeichen MUST abgeschnitten sein, und über dem obersten wie unter dem untersten Zeichen MUST nur ein schmaler Rand bleiben.
 
 #### Scenario: Balken unter dem System
-- **WHEN** die rechte Seite einen Groove mit Sechzehnteln auf der Bassdrum zeigt, deren Balken unter dem System liegen
+- **WHEN** die rechte Seite einen Groove mit Sechzehnteln auf der Kick Drum zeigt, deren Balken unter dem System liegen
 - **THEN** sind Hälse und Balken in der Karte vollständig zu sehen
 
 #### Scenario: Triolenklammer oben
@@ -463,14 +463,14 @@ Ausgewählte Takte und Ablegeziele beim Ziehen MUST über ihre Balken hervorgeho
 - **THEN** ist der Groove-Balken von Takt 6 hervorgehoben wie bei einer Auswahl
 
 ### Requirement: Fill-Kurzschrift
-Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Zeichen in einer von drei Höhenstufen zeigen: oben `c` Crash, `t` Tom 1/2, `o` offene Hi-Hat, `x` geschlossene Hi-Hat, `r` Ride und `b` Ride-Glocke; Mitte `v` Snare mit Flam und `s` Snare einschließlich Drag, Rim Shot und Cross-Stick; unten `f` Floor Tom, `k` Kick und `x` Hi-Hat-Pedal.
+Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Zeichen in einer von drei Höhenstufen zeigen: oben `c` Crash, `t` Tom 1/2, `o` offene Hi-Hat, `x` geschlossene Hi-Hat, `r` Ride und `b` Ride-Bell; Mitte `v` Snare mit Flam und `s` Snare einschließlich Drag, Rim Shot und Cross-Stick; unten `f` Floor Tom, `k` Kick Drum und `x` Hi-Hat-Pedal.
 
 #### Scenario: Tom-Run
 - **WHEN** ein Fill in Sechzehnteln Snare auf 1 und 2, Tom 1 auf 3 und 4 und im zweiten Beat Floor Tom auf allen vier Positionen hat
 - **THEN** zeigt die Kurzschrift `s s` in der Mitte, `t t` oben und `f f f f` unten, jeweils an ihren Zeitpunkten
 
 #### Scenario: Gleichzeitige Schläge
-- **WHEN** auf derselben Position Kick und Crash liegen
+- **WHEN** auf derselben Position Kick Drum und Crash liegen
 - **THEN** stehen dort `c` oben und `k` unten
 
 #### Scenario: Neue Spielweisen der Snare
@@ -486,7 +486,7 @@ Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Zeichen in einer von d
 - **THEN** zeigt die Kurzschrift `x` und `o` oben und `x` unten, jeweils an ihren Zeitpunkten
 
 #### Scenario: Ride und Bell
-- **WHEN** ein Fill auf Position 1 einen Ride und auf Position 2 eine Ride-Glocke hat
+- **WHEN** ein Fill auf Position 1 einen Ride und auf Position 2 eine Ride-Bell hat
 - **THEN** zeigt die Kurzschrift oben `r` und `b`
 
 ### Requirement: Ghost Notes, Choke und Betonung in der Kurzschrift
@@ -516,11 +516,11 @@ Pro Zeitpunkt und Stufe MUST höchstens ein Zeichen stehen: Normale Schläge hab
 - **THEN** steht dort oben nur `t`
 
 #### Scenario: Floor Tom vor Kick vor Pedal
-- **WHEN** auf einer Position Floor Tom und Kick liegen und auf einer zweiten Kick und Hi-Hat-Pedal
+- **WHEN** auf einer Position Floor Tom und Kick Drum liegen und auf einer zweiten Kick Drum und Hi-Hat-Pedal
 - **THEN** steht unten auf der ersten `f` und auf der zweiten `k`
 
 #### Scenario: Normaler Schlag vor Ghost Note
-- **WHEN** auf einer Position eine Ghost Note auf dem Floor Tom und Kick liegen und auf einer zweiten eine Ghost Note auf Tom 1 und Hi-Hat
+- **WHEN** auf einer Position eine Ghost Note auf der Floor Tom und Kick Drum liegen und auf einer zweiten eine Ghost Note auf Tom 1 und Hi-Hat
 - **THEN** steht auf der ersten unten `k` und auf der zweiten oben `x`
 
 ### Requirement: Aufbau des Takt-Popovers
