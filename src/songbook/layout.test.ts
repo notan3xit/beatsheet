@@ -193,7 +193,7 @@ describe('Spec songbook-view › Akzent-Markierungen', () => {
     expect(shown).toEqual(
       expect.arrayContaining([
         { x: 0, label: 'Cr', place: 'top' },
-        { x: 0, label: 'BD', place: 'bottom' },
+        { x: 0, label: 'K', place: 'bottom' },
       ]),
     );
   });

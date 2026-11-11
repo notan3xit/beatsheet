@@ -63,7 +63,7 @@ describe('Spec songbook-view › Akzent-Markierungen (UI)', () => {
       { instrument: 'crash', beat: 0, position: 0 },
       { instrument: 'kick', beat: 0, position: 0 },
     ]);
-    expect(markers()).toEqual(expect.arrayContaining([['Cr', 'oben'], ['BD', 'unten']]));
+    expect(markers()).toEqual(expect.arrayContaining([['Cr', 'oben'], ['K', 'unten']]));
     expect(markers()).toHaveLength(2);
     expect(structurePage().querySelector('.accent')!.closest('.structure-row')).toHaveClass('has-foot-accent');
   });

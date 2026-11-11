@@ -1,6 +1,6 @@
 # DRSKit-Einzelschläge
 
-Je Instrument ein normaler und ein leiser Schlag (`<instrument>-normal`, `<instrument>-soft`), dazu Rim Shot (`snare-rim`), Cross-Stick (`snare-cross`) und Ride-Glocke (`ride-bell`), als Opus in WebM (`.webm`) und AAC in MP4 (`.m4a`).
+Je Instrument ein normaler und ein leiser Schlag (`<instrument>-normal`, `<instrument>-soft`), dazu Rim Shot (`snare-rim`), Cross-Stick (`snare-cross`) und Ride-Bell (`ride-bell`), als Opus in WebM (`.webm`) und AAC in MP4 (`.m4a`).
 
 ## Herkunft und Lizenz
 
@@ -24,4 +24,4 @@ Braucht `ffmpeg` mit `libopus` im `PATH`. Das Skript lädt die benötigten FLAC-
 
 ## Zeitlicher Einsatz
 
-Im Headless-Chromium dekodiert setzt AAC 0,5 ms nach Opus ein (Kreuzkorrelation über Snare, Bassdrum, Tom 1 und Hi-Hat), es braucht also keinen Startversatz. Safari ist nicht gemessen.
+Im Headless-Chromium dekodiert setzt AAC 0,5 ms nach Opus ein (Kreuzkorrelation über Snare, Kick Drum, Tom 1 und Hi-Hat), es braucht also keinen Startversatz. Safari ist nicht gemessen.

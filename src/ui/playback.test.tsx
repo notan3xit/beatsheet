@@ -123,7 +123,7 @@ describe('Spec pattern-playback › Änderungen während der Wiedergabe (UI)', (
   it('Schlag im Sequencer ist ohne Neustart in der Quelle', async () => {
     const { user, source, player } = setup();
     await user.click(playButton());
-    await user.click(cell('Bassdrum', 1, 1));
+    await user.click(cell('Kick Drum', 1, 1));
     expect(source().timeline()!.hits.map((h) => [h.instrument, h.at])).toEqual([['kick', 0]]);
     expect(player.start).toHaveBeenCalledTimes(1);
   });

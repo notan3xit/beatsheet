@@ -38,8 +38,8 @@ describe('Spec pattern-sequencer › Instrumentenset', () => {
       'Tom 1',
       'Tom 2',
       'Snare',
-      'Standtom',
-      'Bassdrum',
+      'Floor Tom',
+      'Kick Drum',
       'Hi-Hat-Pedal',
     ]);
   });
@@ -62,12 +62,12 @@ describe('Spec pattern-sequencer › Raster aus Beats und Positionen', () => {
 describe('Spec pattern-sequencer › Schläge setzen und entfernen (UI)', () => {
   it('Schlag setzen und entfernen', async () => {
     const { user, current } = setup(patternOf(emptyBeats(4)));
-    await user.click(cell('Bassdrum', 1, 1));
+    await user.click(cell('Kick Drum', 1, 1));
     expect(current().beats[0]!.hits.kick).toEqual([0]);
-    expect(cell('Bassdrum', 1, 1)).toHaveAttribute('aria-pressed', 'true');
-    await user.click(cell('Bassdrum', 1, 1));
+    expect(cell('Kick Drum', 1, 1)).toHaveAttribute('aria-pressed', 'true');
+    await user.click(cell('Kick Drum', 1, 1));
     expect(current().beats[0]!.hits.kick).toBeUndefined();
-    expect(cell('Bassdrum', 1, 1)).toHaveAttribute('aria-pressed', 'false');
+    expect(cell('Kick Drum', 1, 1)).toHaveAttribute('aria-pressed', 'false');
   });
 });
 
@@ -230,7 +230,7 @@ describe('Spec pattern-sequencer › Spielweise eines Schlags (UI)', () => {
     const { user } = setup(patternOf([{ hits: { ride: [1] } }]));
     await shiftClick(user, cellAt('Ride', 1, 1));
     expect(cellAt('Ride', 1, 1)).toHaveAttribute('data-articulation', 'bell');
-    expect(cellAt('Ride', 1, 1)).toHaveAccessibleName(/Glocke$/);
+    expect(cellAt('Ride', 1, 1)).toHaveAccessibleName(/Bell$/);
     await shiftClick(user, cellAt('Ride', 1, 1));
     expect(cellAt('Ride', 1, 1)).not.toHaveAttribute('data-articulation');
   });
@@ -278,9 +278,9 @@ describe('Spec pattern-sequencer › Betonung eines Schlags (UI)', () => {
 
   it('Leere Zelle', async () => {
     const { user, current } = setup(patternOf(emptyBeats(1)));
-    await clickWith(user, 'Control', cellAt('Bassdrum', 1, 1));
+    await clickWith(user, 'Control', cellAt('Kick Drum', 1, 1));
     expect(current().beats[0]).toEqual({ subdivision: 4, hits: { kick: [0] }, emphasis: { kick: [0] } });
-    expect(cellAt('Bassdrum', 1, 1)).toHaveAttribute('aria-pressed', 'true');
+    expect(cellAt('Kick Drum', 1, 1)).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('Anzeige in der Zelle', async () => {
@@ -298,13 +298,13 @@ describe('Spec pattern-sequencer › Betonung eines Schlags (UI)', () => {
 
   it('Betonung ohne Spielweise im zugänglichen Namen', async () => {
     const { user } = setup(patternOf([{ hits: { kick: [1] } }]));
-    await clickWith(user, 'Control', cellAt('Bassdrum', 1, 1));
-    expect(cellAt('Bassdrum', 1, 1)).toHaveAccessibleName('Bassdrum, Beat 1, Position 1, betont');
+    await clickWith(user, 'Control', cellAt('Kick Drum', 1, 1));
+    expect(cellAt('Kick Drum', 1, 1)).toHaveAccessibleName('Kick Drum, Beat 1, Position 1, betont');
   });
 
   it('Rückgängig nach Strg-Klick', async () => {
     const { user, current } = setup(patternOf([{ hits: { kick: [1] } }]));
-    await clickWith(user, 'Control', cellAt('Bassdrum', 1, 1));
+    await clickWith(user, 'Control', cellAt('Kick Drum', 1, 1));
     await user.click(screen.getByRole('button', { name: 'Rückgängig' }));
     expect(current().beats[0]).toEqual({ subdivision: 4, hits: { kick: [0] } });
   });
@@ -333,10 +333,10 @@ describe('Spec song-history › Markierungen im Vergleichs-Sequencer', () => {
     expect(mark('Snare', 1, 2)).toBe('changed');
     // Das Zeichen der Spielweise bleibt wie im Pattern-Editor
     expect(at('Snare', 1, 2)).toHaveAttribute('data-articulation', 'drag');
-    expect(mark('Bassdrum', 1, 1)).toBe('removed');
-    expect(at('Bassdrum', 1, 1)).toHaveAttribute('aria-pressed', 'false');
-    expect(mark('Bassdrum', 2, 3)).toBe('added');
-    expect(mark('Bassdrum', 2, 1)).toBeUndefined();
+    expect(mark('Kick Drum', 1, 1)).toBe('removed');
+    expect(at('Kick Drum', 1, 1)).toHaveAttribute('aria-pressed', 'false');
+    expect(mark('Kick Drum', 2, 3)).toBe('added');
+    expect(mark('Kick Drum', 2, 1)).toBeUndefined();
   });
 
   it('Unterteilung gewechselt', () => {
@@ -349,6 +349,6 @@ describe('Spec song-history › Markierungen im Vergleichs-Sequencer', () => {
 
   it('Ohne Vergleichsstand keine Markierungen', () => {
     renderCompare(toggleHit(patternOf(emptyBeats(1)), 0, 'kick', 0), undefined);
-    expect(mark('Bassdrum', 1, 1)).toBeUndefined();
+    expect(mark('Kick Drum', 1, 1)).toBeUndefined();
   });
 });

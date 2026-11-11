@@ -296,7 +296,7 @@ describe('Spec library-persistence › Spielweisen und Betonung (Schemaversion 4
   it.each([
     ['Rim Shot auf Tom 1', { tom1: { 3: 'rim' } }],
     ['Flam auf der Ride', { ride: { 0: 'flam' } }],
-    ['Glocke auf der Snare', { snare: { 0: 'bell' } }],
+    ['Bell auf der Snare', { snare: { 0: 'bell' } }],
     ['Choke auf der Ride', { ride: { 0: 'choke' } }],
   ])('Spielweise auf einem unpassenden Instrument: %s', (_name, articulations) => {
     const file = fileOf([songWithHitTypes()]);

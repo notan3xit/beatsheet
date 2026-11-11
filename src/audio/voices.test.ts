@@ -41,7 +41,7 @@ describe('Spec pattern-playback › Klang der Instrumente', () => {
     expect(ctx.sourcesAt(0).every(reachesDestination)).toBe(true);
   });
 
-  it('Tonhöhe der Toms: Tom 1 > Tom 2 > Standtom', () => {
+  it('Tonhöhe der Toms: Tom 1 > Tom 2 > Floor Tom', () => {
     expect(toneFrequency('tom1')).toBeGreaterThan(toneFrequency('tom2'));
     expect(toneFrequency('tom2')).toBeGreaterThan(toneFrequency('floorTom'));
     const { ctx, voices } = setup();
@@ -110,7 +110,7 @@ describe('Spec pattern-playback › Wiedergabe stoppen', () => {
 describe('Spec pattern-playback › Klang der Spielweisen (Synth)', () => {
   const key = (layers: unknown) => JSON.stringify(layers);
 
-  it('Rim Shot, Cross-Stick und Glocke haben eigene Rezepturen', () => {
+  it('Rim Shot, Cross-Stick und Bell haben eigene Rezepturen', () => {
     expect(key(TECHNIQUE_RECIPES.rim)).not.toBe(key(RECIPES.snare));
     expect(key(TECHNIQUE_RECIPES.cross)).not.toBe(key(RECIPES.snare));
     expect(key(TECHNIQUE_RECIPES.cross)).not.toBe(key(TECHNIQUE_RECIPES.rim));

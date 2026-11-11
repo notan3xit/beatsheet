@@ -24,8 +24,8 @@ export const INSTRUMENT_LABELS: Record<Instrument, string> = {
   tom1: 'Tom 1',
   tom2: 'Tom 2',
   snare: 'Snare',
-  floorTom: 'Standtom',
-  kick: 'Bassdrum',
+  floorTom: 'Floor Tom',
+  kick: 'Kick Drum',
   hihatPedal: 'Hi-Hat-Pedal',
 };
 
@@ -53,7 +53,7 @@ export const ARTICULATION_LABELS: Record<Articulation, string> = {
   ghost: 'Ghost Note',
   rim: 'Rim Shot',
   cross: 'Cross-Stick',
-  bell: 'Glocke',
+  bell: 'Bell',
   choke: 'Choke',
 };
 

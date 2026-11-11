@@ -387,8 +387,8 @@ describe('Spec song-lock › Gesperrter Pattern-Editor', () => {
   it('Klick im Sequencer', async () => {
     const { user, current } = openEditor();
     const before = current();
-    await user.click(cell('Bassdrum, Beat 1, Position 2'));
-    await user.click(cell('Bassdrum, Beat 1, Position 1'));
+    await user.click(cell('Kick Drum, Beat 1, Position 2'));
+    await user.click(cell('Kick Drum, Beat 1, Position 1'));
     expect(current()).toBe(before);
   });
 
@@ -429,7 +429,7 @@ describe('Spec song-lock › Gesperrter Pattern-Editor', () => {
     const { user, reach } = openEditor();
     await user.click(screen.getByRole('button', { name: 'In Schleife abspielen' }));
     reach({ beat: 0, position: 1 });
-    expect(cell('Bassdrum, Beat 1, Position 2')).toHaveClass('playing');
+    expect(cell('Kick Drum, Beat 1, Position 2')).toHaveClass('playing');
   });
 
   it('Keine Eingabefelder im Pattern-Editor', () => {
@@ -446,7 +446,7 @@ describe('Spec song-lock › Gesperrter Pattern-Editor', () => {
     const { user, flam, store } = openEditor();
     const hits = () => store.getState().songs[0]!.patterns[0]!.beats[0]!.hits.kick;
     await user.click(unlockButton());
-    await user.click(cell('Bassdrum, Beat 1, Position 2'));
+    await user.click(cell('Kick Drum, Beat 1, Position 2'));
     expect(hits()).toContain(1);
     await user.click(lockButton());
     await user.keyboard('{Control>}z{/Control}');
@@ -467,7 +467,7 @@ describe('Spec song-lock › Gesperrter Pattern-Editor', () => {
     expect(screen.getByRole('combobox', { name: 'Unterteilung Beat 1' })).toBeInTheDocument();
     expect(button('Song-Tempo: 120 BPM')).toBeInTheDocument();
     expect(button('Duplizieren')).toBeInTheDocument();
-    expect(cell('Bassdrum, Beat 1, Position 2')).toBeEnabled();
+    expect(cell('Kick Drum, Beat 1, Position 2')).toBeEnabled();
   });
 });
 

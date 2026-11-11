@@ -6,7 +6,7 @@ import type { LoaderState } from './sampleLoader';
 import { createSoundSetting, type Sound } from './soundSetting';
 import { createSwitchingVoices, samplesPlayable } from './switchingVoices';
 
-/** Bassdrum auf jedem Beat, 120 BPM: ein Schlag alle 0,5 s. */
+/** Kick Drum auf jedem Beat, 120 BPM: ein Schlag alle 0,5 s. */
 function setup(sound: Sound, initialState: LoaderState) {
   let now = 0;
   let tick: (() => void) | undefined;

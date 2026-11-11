@@ -113,7 +113,7 @@ describe('VexFlow-Adapter (Smoke-Test)', () => {
     });
 
     it('Halbe Pause in der unteren Stimme', () => {
-      // oben 4 Viertel Snare, unten Halbe Pause + 2 Viertel Bassdrum
+      // oben 4 Viertel Snare, unten Halbe Pause + 2 Viertel Kick Drum
       const pattern = patternOf([
         { hits: { snare: [1] } },
         { hits: { snare: [1] } },
@@ -278,7 +278,7 @@ describe('Spec drum-notation › Neue Spielweisen und Betonung (Renderer)', () =
     expect(noteFor(single([{ articulation: 'cross' }]), 'up').getKeys()).toEqual(['c/5/x2']);
   });
 
-  it('Ride-Glocke: Raute auf Linie 5', () => {
+  it('Ride-Bell: Raute auf Linie 5', () => {
     expect(noteFor(single([{ instrument: 'ride', staffStep: 8, notehead: 'x', articulation: 'bell' }]), 'up').getKeys()).toEqual(['f/5/d2']);
   });
 

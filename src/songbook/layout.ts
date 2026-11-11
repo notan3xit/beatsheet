@@ -14,8 +14,8 @@ export const ACCENT_LABELS: Record<Instrument, string> = {
   tom1: 'T1',
   tom2: 'T2',
   snare: 'SD',
-  floorTom: 'FT',
-  kick: 'BD',
+  floorTom: 'F',
+  kick: 'K',
   hihatPedal: 'HP',
 };
 
