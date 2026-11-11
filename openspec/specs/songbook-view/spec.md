@@ -7,7 +7,7 @@ Stellt einen Song als Doppelseite dar: links die Struktur maßstabsgetreu als Fa
 ## Requirements
 
 ### Requirement: Doppelseite
-Die Ansicht eines Songs MUST links die Struktur und rechts die Patterns des Songs nebeneinander zeigen, solange daneben die Struktur in voller Breite pro Beat und die Patternseite mit einer Karte von 4 Beats Platz haben. Nebeneinander MUST der übrige Platz im Verhältnis 3:2 an Struktur und Patternseite gehen, bis die Struktur ihre größte Breite pro Beat und die Patternseite ihre größte Breite von zwei Karten mit je 4 Beats erreicht hat; weiterer Platz bleibt frei. Sonst MUST die Patternseite unter der Struktur stehen, und beide Seiten MUST die volle Breite einnehmen. Die Auswahl eines Patterns auf der rechten Seite MUST den Pattern-Editor für dieses Pattern öffnen, von dem aus man zur Doppelseite zurückkehrt.
+Die Ansicht eines Songs MUST links die Struktur und rechts die Patterns des Songs nebeneinander zeigen, solange daneben die Struktur in voller Breite pro Beat und die Patternseite mit einer Karte von 4 Beats Platz haben. Sonst MUST die Patternseite unter der Struktur stehen, und beide Seiten MUST die volle Breite einnehmen. Die Auswahl eines Patterns auf der rechten Seite MUST den Pattern-Editor für dieses Pattern öffnen, von dem aus man zur Doppelseite zurückkehrt.
 
 #### Scenario: Song öffnen
 - **WHEN** der Nutzer einen Song mit Struktur und Patterns öffnet
@@ -25,16 +25,15 @@ Die Ansicht eines Songs MUST links die Struktur und rechts die Patterns des Song
 - **WHEN** der Nutzer einen Song mit 16-Beat-Zeilen in einem 768 px breiten Fenster öffnet
 - **THEN** steht die Patternseite unter der Struktur, beide Seiten sind gleich breit und die Breite pro Beat beträgt mindestens 2,25rem
 
+### Requirement: Breite der Seiten nebeneinander
+Nebeneinander MUST der übrige Platz im Verhältnis 3:2 an Struktur und Patternseite gehen, bis die Struktur ihre größte Breite pro Beat und die Patternseite ihre größte Breite von zwei Karten mit je 4 Beats erreicht hat; weiterer Platz bleibt frei.
+
 #### Scenario: Großes Fenster
 - **WHEN** der Nutzer einen Song mit 16-Beat-Zeilen in einem 1650 px breiten Fenster öffnet
 - **THEN** ist die Struktur breiter als in einem 1024 px breiten Fenster und die Patternseite höchstens so breit wie zwei Karten mit je 4 Beats
 
 ### Requirement: Maßstabsgetreue Struktur
-Jedes Segment MUST mit seinem Namen erscheinen, nach der Anforderung „Segmentnamen neben der Struktur“ links neben oder über seinen Takten, die in Zeilen zu höchstens 16 Beats stehen. Ein Takt MUST in der laufenden Zeile stehen, wenn er ganz hineinpasst, sonst in einer neuen. Ein Takt MUST NOT geteilt werden. Die Breite eines Takts MUST proportional zu seinen Beats sein, mit gleicher Breite pro Beat im ganzen Song. Jeder Block und damit jedes Segment MUST in einer neuen Zeile beginnen. Die Breite pro Beat MUST sich nach der Breite der linken Seite ohne eine Namensspalte richten, sodass eine Zeile von 16 Beats genau hineinpasst, höchstens aber 3rem. Sie MUST mindestens 2,25rem betragen, solange eine Zeile von 16 Beats mit 2,25rem in die linke Seite passt. Die Struktur MUST NOT über die linke Seite hinausragen.
-
-#### Scenario: Unterschiedliche Taktlängen
-- **WHEN** ein Segment die Takte 4/4, 2/4, 4/4 enthält
-- **THEN** ist der 2/4-Takt halb so breit wie die 4/4-Takte
+Jedes Segment MUST mit seinem Namen erscheinen, nach der Anforderung „Segmentnamen neben der Struktur“ links neben oder über seinen Takten, die in Zeilen zu höchstens 16 Beats stehen. Ein Takt MUST in der laufenden Zeile stehen, wenn er ganz hineinpasst, sonst in einer neuen. Ein Takt MUST NOT geteilt werden. Jeder Block und damit jedes Segment MUST in einer neuen Zeile beginnen.
 
 #### Scenario: Zeilenumbruch
 - **WHEN** ein Segment 6 Takte 4/4 hat
@@ -51,6 +50,13 @@ Jedes Segment MUST mit seinem Namen erscheinen, nach der Anforderung „Segmentn
 #### Scenario: Neuer Block in neuer Zeile
 - **WHEN** ein Segment aus einem Block mit 2 Takten und einem Block mit 4 Takten besteht
 - **THEN** stehen die 2 Takte des ersten Blocks allein in der ersten Zeile und die 4 Takte des zweiten Blocks in der zweiten Zeile
+
+### Requirement: Breite pro Beat
+Die Breite eines Takts MUST proportional zu seinen Beats sein, mit gleicher Breite pro Beat im ganzen Song. Die Breite pro Beat MUST sich nach der Breite der linken Seite ohne eine Namensspalte richten, sodass eine Zeile von 16 Beats genau hineinpasst, höchstens aber 3rem. Sie MUST mindestens 2,25rem betragen, solange eine Zeile von 16 Beats mit 2,25rem in die linke Seite passt. Die Struktur MUST NOT über die linke Seite hinausragen.
+
+#### Scenario: Unterschiedliche Taktlängen
+- **WHEN** ein Segment die Takte 4/4, 2/4, 4/4 enthält
+- **THEN** ist der 2/4-Takt halb so breit wie die 4/4-Takte
 
 #### Scenario: Smartphone hochkant
 - **WHEN** der Nutzer einen Song mit 16-Beat-Zeilen in einem 390 px breiten Fenster öffnet
@@ -171,7 +177,7 @@ Solange nichts ausgewählt ist und sich der Mauszeiger nicht über der Struktur 
 - **THEN** zeigt die linke Seite keine Einfüge-Knöpfe mehr
 
 ### Requirement: Bearbeiten über die Auswahl
-Ein Klick auf einen Segmentnamen MUST das Segment auswählen. Ein Klick auf einen Takt MUST diesen Takt auswählen, Shift+Klick einen Bereich in Songreihenfolge. Es MUST immer nur entweder ein Segment oder Takte ausgewählt sein. Zur Auswahl MUST ein Popover an der Auswahl erscheinen, das alle Aktionen für diese Auswahl enthält, die der Sperrzustand des Songs zulässt. Das Popover MUST innerhalb der Breite der linken Seite liegen und nach links rücken, wo es an der Auswahl über den rechten Rand ragen würde. Escape oder ein Klick außerhalb von Struktur, Popover, Abspiel-Knöpfen und Übetempo im Kopf der Doppelseite MUST die Auswahl aufheben und das Popover schließen.
+Ein Klick auf einen Segmentnamen MUST das Segment auswählen. Ein Klick auf einen Takt MUST diesen Takt auswählen, Shift+Klick einen Bereich in Songreihenfolge. Es MUST immer nur entweder ein Segment oder Takte ausgewählt sein. Escape oder ein Klick außerhalb von Struktur, Popover, Abspiel-Knöpfen und Übetempo im Kopf der Doppelseite MUST die Auswahl aufheben und das Popover schließen.
 
 #### Scenario: Takte auswählen
 - **WHEN** der Nutzer Takt 5 anklickt und mit Shift Takt 8 anklickt
@@ -185,13 +191,16 @@ Ein Klick auf einen Segmentnamen MUST das Segment auswählen. Ein Klick auf eine
 - **WHEN** Takte ausgewählt sind und der Nutzer Escape drückt
 - **THEN** ist nichts mehr ausgewählt und kein Popover ist geöffnet
 
-#### Scenario: Popover am rechten Rand
-- **WHEN** der Nutzer in einem 390 px breiten Fenster den letzten Takt einer 16-Beat-Zeile auswählt
-- **THEN** liegt das Takt-Popover vollständig innerhalb der Breite der linken Seite
-
 #### Scenario: Bedienung im Kopf
 - **WHEN** die Takte 2 bis 3 ausgewählt sind und der Nutzer im Kopf „Üben“ einschaltet
 - **THEN** sind weiterhin die Takte 2 bis 3 ausgewählt
+
+### Requirement: Popover zur Auswahl
+Zur Auswahl MUST ein Popover an der Auswahl erscheinen, das alle Aktionen für diese Auswahl enthält, die der Sperrzustand des Songs zulässt. Das Popover MUST innerhalb der Breite der linken Seite liegen und nach links rücken, wo es an der Auswahl über den rechten Rand ragen würde.
+
+#### Scenario: Popover am rechten Rand
+- **WHEN** der Nutzer in einem 390 px breiten Fenster den letzten Takt einer 16-Beat-Zeile auswählt
+- **THEN** liegt das Takt-Popover vollständig innerhalb der Breite der linken Seite
 
 ### Requirement: Segment-Popover
 Das Popover eines ausgewählten Segments MUST anbieten: den Namen ändern, das Segment nach oben oder unten verschieben, duplizieren, ein Segment danach einfügen, einen Block unten anfügen, das Segment nach Bestätigung löschen, ab dem Segment abspielen („Ab hier abspielen“) und das Segment in Schleife abspielen („In Schleife abspielen“). Nicht mögliche Verschiebungen MUST deaktiviert sein.
@@ -268,7 +277,7 @@ Solange Takte ausgewählt sind, MUST die Patternseite die Karte jedes Grooves un
 - **THEN** ist keine Karte hervorgehoben
 
 ### Requirement: Pattern-Chips
-Groove und Fill MUST im Takt-Popover als Chips in der Farbe des jeweiligen Patterns wählbar sein, ergänzt um „neu“ und „kein“. Die Chips der Patterns MUST in der Reihenfolge der Anforderung „Patternseite“ stehen. Der Chip „neu“ MUST die Farbe zeigen, die ein neues Pattern erhalten würde. Ein Chip MUST als gewählt erscheinen, wenn alle ausgewählten Takte dieses Pattern haben. Ein gewählter Chip MUST sich durch seine Fläche in Patternfarbe, nach der Anforderung „Flächen in Patternfarbe mit Schrift“ von `design-system`, und durch einen Haken abheben, ohne Rahmen in einer anderen als seiner Patternfarbe.
+Groove und Fill MUST im Takt-Popover als Chips in der Farbe des jeweiligen Patterns wählbar sein, ergänzt um „neu“ und „kein“. Die Chips der Patterns MUST in der Reihenfolge der Anforderung „Patternseite“ stehen. Der Chip „neu“ MUST die Farbe zeigen, die ein neues Pattern erhalten würde.
 
 #### Scenario: Groove-Chips
 - **WHEN** der Song die Grooves A (blau) und B (grün) hat und der Nutzer Takte mit Groove A auswählt
@@ -277,6 +286,9 @@ Groove und Fill MUST im Takt-Popover als Chips in der Farbe des jeweiligen Patte
 #### Scenario: Chips in Reihenfolge des Songs
 - **WHEN** der Groove A vor dem Groove B angelegt wurde, die Struktur aber zuerst B und dann A verwendet und der Nutzer einen Takt auswählt
 - **THEN** zeigt die Zeile Groove die Chips von B vor denen von A
+
+### Requirement: Gewählter Chip
+Ein Chip MUST als gewählt erscheinen, wenn alle ausgewählten Takte dieses Pattern haben. Ein gewählter Chip MUST sich durch seine Fläche in Patternfarbe, nach der Anforderung „Flächen in Patternfarbe mit Schrift“ von `design-system`, und durch einen Haken abheben, ohne Rahmen in einer anderen als seiner Patternfarbe.
 
 #### Scenario: Gemischte Auswahl
 - **WHEN** der Nutzer einen Takt mit Groove A und einen Takt mit Groove B auswählt
@@ -382,7 +394,7 @@ Die Pattern-Karten der rechten Seite MUST in der Reihenfolge der Anforderung „
 - **THEN** steht die Karte von B unter der Karte von A und die Noten beider Karten sind nicht verkleinert
 
 ### Requirement: Kompakte Pattern-Karten
-Die Noten auf der Patternseite MUST verkleinert und in allen Karten im gleichen Maßstab erscheinen, ohne eigenen Rahmen. Reicht die Breite der Patternseite nicht, MUST die Notation in der Karte umbrechen. Eine Fill-Karte MUST wie die Fill-Blöcke der Struktur ringsum in ihrer Farbe gerahmt und mit ihrer Farbe getönt erscheinen, eine Groove-Karte wie die Groove-Balken mit einer Kante links in ihrer Farbe und ohne Tönung. Die Kopfzeile MUST einzeilig sein und nur den Namen in der mit „text“ gemischten Farbe des Patterns und die Länge zeigen, dahinter die Taktart, wenn sie vom Standard-Takt des Songs abweicht. Passt der Name nicht neben die Länge, MUST er mit „…“ gekürzt erscheinen und vollständig als Tooltip verfügbar sein. Ein Klick auf den Namen MUST den Pattern-Editor öffnen. Die Knöpfe zum Anlegen MUST als „+ Groove“ und „+ Fill“ erscheinen.
+Die Noten auf der Patternseite MUST verkleinert und in allen Karten im gleichen Maßstab erscheinen, ohne eigenen Rahmen. Reicht die Breite der Patternseite nicht, MUST die Notation in der Karte umbrechen. Eine Fill-Karte MUST wie die Fill-Blöcke der Struktur ringsum in ihrer Farbe gerahmt und mit ihrer Farbe getönt erscheinen, eine Groove-Karte wie die Groove-Balken mit einer Kante links in ihrer Farbe und ohne Tönung. Die Knöpfe zum Anlegen MUST als „+ Groove“ und „+ Fill“ erscheinen.
 
 #### Scenario: Gleicher Maßstab
 - **WHEN** der Song einen Groove mit 4 Beats und einen Groove mit 8 Beats hat, beide mit Vierteln auf der Snare
@@ -391,6 +403,13 @@ Die Noten auf der Patternseite MUST verkleinert und in allen Karten im gleichen 
 #### Scenario: Fill und Groove unterscheiden
 - **WHEN** die rechte Seite den Groove „Verse-Beat“ und den Fill „Tom-Fill“ zeigt
 - **THEN** ist die Karte von „Tom-Fill“ ringsum gerahmt und getönt und die Karte von „Verse-Beat“ hat nur eine Kante links
+
+#### Scenario: Anlegen-Knöpfe
+- **WHEN** der Nutzer einen Song öffnet
+- **THEN** zeigt die rechte Seite die Knöpfe „+ Groove“ und „+ Fill“, die wie „Neuer Groove“ und „Neuer Fill“ funktionieren
+
+### Requirement: Kopfzeile der Pattern-Karte
+Die Kopfzeile MUST einzeilig sein und nur den Namen in der mit „text“ gemischten Farbe des Patterns und die Länge zeigen, dahinter die Taktart, wenn sie vom Standard-Takt des Songs abweicht. Passt der Name nicht neben die Länge, MUST er mit „…“ gekürzt erscheinen und vollständig als Tooltip verfügbar sein. Ein Klick auf den Namen MUST den Pattern-Editor öffnen.
 
 #### Scenario: Kopfzeile
 - **WHEN** die rechte Seite den Groove „Verse-Beat“ mit 4 Beats zeigt, der dem Song folgt
@@ -411,10 +430,6 @@ Die Noten auf der Patternseite MUST verkleinert und in allen Karten im gleichen 
 #### Scenario: Name öffnet den Editor
 - **WHEN** der Nutzer auf der rechten Seite auf den Namen „Verse-Beat“ klickt
 - **THEN** öffnet sich der Pattern-Editor für „Verse-Beat“
-
-#### Scenario: Anlegen-Knöpfe
-- **WHEN** der Nutzer einen Song öffnet
-- **THEN** zeigt die rechte Seite die Knöpfe „+ Groove“ und „+ Fill“, die wie „Neuer Groove“ und „Neuer Fill“ funktionieren
 
 ### Requirement: Hervorhebung von Auswahl und Ablegeziel
 Ausgewählte Takte und Ablegeziele beim Ziehen MUST über ihre Balken hervorgehoben werden: Groove- und Fill-Balken mit vollem Rahmen in der Patternfarbe und kräftigerer Füllung. Ein Fill MUST hervorgehoben sein, wenn sein Takt oder ein von ihm ganz überdeckter Takt hervorgehoben ist. Ein Takt ohne Groove MUST einen grauen Schatten-Groove zeigen. Der Takt selbst MUST NOT umrahmt werden; gestrichelte Linien MUST NOT vorkommen.
@@ -437,7 +452,7 @@ Ausgewählte Takte und Ablegeziele beim Ziehen MUST über ihre Balken hervorgeho
 - **THEN** ist der Groove-Balken von Takt 6 hervorgehoben wie bei einer Auswahl
 
 ### Requirement: Fill-Kurzschrift
-Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Zeichen in einer von drei Höhenstufen zeigen: oben `c` Crash, `t` Tom 1/2, `o` offene Hi-Hat, `x` geschlossene Hi-Hat, `r` Ride und `b` Ride-Glocke; Mitte `v` Snare mit Flam und `s` Snare einschließlich Drag, Rim Shot und Cross-Stick; unten `f` Floor Tom, `k` Kick und `x` Hi-Hat-Pedal. Eine Ghost Note MUST als `·` auf der Stufe ihres Instruments stehen. Choke und Betonung MUST das Zeichen nicht ändern. Pro Zeitpunkt und Stufe MUST höchstens ein Zeichen stehen: Normale Schläge haben Vorrang vor Ghost Notes, untereinander gilt die genannte Reihenfolge.
+Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Zeichen in einer von drei Höhenstufen zeigen: oben `c` Crash, `t` Tom 1/2, `o` offene Hi-Hat, `x` geschlossene Hi-Hat, `r` Ride und `b` Ride-Glocke; Mitte `v` Snare mit Flam und `s` Snare einschließlich Drag, Rim Shot und Cross-Stick; unten `f` Floor Tom, `k` Kick und `x` Hi-Hat-Pedal.
 
 #### Scenario: Tom-Run
 - **WHEN** ein Fill in Sechzehnteln Snare auf 1 und 2, Tom 1 auf 3 und 4 und im zweiten Beat Floor Tom auf allen vier Positionen hat
@@ -447,14 +462,6 @@ Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Zeichen in einer von d
 - **WHEN** auf derselben Position Kick und Crash liegen
 - **THEN** stehen dort `c` oben und `k` unten
 
-#### Scenario: Flam und Ghost Note
-- **WHEN** ein Fill einen Snare-Flam auf Position 1 und eine Snare-Ghost-Note auf Position 2 hat
-- **THEN** zeigt die Kurzschrift `v` auf Position 1 und `·` in der Mitte auf Position 2
-
-#### Scenario: Ghost Note auf den Toms
-- **WHEN** ein Fill auf Position 1 eine Ghost Note auf Tom 1 und auf Position 2 eine Ghost Note auf dem Floor Tom hat
-- **THEN** steht auf Position 1 `·` oben und auf Position 2 `·` unten
-
 #### Scenario: Neue Spielweisen der Snare
 - **WHEN** ein Fill auf den Positionen 1, 2 und 3 einen Snare-Drag, einen Rim Shot und einen Cross-Stick hat
 - **THEN** zeigt die Kurzschrift `s s s` in der Mitte
@@ -463,10 +470,6 @@ Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Zeichen in einer von d
 - **WHEN** ein Fill einen Flam auf Tom 1 hat
 - **THEN** zeigt die Kurzschrift `t` oben
 
-#### Scenario: Choke und Betonung
-- **WHEN** ein Fill einen Crash mit Choke und auf derselben Position eine betonte Snare hat
-- **THEN** stehen dort `c` oben und `s` in der Mitte
-
 #### Scenario: Hi-Hat und Pedal
 - **WHEN** ein Fill auf Position 1 eine geschlossene Hi-Hat, auf Position 2 eine offene Hi-Hat und auf Position 3 das Hi-Hat-Pedal hat
 - **THEN** zeigt die Kurzschrift `x` und `o` oben und `x` unten, jeweils an ihren Zeitpunkten
@@ -474,6 +477,24 @@ Die Kurzschrift MUST jeden Schlag an seinem Zeitpunkt als Zeichen in einer von d
 #### Scenario: Ride und Glocke
 - **WHEN** ein Fill auf Position 1 einen Ride und auf Position 2 eine Ride-Glocke hat
 - **THEN** zeigt die Kurzschrift oben `r` und `b`
+
+### Requirement: Ghost Notes, Choke und Betonung in der Kurzschrift
+Eine Ghost Note MUST als `·` auf der Stufe ihres Instruments stehen. Choke und Betonung MUST das Zeichen nicht ändern.
+
+#### Scenario: Flam und Ghost Note
+- **WHEN** ein Fill einen Snare-Flam auf Position 1 und eine Snare-Ghost-Note auf Position 2 hat
+- **THEN** zeigt die Kurzschrift `v` auf Position 1 und `·` in der Mitte auf Position 2
+
+#### Scenario: Ghost Note auf den Toms
+- **WHEN** ein Fill auf Position 1 eine Ghost Note auf Tom 1 und auf Position 2 eine Ghost Note auf dem Floor Tom hat
+- **THEN** steht auf Position 1 `·` oben und auf Position 2 `·` unten
+
+#### Scenario: Choke und Betonung
+- **WHEN** ein Fill einen Crash mit Choke und auf derselben Position eine betonte Snare hat
+- **THEN** stehen dort `c` oben und `s` in der Mitte
+
+### Requirement: Vorrang in der Fill-Kurzschrift
+Pro Zeitpunkt und Stufe MUST höchstens ein Zeichen stehen: Normale Schläge haben Vorrang vor Ghost Notes, untereinander gilt die genannte Reihenfolge.
 
 #### Scenario: Crash verdrängt die übrigen Becken
 - **WHEN** auf derselben Position Crash, Hi-Hat und Ride liegen

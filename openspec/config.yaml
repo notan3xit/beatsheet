@@ -30,3 +30,8 @@ schema: spec-driven
 #     archive:
 #       guidance:
 #         - Summarize the archive outcome before finishing
+
+rules:
+  specs:
+    - Eine Anforderung beschreibt ein Verhalten; ihr Text bleibt höchstens 500 Zeichen lang, auch unter MODIFIED.
+    - Neues Verhalten kommt als eigene ADDED-Anforderung, statt eine bestehende zu verlängern.

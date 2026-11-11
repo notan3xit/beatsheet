@@ -7,7 +7,7 @@ Macht einen ganzen Song auf seiner Doppelseite hörbar. Die Wiedergabe folgt der
 ## Requirements
 
 ### Requirement: Song abspielen
-Der Kopf der Doppelseite MUST die Knöpfe „Song abspielen“ und „Song in Schleife abspielen“ anbieten. „Song abspielen“ MUST den Song vom ersten Takt an einmal bis zum Ende abspielen, „Song in Schleife abspielen“ MUST nach dem letzten Takt ohne Pause wieder mit dem ersten beginnen. Während einer Wiedergabe auf der Doppelseite MUST der Knopf des laufenden Modus „Stopp“ heißen und die Wiedergabe beenden, unabhängig davon, wie sie gestartet wurde. Ohne Schleife MUST die Wiedergabe am Songende von selbst enden. Ein Song ohne Takte MUST beide Knöpfe deaktiviert zeigen.
+Der Kopf der Doppelseite MUST die Knöpfe „Song abspielen“ und „Song in Schleife abspielen“ anbieten. „Song abspielen“ MUST den Song vom ersten Takt an einmal bis zum Ende abspielen, „Song in Schleife abspielen“ MUST nach dem letzten Takt ohne Pause wieder mit dem ersten beginnen. Ein Song ohne Takte MUST beide Knöpfe deaktiviert zeigen.
 
 #### Scenario: Ganzen Song abspielen
 - **WHEN** der Nutzer auf der Doppelseite eines Songs mit 4 Takten „Song abspielen“ wählt
@@ -18,6 +18,13 @@ Der Kopf der Doppelseite MUST die Knöpfe „Song abspielen“ und „Song in Sc
 - **WHEN** der Nutzer auf der Doppelseite eines Songs mit 4 Takten „Song in Schleife abspielen“ wählt
 - **THEN** folgt auf Takt 4 wieder Takt 1
 - **AND** der Knopf heißt „Stopp“
+
+#### Scenario: Song ohne Takte
+- **WHEN** der Nutzer die Doppelseite eines Songs ohne Segmente öffnet
+- **THEN** sind „Song abspielen“ und „Song in Schleife abspielen“ deaktiviert
+
+### Requirement: Wiedergabe des Songs beenden
+Während einer Wiedergabe auf der Doppelseite MUST der Knopf des laufenden Modus „Stopp“ heißen und die Wiedergabe beenden, unabhängig davon, wie sie gestartet wurde. Ohne Schleife MUST die Wiedergabe am Songende von selbst enden.
 
 #### Scenario: Ende des Songs
 - **WHEN** die einmalige Wiedergabe das Ende des letzten Takts erreicht
@@ -30,10 +37,6 @@ Der Kopf der Doppelseite MUST die Knöpfe „Song abspielen“ und „Song in Sc
 #### Scenario: Stoppen einer Overlay-Wiedergabe
 - **WHEN** die Takte 2 bis 3 aus dem Takt-Overlay in Schleife laufen
 - **THEN** heißt im Kopf der Doppelseite der Knopf „Song in Schleife abspielen“ „Stopp“ und beendet die Wiedergabe
-
-#### Scenario: Song ohne Takte
-- **WHEN** der Nutzer die Doppelseite eines Songs ohne Segmente öffnet
-- **THEN** sind „Song abspielen“ und „Song in Schleife abspielen“ deaktiviert
 
 ### Requirement: Ab hier abspielen
 Takt- und Segment-Popover MUST die Aktion „Ab hier abspielen“ anbieten. Sie MUST die Wiedergabe am Anfang des ersten ausgewählten Takts bzw. am Anfang des ausgewählten Segments starten und einmal bis zum Songende laufen lassen.

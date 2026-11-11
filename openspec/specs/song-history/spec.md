@@ -7,7 +7,7 @@ Macht die Änderungsgeschichte eines Songs sichtbar: wer wann was geändert hat,
 ## Requirements
 
 ### Requirement: Autor einer Änderung
-Jede Änderung, die ein angemeldeter Nutzer an einem Song vornimmt, MUST sein Konto als Autor tragen, auch wenn der Server gerade nicht erreichbar ist. Der Autor MUST das Konto über eine Kennung bezeichnen, die keine Adresse enthält. Änderungen ohne Anmeldung MUST keinen Autor tragen. Der Autor MUST mit der Änderung auf alle Geräte gelangen und unverändert bleiben. Ist der Autor einer Änderung eine Adresse, MUST die App ihn dem Konto dieser Adresse zuordnen und die Änderung für dieses Konto als eigene werten.
+Jede Änderung, die ein angemeldeter Nutzer an einem Song vornimmt, MUST sein Konto als Autor tragen, auch wenn der Server gerade nicht erreichbar ist. Der Autor MUST das Konto über eine Kennung bezeichnen, die keine Adresse enthält. Änderungen ohne Anmeldung MUST keinen Autor tragen. Der Autor MUST mit der Änderung auf alle Geräte gelangen und unverändert bleiben.
 
 #### Scenario: Änderung im Workbook
 - **WHEN** der angemeldete Nutzer „max@example.org“ im Workbook-Song „Hysteria“ einen Schlag setzt
@@ -24,6 +24,9 @@ Jede Änderung, die ein angemeldeter Nutzer an einem Song vornimmt, MUST sein Ko
 #### Scenario: Ohne Anmeldung
 - **WHEN** ein nicht angemeldeter Nutzer einen lokalen Song ändert
 - **THEN** trägt die Änderung keinen Autor
+
+### Requirement: Adresse als Autor
+Ist der Autor einer Änderung eine Adresse, MUST die App ihn dem Konto dieser Adresse zuordnen und die Änderung für dieses Konto als eigene werten.
 
 #### Scenario: Adresse als Autor
 - **GIVEN** eine Änderung an „Hysteria“ in „Band“ trägt die Adresse „max@example.org“ als Autor

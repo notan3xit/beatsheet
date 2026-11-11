@@ -7,7 +7,7 @@ Legt den Aufbau der App-Kopfzeile fest: ein Menü mit allen Aktionen zu Datei un
 ## Requirements
 
 ### Requirement: Menü
-Links in der Kopfzeile MUST ein Knopf mit Hamburger-Symbol und ohne Text ein Menü öffnen. Das Menü MUST die Einträge „Exportieren“ und „Importieren“ enthalten, dazu abgemeldet „Anmelden“ und angemeldet „Abmelden“, jeweils mit Symbol und Text. Ein Trennstrich MUST „Exportieren“ und „Importieren“ vom Eintrag zum Konto trennen. Unter dem Eintrag zum Konto MUST nach je einem weiteren Trennstrich der Abschnitt „Farbschema“ (siehe `color-theme`) und dann „Klang“ (siehe `playback-sound`) folgen. Ganz unten MUST nach einem weiteren Trennstrich der Eintrag „Version“ mit Symbol und der aktuellen Versionsnummer stehen.
+Links in der Kopfzeile MUST ein Knopf mit Hamburger-Symbol und ohne Text ein Menü öffnen. Das Menü MUST die Einträge „Exportieren“ und „Importieren“ enthalten, dazu abgemeldet „Anmelden“ und angemeldet „Abmelden“, jeweils mit Symbol und Text. Ein Trennstrich MUST „Exportieren“ und „Importieren“ vom Eintrag zum Konto trennen.
 
 #### Scenario: Menü abgemeldet
 - **GIVEN** der Nutzer ist nicht angemeldet
@@ -22,6 +22,9 @@ Links in der Kopfzeile MUST ein Knopf mit Hamburger-Symbol und ohne Text ein Men
 #### Scenario: Trennstrich
 - **WHEN** der Nutzer das Menü öffnet
 - **THEN** steht ein Trennstrich zwischen „Importieren“ und dem Eintrag zum Konto
+
+### Requirement: Abschnitte im Menü
+Unter dem Eintrag zum Konto MUST nach je einem weiteren Trennstrich der Abschnitt „Farbschema“ (siehe `color-theme`) und dann „Klang“ (siehe `playback-sound`) folgen. Ganz unten MUST nach einem weiteren Trennstrich der Eintrag „Version“ mit Symbol und der aktuellen Versionsnummer stehen.
 
 #### Scenario: Abschnitt Farbschema
 - **WHEN** der Nutzer das Menü öffnet

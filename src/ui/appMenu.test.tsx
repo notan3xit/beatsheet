@@ -97,7 +97,7 @@ describe('Spec app-header › Menü', () => {
   });
 });
 
-describe('Spec app-header › Menü › Eintrag Version', () => {
+describe('Spec app-header › Abschnitte im Menü › Eintrag Version', () => {
   it('Eintrag Version', async () => {
     const { user } = setup();
     await user.click(menuButton());
@@ -197,7 +197,7 @@ describe('Spec app-header › Anmelden und Abmelden über das Menü', () => {
 const soundOption = (name: string) => within(menu()).getByRole('menuitemradio', { name: new RegExp(`^${name}`) });
 const UNAVAILABLE = 'auf diesem Gerät nicht verfügbar';
 
-describe('Spec app-header › Menü › Abschnitt Farbschema', () => {
+describe('Spec app-header › Abschnitte im Menü › Abschnitt Farbschema', () => {
   it('nach dem Eintrag zum Konto ein Trennstrich und darunter „Farbschema“ mit „Wie System“, „Hell“ und „Dunkel“', async () => {
     const { user } = setup();
     await user.click(menuButton());
@@ -209,7 +209,7 @@ describe('Spec app-header › Menü › Abschnitt Farbschema', () => {
   });
 });
 
-describe('Spec app-header › Menü › Abschnitt Klang', () => {
+describe('Spec app-header › Abschnitte im Menü › Abschnitt Klang', () => {
   it('nach dem Abschnitt „Farbschema“ ein Trennstrich und darunter „Klang“ mit „DRSKit“ und „Synth“', async () => {
     const { user } = setup();
     await user.click(menuButton());

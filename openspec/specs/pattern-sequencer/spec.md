@@ -123,7 +123,14 @@ Während der Nutzer im Sequencer arbeitet, MUST die Notendarstellung des Pattern
 - **THEN** zeigt die Notendarstellung den Snare-Schlag, ohne dass der Nutzer speichern oder neu laden muss
 
 ### Requirement: Spielweise eines Schlags
-Ein Schlag MUST diese Spielweisen haben können: Snare normal, Flam, Drag, Ghost Note, Rim Shot, Cross-Stick; Tom 1, Tom 2 und Standtom normal, Flam, Drag, Ghost Note; Ride normal, Glocke; Crash normal, Choke. Shift-Klick auf eine gesetzte Zelle dieser Instrumente MUST die Spielweise in dieser Reihenfolge weiterschalten und nach der letzten zu normal zurückkehren. Shift-Klick auf eine leere Zelle MUST einen Schlag mit der ersten Spielweise nach normal setzen. Bei anderen Instrumenten MUST Shift-Klick nichts ändern. Die Zelle MUST ihre Spielweise anzeigen.
+Ein Schlag MUST diese Spielweisen haben können: Snare normal, Flam, Drag, Ghost Note, Rim Shot, Cross-Stick; Tom 1, Tom 2 und Standtom normal, Flam, Drag, Ghost Note; Ride normal, Glocke; Crash normal, Choke. Die Zelle MUST ihre Spielweise anzeigen.
+
+#### Scenario: Anzeige in der Zelle
+- **WHEN** die Snare auf der „1“ eine Ghost Note hat
+- **THEN** zeigt die Zelle an, dass dort eine Ghost Note liegt, und ihr zugänglicher Name nennt „Ghost Note“
+
+### Requirement: Spielweise per Shift-Klick
+Shift-Klick auf eine gesetzte Zelle eines Instruments mit Spielweisen nach „Spielweise eines Schlags“ MUST die Spielweise in der dort genannten Reihenfolge weiterschalten und nach der letzten zu normal zurückkehren. Shift-Klick auf eine leere Zelle MUST einen Schlag mit der ersten Spielweise nach normal setzen. Bei anderen Instrumenten MUST Shift-Klick nichts ändern.
 
 #### Scenario: Spielweise durchschalten
 - **WHEN** die Snare auf der „1“ gesetzt ist und der Nutzer die Zelle sechsmal mit Shift aktiviert
@@ -148,10 +155,6 @@ Ein Schlag MUST diese Spielweisen haben können: Snare normal, Flam, Drag, Ghost
 #### Scenario: Shift-Klick auf der Hi-Hat
 - **WHEN** der Nutzer eine Zelle der Hi-Hat (geschlossen) mit Shift aktiviert
 - **THEN** bleibt das Pattern unverändert
-
-#### Scenario: Anzeige in der Zelle
-- **WHEN** die Snare auf der „1“ eine Ghost Note hat
-- **THEN** zeigt die Zelle an, dass dort eine Ghost Note liegt, und ihr zugänglicher Name nennt „Ghost Note“
 
 ### Requirement: Betonung eines Schlags
 Jeder Schlag außer einer Ghost Note MUST zusätzlich zu seiner Spielweise betont sein können. Strg-Klick, auf dem Mac Cmd-Klick, auf eine gesetzte Zelle MUST die Betonung umschalten und die Spielweise beibehalten. Auf einer leeren Zelle MUST er einen betonten normalen Schlag setzen. Auf einer Ghost Note MUST er nichts ändern. Die Zelle MUST die Betonung anzeigen.

@@ -71,7 +71,7 @@ Jedes der zehn Instrumente MUST mit einem eigenen Klang erklingen, je nach gewä
 - **THEN** endet der Klang der offenen Hi-Hat auf der „2“
 
 ### Requirement: Klang der Spielweisen
-Eine Ghost Note MUST deutlich leiser erklingen als ein normaler Schlag desselben Instruments. Ein Flam MUST als zwei Schläge erklingen: ein leiser Vorschlag kurz vor der Position und der Hauptschlag genau auf der Position. Ein Drag MUST ebenso klingen, aber mit zwei leisen Vorschlägen. Rim Shot, Cross-Stick und Ride-Glocke MUST sich hörbar vom normalen Schlag des Instruments unterscheiden; ein Rim Shot MUST lauter und schärfer klingen als ein normaler Snare-Schlag, ein Cross-Stick leiser und kürzer. Ein Crash mit Choke MUST kurz nach seinem Einsatz abrupt enden.
+Eine Ghost Note MUST deutlich leiser erklingen als ein normaler Schlag desselben Instruments. Ein Flam MUST als zwei Schläge erklingen: ein leiser Vorschlag kurz vor der Position und der Hauptschlag genau auf der Position. Ein Drag MUST ebenso klingen, aber mit zwei leisen Vorschlägen.
 
 #### Scenario: Ghost Note
 - **WHEN** die Snare auf Position 1 eine Ghost Note und auf Position 3 einen normalen Schlag hat
@@ -84,6 +84,9 @@ Eine Ghost Note MUST deutlich leiser erklingen als ein normaler Schlag desselben
 #### Scenario: Drag
 - **WHEN** die Snare auf der „1“ einen Drag hat
 - **THEN** erklingen kurz vor der „1“ zwei leise Snare-Schläge und auf der „1“ ein normaler
+
+### Requirement: Klang von Rim Shot, Cross-Stick, Glocke und Choke
+Rim Shot, Cross-Stick und Ride-Glocke MUST sich hörbar vom normalen Schlag des Instruments unterscheiden; ein Rim Shot MUST lauter und schärfer klingen als ein normaler Snare-Schlag, ein Cross-Stick leiser und kürzer. Ein Crash mit Choke MUST kurz nach seinem Einsatz abrupt enden.
 
 #### Scenario: Rim Shot
 - **WHEN** die Snare auf Position 1 einen Rim Shot und auf Position 3 einen normalen Schlag hat

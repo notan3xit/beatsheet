@@ -35,7 +35,7 @@ Das System MUST Segmente umbenennen, löschen (nach Bestätigung), verschieben (
 - **THEN** ist die Reihenfolge Intro, Chorus, Verse
 
 ### Requirement: Blöcke und Takte bearbeiten
-Das System MUST einem Segment unten einen Block anfügen können. Der neue Block MUST so viele Takte haben wie der bisher letzte Block des Segments, jeweils mit Länge und Groove von dessen letztem Takt, ohne Fills und Akzente. In einem Segment ohne Blöcke MUST der neue Block 4 Takte ohne Groove haben, jeder so lang wie der Standard-Takt des Songs. Das System MUST einen Takt vor oder nach einem Takt einfügen und Takte löschen können. Ein Block ohne Takte MUST entfernt werden, ein Segment ohne Blöcke MUST bestehen bleiben.
+Das System MUST einen Takt vor oder nach einem Takt einfügen und Takte löschen können. Ein Block ohne Takte MUST entfernt werden, ein Segment ohne Blöcke MUST bestehen bleiben.
 
 #### Scenario: Takt einfügen
 - **WHEN** der Nutzer nach Takt 2 eines Blocks mit 4 Takten einen Takt einfügt
@@ -49,6 +49,13 @@ Das System MUST einem Segment unten einen Block anfügen können. Der neue Block
 - **WHEN** der Song in 5/4 steht und der Nutzer nach einem 3/4-Takt einen Takt einfügt
 - **THEN** ist der neue Takt ein 3/4-Takt
 
+#### Scenario: Letzten Takt eines Blocks löschen
+- **WHEN** der Nutzer den einzigen Takt eines Blocks löscht
+- **THEN** ist der Block entfernt und das Segment bleibt bestehen
+
+### Requirement: Block anfügen
+Das System MUST einem Segment unten einen Block anfügen können. Der neue Block MUST so viele Takte haben wie der bisher letzte Block des Segments, jeweils mit Länge und Groove von dessen letztem Takt, ohne Fills und Akzente. In einem Segment ohne Blöcke MUST der neue Block 4 Takte ohne Groove haben, jeder so lang wie der Standard-Takt des Songs.
+
 #### Scenario: Block unten anfügen
 - **WHEN** der letzte Block von „Verse“ 8 Takte hat und der letzte davon ein 4/4-Takt mit Groove B und Fill ist
 - **AND** der Nutzer an „Verse“ einen Block anfügt
@@ -61,10 +68,6 @@ Das System MUST einem Segment unten einen Block anfügen können. Der neue Block
 #### Scenario: Block an Segment ohne Blöcke im Standard-Takt
 - **WHEN** der Nutzer in einem Song in 7/4 einem Segment ohne Blöcke einen Block anfügt
 - **THEN** hat das Segment einen Block mit 4 Takten 7/4 ohne Groove
-
-#### Scenario: Letzten Takt eines Blocks löschen
-- **WHEN** der Nutzer den einzigen Takt eines Blocks löscht
-- **THEN** ist der Block entfernt und das Segment bleibt bestehen
 
 ### Requirement: Takteigenschaften setzen
 Der Nutzer MUST für einen oder mehrere ausgewählte Takte den Groove (oder keinen) und den Fill (oder keinen) setzen sowie die Länge um einen Beat verringern oder erhöhen können. Die Längenänderung MUST für jeden ausgewählten Takt einzeln gelten und MUST nicht möglich sein, wenn dabei ein Takt den Bereich 1–16 Beats verlassen würde. Als Groove MUST nur ein Pattern vom Typ Groove, als Fill nur eines vom Typ Fill desselben Songs wählbar sein.

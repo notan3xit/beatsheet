@@ -69,21 +69,27 @@ Der Eintrag eines gemeinsamen Workbooks in der Seitenleiste MUST denselben Punkt
 - **THEN** trägt der Eintrag „Proberaum“ keinen Punkt
 
 ### Requirement: Gesehen
-Öffnet der Nutzer eine Ansicht eines Songs in einem gemeinsamen Workbook, MUST dessen aktueller Stand als gesehen gelten; solange eine Ansicht des Songs offen ist, MUST das auch für eintreffende Änderungen gelten. Der gesehene Stand MUST zum Konto gehören und unter einer Kennung des Kontos ohne Adresse gespeichert sein: Er MUST auf jedem anderen Gerät desselben Kontos, das die App geöffnet hat und den Server erreicht, binnen 5 Sekunden gelten, und ohne Server MUST er lokal bleiben und beim nächsten Kontakt übertragen werden.
+Öffnet der Nutzer eine Ansicht eines Songs in einem gemeinsamen Workbook, MUST dessen aktueller Stand als gesehen gelten; solange eine Ansicht des Songs offen ist, MUST das auch für eintreffende Änderungen gelten.
 
 #### Scenario: Song öffnen
 - **GIVEN** die Kachel „Hysteria“ trägt einen Punkt
 - **WHEN** der Nutzer „Hysteria“ öffnet und zur Startseite zurückkehrt
 - **THEN** trägt die Kachel „Hysteria“ keinen Punkt
 
+#### Scenario: Während der Song offen ist
+- **WHEN** Max „Hysteria“ ändert, während Artjom die Doppelseite von „Hysteria“ geöffnet hat, und Artjom danach zur Startseite zurückkehrt
+- **THEN** trägt die Kachel „Hysteria“ keinen Punkt
+
+### Requirement: Gesehen auf allen Geräten
+Der gesehene Stand MUST zum Konto gehören: Er MUST auf jedem anderen Gerät desselben Kontos, das die App geöffnet hat und den Server erreicht, binnen 5 Sekunden gelten, und ohne Server MUST er lokal bleiben und beim nächsten Kontakt übertragen werden.
+
 #### Scenario: Anderes Gerät
 - **GIVEN** Artjom hat die Startseite am Laptop geöffnet und „Hysteria“ trägt dort einen Punkt
 - **WHEN** er „Hysteria“ am Handy öffnet
 - **THEN** verschwindet der Punkt am Laptop binnen 5 Sekunden
 
-#### Scenario: Während der Song offen ist
-- **WHEN** Max „Hysteria“ ändert, während Artjom die Doppelseite von „Hysteria“ geöffnet hat, und Artjom danach zur Startseite zurückkehrt
-- **THEN** trägt die Kachel „Hysteria“ keinen Punkt
+### Requirement: Gesehen ohne Adresse
+Der gesehene Stand MUST unter einer Kennung des Kontos ohne Adresse gespeichert sein.
 
 #### Scenario: Keine Adresse im Workbook-Dokument
 - **WHEN** artjom@example.org „Hysteria“ in „Band“ öffnet
