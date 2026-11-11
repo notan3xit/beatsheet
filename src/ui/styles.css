@@ -931,13 +931,8 @@ body.dragging-pattern .tile-add:hover {
   font-weight: 600;
 }
 
-.avatars:hover .avatar {
-  background: var(--control-hover);
-}
-
 /* Kürzel in der Farbe des Profils (member-profiles, design.md D6) */
-.avatar.colored,
-.avatars:hover .avatar.colored {
+.avatar.colored {
   background: color-mix(in srgb, var(--pc) var(--avatar-mix), var(--bg));
   color: var(--avatar-text);
 }
@@ -1103,10 +1098,29 @@ body.dragging-pattern .tile-add:hover {
   gap: 0.75rem;
 }
 
+/* Ohne gap, wie .login-form: Ein vom Passwortmanager eingefügtes leeres Element nimmt keinen Platz ein */
 .member-invite {
   display: flex;
   align-items: end;
-  gap: 0.5rem;
+}
+
+.member-invite .field {
+  display: block;
+}
+
+.member-invite .field input {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.member-invite button {
+  margin-left: 0.5rem;
+}
+
+.member-invite input,
+.member-invite button {
+  height: 2rem;
+  font-size: 0.875rem;
 }
 
 .members-popover h4 {

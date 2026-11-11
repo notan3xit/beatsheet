@@ -52,7 +52,7 @@ const CARD: Sizing = { ...NORMAL, rowHeight: 130, rowTop: 10 };
 /** Pixel pro SVG-Einheit in den Patternkarten, für alle Karten gleich (gleicher Maßstab). */
 export const CARD_SCALE = 0.55;
 /** Rand um das zugeschnittene Notenbild der Karten, in SVG-Einheiten. */
-const CARD_TRIM_MARGIN = 4;
+export const CARD_TRIM_MARGIN = 4;
 
 /** Notenköpfe, die eine Spielweise vorgibt. */
 const ARTICULATION_HEADS: Partial<Record<Articulation, string>> = { rim: 'sf', cross: 'x2', bell: 'd2' };
@@ -346,16 +346,51 @@ export function renderNotation(model: NotationModel, container: HTMLElement, opt
   if (card && svg) fitCard(svg, totalWidth, totalHeight);
 }
 
-/** Skaliert das Karten-SVG mit CARD_SCALE und schneidet die Höhe auf das Notenbild zu (ohne getBBox: volle Höhe). */
-function fitCard(svg: SVGSVGElement, totalWidth: number, totalHeight: number): void {
-  let top = 0;
-  let height = totalHeight;
-  if (typeof svg.getBBox === 'function') {
-    const box = svg.getBBox();
-    if (box.height > 0) {
-      top = box.y - CARD_TRIM_MARGIN;
-      height = Math.min(totalHeight, box.y + box.height + CARD_TRIM_MARGIN) - top;
+/**
+ * Ober- und Unterkante der sichtbaren Zeichen. VexFlow zeichnet Notenköpfe, Schlüssel und Ziffern als <text>
+ * in der Notenschrift; deren getBBox ist der Schriftkasten, daher die Tinte aus measureText (design.md D3).
+ * `pending` sammelt Schriften, die noch laden. Ohne getBBox oder Canvas (jsdom): undefined.
+ */
+function inkExtent(svg: SVGSVGElement, pending: Set<string>): { top: number; bottom: number } | undefined {
+  if (typeof svg.getBBox !== 'function') return undefined;
+  const canvas = document.createElement('canvas').getContext('2d');
+  if (!canvas) return undefined;
+  let top = Infinity;
+  let bottom = -Infinity;
+  for (const element of svg.querySelectorAll<SVGGraphicsElement>('path, rect, text')) {
+    if (element.tagName === 'text') {
+      const text = element.textContent ?? '';
+      if (!text) continue;
+      const font = getComputedStyle(element).font;
+      if (font && document.fonts?.check(font, text) === false) pending.add(font);
+      canvas.font = font;
+      const metrics = canvas.measureText(text);
+      const baseline = Number(element.getAttribute('y'));
+      top = Math.min(top, baseline - metrics.actualBoundingBoxAscent);
+      bottom = Math.max(bottom, baseline + metrics.actualBoundingBoxDescent);
+    } else {
+      const box = element.getBBox();
+      if (box.width === 0 && box.height === 0) continue;
+      top = Math.min(top, box.y);
+      bottom = Math.max(bottom, box.y + box.height);
     }
+  }
+  return bottom > top ? { top, bottom } : undefined;
+}
+
+/**
+ * Skaliert das Karten-SVG mit CARD_SCALE und schneidet die Höhe auf die sichtbaren Zeichen zu, auch über
+ * `totalHeight` hinaus (ohne Messung: volle Höhe). Lädt die Notenschrift noch, folgt ein zweiter Zuschnitt.
+ */
+function fitCard(svg: SVGSVGElement, totalWidth: number, totalHeight: number): void {
+  const pending = new Set<string>();
+  const ink = inkExtent(svg, pending);
+  const top = ink ? ink.top - CARD_TRIM_MARGIN : 0;
+  const height = ink ? ink.bottom + CARD_TRIM_MARGIN - top : totalHeight;
+  if (pending.size > 0) {
+    void Promise.all([...pending].map((font) => document.fonts.load(font))).then(() => {
+      if (svg.isConnected) fitCard(svg, totalWidth, totalHeight);
+    });
   }
   svg.setAttribute('viewBox', `0 ${top} ${totalWidth} ${height}`);
   svg.setAttribute('width', String(totalWidth * CARD_SCALE));

@@ -1,10 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { emptyBeats, patternOf } from '../../test/patterns';
 import { toNotation } from '../model';
 import type { NotationEvent } from '../model';
 import { GraceNoteGroup } from 'vexflow';
 import type { Beat } from '../../domain/types';
-import { CARD_SCALE, noteFor, renderNotation } from './vexflow';
+import { CARD_SCALE, CARD_TRIM_MARGIN, noteFor, renderNotation } from './vexflow';
 
 describe('VexFlow-Adapter (Smoke-Test)', () => {
   it('rendert ein gemischtes Pattern ohne Fehler als SVG', () => {
@@ -363,5 +363,69 @@ describe('Spec drum-notation › Neue Spielweisen und Betonung (Renderer)', () =
     const container = render([{ hits: { crash: [1], hihat: [1] } }], { articulations: { crash: { 0: 'choke' } }, emphasis: { hihat: [0] } });
     const colors = new Set([...container.querySelectorAll('svg, svg *')].flatMap((el) => [el.getAttribute('fill'), el.getAttribute('stroke')]));
     expect([...colors].filter((c) => c !== null && c !== 'currentColor' && c !== 'none')).toEqual([]);
+  });
+});
+
+describe('Spec songbook-view › Höhe des Notenbilds der Pattern-Karte', () => {
+  // Wie im Browser: getBBox eines <text> ist der Schriftkasten (160 Einheiten), weit über und unter dem Zeichen
+  const FONT_BOX = { above: 80, below: 80 };
+  const INK = { ascent: 5, descent: 3 };
+  let pathBox: (path: Element, index: number) => { y: number; height: number };
+
+  beforeEach(() => {
+    pathBox = () => ({ y: 50, height: 40 });
+    const proto = SVGElement.prototype as unknown as { getBBox?: () => DOMRect };
+    proto.getBBox = function (this: SVGElement) {
+      const box = (y: number, height: number) => ({ x: 0, y, width: 10, height }) as DOMRect;
+      if (this.tagName === 'text') {
+        const y = Number(this.getAttribute('y'));
+        return box(y - FONT_BOX.above, FONT_BOX.above + FONT_BOX.below);
+      }
+      if (this.tagName === 'path') {
+        const paths = [...this.ownerSVGElement!.querySelectorAll('path')];
+        const { y, height } = pathBox(this, paths.indexOf(this as SVGPathElement));
+        return box(y, height);
+      }
+      if (this.tagName === 'rect') return { x: 0, y: 0, width: 0, height: 0 } as DOMRect;
+      // svg und g: Vereinigung der enthaltenen Elemente, wie im Browser
+      const boxes = [...this.querySelectorAll('path, text')].map((e) => (e as unknown as { getBBox: () => DOMRect }).getBBox());
+      const top = Math.min(...boxes.map((b) => b.y));
+      return box(top, Math.max(...boxes.map((b) => b.y + b.height)) - top);
+    };
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+      () =>
+        ({
+          font: '',
+          measureText: () => ({ width: 10, actualBoundingBoxAscent: INK.ascent, actualBoundingBoxDescent: INK.descent }),
+        }) as unknown as CanvasRenderingContext2D,
+    );
+  });
+
+  afterEach(() => {
+    delete (SVGElement.prototype as unknown as { getBBox?: unknown }).getBBox;
+    vi.restoreAllMocks();
+  });
+
+  const card = (pattern: ReturnType<typeof patternOf>) => {
+    const container = document.createElement('div');
+    renderNotation(toNotation(pattern), container, { card: true });
+    const svg = container.querySelector('svg')!;
+    const [, y, , height] = svg.getAttribute('viewBox')!.split(' ').map(Number);
+    return { svg, top: y!, bottom: y! + height! };
+  };
+
+  it('Balken unter dem System: vollständig in der viewBox, auch unterhalb der Zeilenhöhe', () => {
+    // Ein Balken reicht bis 170, unter die Zeilenhöhe der Karte (130)
+    pathBox = (_, index) => (index === 0 ? { y: 150, height: 20 } : { y: 50, height: 40 });
+    const pattern = patternOf([{ hits: { kick: [1, 2, 3, 4] } }, { hits: { kick: [1, 2, 3, 4] } }]);
+    const { bottom } = card(pattern);
+    expect(bottom).toBe(170 + CARD_TRIM_MARGIN);
+  });
+
+  it('Triolenklammer oben: Oberkante aus der Tinte der Zeichen, nicht aus dem Schriftkasten', () => {
+    const pattern = patternOf([{ sub: 6, hits: { snare: [1, 2], tom1: [3, 4, 5, 6] } }], 'fill');
+    const { svg, top } = card(pattern);
+    const inkTop = Math.min(50, ...[...svg.querySelectorAll('text')].map((t) => Number(t.getAttribute('y')) - INK.ascent));
+    expect(top).toBe(inkTop - CARD_TRIM_MARGIN);
   });
 });

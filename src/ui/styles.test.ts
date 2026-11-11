@@ -675,3 +675,33 @@ describe('Spec practice-tempo › Übetempo in Schritten (Stylesheet)', () => {
     expect(decl(ruleBody('.practice .tempo-mark', narrow), 'margin-right')).toBe(toggle);
   });
 });
+
+/** Wert einer Eigenschaft für genau diesen Selektor, auch aus Selektorlisten; die letzte Regel gilt. */
+const declFor = (selector: string, prop: string) =>
+  [...topLevel.matchAll(/(?<=^|[}{])\s*([^{}@]+?)\s*\{([^}]*)\}/g)]
+    .filter((m) => m[1]!.split(',').some((s) => s.trim() === selector))
+    .map((m) => decl(m[2]!, prop))
+    .filter((v) => v !== undefined)
+    .at(-1);
+
+describe('Spec workbooks › Kürzel beim Überfahren (Stylesheet)', () => {
+  it('Überfahren der Kürzel: keine Regel mit .avatars:hover setzt eine Fläche', () => {
+    expect(css).not.toMatch(/\.avatars:hover[^{]*\{[^}]*background/);
+  });
+});
+
+describe('Spec workbooks › Einladen-Formular steht fest (Stylesheet)', () => {
+  it('Feld und Knopf auf einer Linie: gleiche feste Höhe und Schriftgröße', () => {
+    const height = declFor('.member-invite input', 'height');
+    expect(height).toMatch(/^[\d.]+rem$/);
+    expect(declFor('.member-invite button', 'height')).toBe(height);
+    const font = declFor('.member-invite input', 'font-size');
+    expect(font).toBeDefined();
+    expect(declFor('.member-invite button', 'font-size')).toBe(font);
+  });
+
+  it('Knopf bleibt stehen: kein gap, das ein eingefügtes leeres Element vergrößern könnte', () => {
+    expect(declFor('.member-invite', 'gap')).toBeUndefined();
+    expect(declFor('.member-invite .field', 'display')).toBe('block');
+  });
+});
