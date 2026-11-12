@@ -106,8 +106,8 @@ Die Köpfe von Doppelseite und Pattern-Editor MUST Song-Tempo, Abspiel-Knöpfe u
 
 #### Scenario: Pattern-Editor
 - **WHEN** der Nutzer den Pattern-Editor ansieht
-- **THEN** folgen im Kopf „♩ = 120 (Song-Tempo)“, „Einmal abspielen“, „In Schleife abspielen“ und „Üben“ in dieser Reihenfolge
+- **THEN** folgen im Kopf „♩ = 120 (Song-Tempo)“, „Einmal abspielen“, „In Schleife abspielen“ und „Tempo“ in dieser Reihenfolge
 
 #### Scenario: Doppelseite
 - **WHEN** der Nutzer die Doppelseite ansieht
-- **THEN** folgen im Kopf „♩ = 120“, „Song abspielen“, „Song in Schleife abspielen“ und „Üben“ in dieser Reihenfolge
+- **THEN** folgen im Kopf „♩ = 120“, „Song abspielen“, „Song in Schleife abspielen“ und „Tempo“ in dieser Reihenfolge

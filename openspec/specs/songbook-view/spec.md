@@ -192,7 +192,7 @@ Ein Klick auf einen Segmentnamen MUST das Segment auswählen. Ein Klick auf eine
 - **THEN** ist nichts mehr ausgewählt und kein Popover ist geöffnet
 
 #### Scenario: Bedienung im Kopf
-- **WHEN** die Takte 2 bis 3 ausgewählt sind und der Nutzer im Kopf „Üben“ einschaltet
+- **WHEN** die Takte 2 bis 3 ausgewählt sind und der Nutzer im Kopf „Tempo“ einschaltet
 - **THEN** sind weiterhin die Takte 2 bis 3 ausgewählt
 
 ### Requirement: Popover zur Auswahl

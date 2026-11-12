@@ -174,7 +174,7 @@ Sind auf der Doppelseite Takte oder ein Segment ausgewählt und läuft keine Wie
 - **THEN** laufen die Takte von „Chorus“ in Schleife
 
 #### Scenario: Üben vor dem Start
-- **WHEN** die Takte 2 bis 3 ausgewählt sind, der Nutzer „Üben“ einschaltet und dann „Auswahl in Schleife abspielen“ wählt
+- **WHEN** die Takte 2 bis 3 ausgewählt sind, der Nutzer „Tempo“ einschaltet und dann „Auswahl in Schleife abspielen“ wählt
 - **THEN** laufen die Takte 2 bis 3 im Übetempo in Schleife
 
 #### Scenario: Ohne Auswahl
