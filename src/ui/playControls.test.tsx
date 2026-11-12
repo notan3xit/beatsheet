@@ -209,12 +209,12 @@ describe('Spec playback-controls › Anordnung im Kopf', () => {
 
   it('Pattern-Editor', () => {
     setup('pattern');
-    order(screen.getByRole('region', { name: 'Pattern bearbeiten' }), [/^Song-Tempo/, 'Einmal abspielen', 'In Schleife abspielen', 'Üben']);
+    order(screen.getByRole('region', { name: 'Pattern bearbeiten' }), [/^Song-Tempo/, 'Einmal abspielen', 'In Schleife abspielen', 'Tempo']);
   });
 
   it('Doppelseite', () => {
     setup();
-    order(document.querySelector('.songbook-header') as HTMLElement, [/^Song-Tempo/, 'Song abspielen', 'Song in Schleife abspielen', 'Üben']);
+    order(document.querySelector('.songbook-header') as HTMLElement, [/^Song-Tempo/, 'Song abspielen', 'Song in Schleife abspielen', 'Tempo']);
   });
 });
 

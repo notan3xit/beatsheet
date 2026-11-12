@@ -2514,8 +2514,13 @@ button.meter-own.on {
   color: var(--muted);
 }
 
-.practice.on {
-  border-color: var(--playhead);
+/* Hervorgehoben bei „Tempo“ an ist nur der Teil aus Schalter und Übetempo; der Rahmen der Box bleibt neutral (practice-tempo) */
+.practice-tempo {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.practice-tempo.on {
   background: color-mix(in srgb, var(--playhead) var(--practice-on-mix), var(--bg));
   color: var(--text);
 }
@@ -2559,16 +2564,29 @@ button.meter-own.on {
   transition: left var(--motion-row) ease;
 }
 
-.practice.on .practice-knob {
+.practice-tempo.on .practice-knob {
   background: var(--playhead);
 }
 
-.practice.on .practice-knob::after {
+.practice-tempo.on .practice-knob::after {
   left: 0.8rem;
 }
 
 .practice-step {
   padding: 0 0.45rem;
+}
+
+/* Metronom und Einzählen: Symbolknöpfe, gedrückt mit derselben Fläche wie „Tempo“ an (practice-click) */
+.practice-click {
+  justify-content: center;
+  width: 2rem;
+  padding: 0;
+  border-left: 1px solid var(--border);
+}
+
+.practice button.practice-click[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--playhead) var(--practice-on-mix), var(--bg));
+  color: var(--text);
 }
 
 .practice .tempo-mark {

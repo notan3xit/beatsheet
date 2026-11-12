@@ -6,7 +6,7 @@ import { createWebAudioPlayer } from './player';
 import { SAMPLE_KEYS, type LoaderState, type SampleBuffers } from './sampleLoader';
 import { createSoundSetting } from './soundSetting';
 
-const source = { timeline: () => patternTimeline(patternOf([{ hits: { kick: [1] } }])), tempo: () => 120, loop: true };
+const source = { timeline: () => patternTimeline(patternOf([{ hits: { kick: [1] } }]), 4), tempo: () => 120, loop: true };
 
 describe('Spec pattern-playback › Audio nicht verfügbar', () => {
   it('Browser ohne Web Audio: Player nicht verfügbar, start ohne Wirkung', () => {
@@ -41,6 +41,30 @@ describe('Spec playback-sound › Klang der Aufnahmen', () => {
     player.start(source);
     expect(ctx.nodes.some((n) => n.kind === 'oscillator')).toBe(true);
     player.stop();
+  });
+});
+
+describe('Spec practice-click › Klang des Metronoms', () => {
+  it('Klangwahl: der Klick klingt bei DRSKit und Synth gleich', () => {
+    const clickFrequencies = (state: LoaderState) => {
+      const created: FakeAudioContext[] = [];
+      const AudioContext = class extends FakeAudioContext {
+        constructor() {
+          super();
+          created.push(this);
+        }
+      };
+      const buffers = Object.fromEntries(SAMPLE_KEYS.map((key) => [key, { key }])) as unknown as SampleBuffers;
+      const loader = { state: () => state, buffers: () => buffers, failures: () => [], reloadMayHelp: () => false, load: async () => {}, subscribe: () => () => {} };
+      const player = createWebAudioPlayer({ AudioContext: AudioContext as unknown as typeof globalThis.AudioContext }, { setting: createSoundSetting(null), loader });
+      player.start({ ...source, timeline: () => patternTimeline(patternOf([{}]), 4), countIn: 1 });
+      const frequencies = created[0]!.nodes.filter((n) => n.kind === 'oscillator').map((n) => (n as unknown as { frequency: { events: { value: number }[] } }).frequency.events[0]!.value);
+      player.stop();
+      return frequencies;
+    };
+    const drs = clickFrequencies('ready');
+    expect(drs).toHaveLength(1);
+    expect(clickFrequencies('unavailable')).toEqual(drs);
   });
 });
 

@@ -18,6 +18,10 @@ export interface PlaybackSource<M = unknown> {
   tempo(): number;
   /** true: am Ende wieder von vorn; false: am Ende stoppen. */
   loop: boolean;
+  /** Metronom an: Klick auf jedem Beat, an Taktanfängen betont (practice-click, design.md D2). */
+  metronome?(): boolean;
+  /** Beats des Einzählens vor Beat 0, beim Start fest; 0 oder fehlend: kein Einzählen. */
+  countIn?: number;
 }
 
 export interface PlaybackState {
@@ -34,6 +38,15 @@ export interface Voices {
   /** Bereits geplante Klänge sofort verstummen lassen. */
   silence(): void;
 }
+
+/** Klick von Metronom und Einzählen, unabhängig von den Drum-Stimmen (practice-click, design.md D4). */
+export interface Click {
+  click(time: number, accented: boolean): void;
+  /** Bereits geplante Klicks sofort verstummen lassen. */
+  silence(): void;
+}
+
+const NO_CLICK: Click = { click() {}, silence() {} };
 
 export interface SchedulerDeps {
   /** Audiozeit in Sekunden. */
@@ -64,12 +77,16 @@ interface Anchor {
   secondsPerBeat: number;
 }
 
-export function createScheduler(voices: Voices, deps: SchedulerDeps): Scheduler {
+export function createScheduler(voices: Voices, deps: SchedulerDeps, click: Click = NO_CLICK): Scheduler {
   let state = IDLE;
   const listeners = new Set<() => void>();
   let source: PlaybackSource | null = null;
   /** Modus der laufenden Wiedergabe; anfangs der der Quelle, danach über setLoop. */
   let loop = false;
+  /** Beats des Einzählens der laufenden Wiedergabe; die Planung beginnt bei -countIn. */
+  let countIn = 0;
+  /** Metronom klickt; eingeschaltet erst ab dem nächsten Taktanfang (practice-click, design.md D3). */
+  let clicking = false;
   let timer: unknown;
   let frame: unknown;
   /** Audiozeit, bis zu der geplant ist, und die Beat-Position in der Quelle dazu. */
@@ -97,6 +114,17 @@ export function createScheduler(voices: Voices, deps: SchedulerDeps): Scheduler 
         return;
       }
       const secondsPerBeat = 60 / source.tempo();
+      // Einzählen: vor Beat 0 nur Klicks, der erste betont (design.md D3)
+      if (cursorBeat < -1e-9) {
+        const endBeat = Math.min(0, cursorBeat + (horizon - cursorTime) / secondsPerBeat);
+        anchors.push({ time: cursorTime, beat: cursorBeat, secondsPerBeat });
+        for (let b = Math.ceil(cursorBeat - 1e-9); b < endBeat - 1e-9; b++) {
+          click.click(cursorTime + (b - cursorBeat) * secondsPerBeat, Math.abs(b + countIn) < 1e-9);
+        }
+        cursorTime += (endBeat - cursorBeat) * secondsPerBeat;
+        cursorBeat = endBeat > -1e-9 ? 0 : endBeat;
+        continue;
+      }
       const { length } = timeline;
       // Gekürzt: Rest des wegfallenden Beats bleibt stumm, Beat 1 kommt auf dem nächsten Grundschlag
       if (cursorBeat >= length - 1e-9) cursorBeat = cursorBeat - Math.ceil(cursorBeat - 1e-9);
@@ -113,6 +141,15 @@ export function createScheduler(voices: Voices, deps: SchedulerDeps): Scheduler 
       }
       for (const { at, mark } of timeline.marks) {
         if (inWindow(at)) marks.push({ time: timeOf(at), mark });
+      }
+      const metronome = source.metronome?.() ?? false;
+      if (!metronome) clicking = false;
+      else {
+        for (let b = Math.ceil(cursorBeat - 1e-9); b < endBeat - 1e-9; b++) {
+          const downbeat = timeline.downbeats.some((d) => Math.abs(d - b) < 1e-9);
+          if (downbeat) clicking = true;
+          if (clicking) click.click(timeOf(b), downbeat);
+        }
       }
 
       cursorTime = timeOf(endBeat);
@@ -149,7 +186,10 @@ export function createScheduler(voices: Voices, deps: SchedulerDeps): Scheduler 
     marks = [];
     anchors = [];
     endTime = null;
-    if (silence) voices.silence();
+    if (silence) {
+      voices.silence();
+      click.silence();
+    }
   };
 
   function stop() {
@@ -163,8 +203,10 @@ export function createScheduler(voices: Voices, deps: SchedulerDeps): Scheduler 
       halt(true);
       source = next;
       loop = next.loop;
+      countIn = next.countIn ?? 0;
+      clicking = false;
       cursorTime = deps.clock() + START_DELAY;
-      cursorBeat = 0;
+      cursorBeat = -countIn;
       setState({ playing: true, mark: null, loop });
       schedule();
       if (!source) return;

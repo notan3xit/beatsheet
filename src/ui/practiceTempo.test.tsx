@@ -23,7 +23,7 @@ function setup(open: 'book' | 'pattern' = 'book', practice = createPracticeStore
   return { ...notebook, ...fake, user, verse, practice, view };
 }
 
-const toggle = () => screen.getByRole('button', { name: 'Üben' });
+const toggle = () => screen.getByRole('button', { name: 'Tempo' });
 const value = () => screen.getByRole('button', { name: /^Übetempo: \d+ BPM$/ });
 const shown = () => Number(value().getAttribute('aria-label')!.match(/\d+/)![0]);
 const step = (name: 'Übetempo verringern' | 'Übetempo erhöhen') => screen.getByRole('button', { name });
@@ -40,17 +40,27 @@ describe('Spec practice-tempo › Übetempo-Steuerung', () => {
     setup();
     expect(toggle()).toHaveAttribute('aria-pressed', 'false');
     expect(value()).toHaveTextContent('♩ = 90');
-    expect(toggle().closest('.practice')).not.toHaveClass('on');
+    expect(toggle().closest('.practice-tempo')).not.toHaveClass('on');
   });
 
   it('Gleicher Stand im Pattern-Editor', async () => {
     const { user, store, verse } = setup();
     await user.click(toggle());
     await user.click(step('Übetempo erhöhen'));
-    expect(toggle().closest('.practice')).toHaveClass('on');
+    expect(toggle().closest('.practice-tempo')).toHaveClass('on');
     act(() => store.openPattern(verse.id));
     expect(toggle()).toHaveAttribute('aria-pressed', 'true');
     expect(shown()).toBe(95);
+  });
+});
+
+describe('Spec practice-tempo › Übetempo-Steuerung (Hervorhebung)', () => {
+  it('Hervorhebung nur für Tempo', async () => {
+    const { user } = setup();
+    await user.click(toggle());
+    expect(toggle().closest('.practice-tempo')).toHaveClass('on');
+    expect(toggle().closest('.practice')).not.toHaveClass('on');
+    expect(screen.getByRole('button', { name: 'Metronom' })).toHaveAttribute('aria-pressed', 'false');
   });
 });
 

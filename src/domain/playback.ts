@@ -98,14 +98,18 @@ export interface Timeline<M> {
   hits: PlaybackHit[];
   /** Positionen, die der Abspieler beim Erreichen meldet (Rasterposition, Takt …). */
   marks: { at: number; mark: M }[];
+  /** Taktanfänge: dort ist der Klick des Metronoms betont (practice-click, design.md D1). */
+  downbeats: number[];
 }
 
-/** Zeitplan eines Patterns; Marken sind die Rasterpositionen. */
-export function patternTimeline(pattern: Pattern): Timeline<Step> {
+/** Zeitplan eines Patterns mit wirksamer Taktart `meter`; Marken sind die Rasterpositionen. */
+export function patternTimeline(pattern: Pattern, meter: number): Timeline<Step> {
+  const length = pattern.beats.length;
   return {
-    length: pattern.beats.length,
+    length,
     hits: patternHits(pattern),
     marks: patternSteps(pattern).map(({ at, beat, position }) => ({ at, mark: { beat, position } })),
+    downbeats: Array.from({ length: Math.ceil(length / meter) }, (_, i) => i * meter),
   };
 }
 
@@ -169,5 +173,5 @@ function computeSongTimeline(song: Song, range: SongRange): Timeline<string> | n
   }
 
   const length = bars.slice(first, last + 1).reduce((sum, b) => sum + b.beats, 0);
-  return { length, hits, marks };
+  return { length, hits, marks, downbeats: marks.map((m) => m.at) };
 }

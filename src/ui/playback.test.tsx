@@ -113,7 +113,7 @@ describe('Spec pattern-playback › Wiedergabe starten und stoppen (UI)', () => 
   it('Quelle liefert das geöffnete Pattern und das Tempo des Songs', async () => {
     const { user, source, patternsNow } = setup();
     await user.click(playButton());
-    expect(source().timeline()).toEqual(patternTimeline(patternsNow()[0]!));
+    expect(source().timeline()).toEqual(patternTimeline(patternsNow()[0]!, 4));
     expect(source().loop).toBe(true);
     expect(source().tempo()).toBe(120);
   });

@@ -28,6 +28,32 @@ export function MeterIcon() {
   );
 }
 
+/** Offenes Metronom-Gehäuse, rechts mit Lücke für den Zeiger, der unten mittig beginnt (practice-click). */
+export function MetronomeIcon() {
+  return (
+    <Icon>
+      <path d="M9.85 4.5 9.35 2.9C9.15 2.2 8.75 1.9 8.15 1.9h-.4c-.6 0-1 .3-1.2 1L3.5 12.6c-.2.8.2 1.3 1 1.3h6.9c.8 0 1.2-.5 1-1.3L11.83 10.8" />
+      <path d="M7.95 11.2 13.6 4" />
+      <circle cx="13.6" cy="4" r="1.45" fill="currentColor" stroke="none" />
+    </Icon>
+  );
+}
+
+/** Ein großer und drei kleine Punkte vor einem Taktstrich wie beim Taktart-Symbol: Einzählen (practice-click). */
+export function CountInIcon() {
+  return (
+    <Icon viewBox="0 0 16 15">
+      <g fill="currentColor" stroke="none">
+        <circle cx="1.9" cy="7.5" r="1.75" />
+        <circle cx="5.4" cy="7.5" r="1" />
+        <circle cx="8.1" cy="7.5" r="1" />
+        <circle cx="10.8" cy="7.5" r="1" />
+        <path d="M13 1h2v13h-2z" shapeRendering="crispEdges" />
+      </g>
+    </Icon>
+  );
+}
+
 /** Pfeil nach rechts in eine Box: Song in ein Workbook verschieben. */
 export function MoveIcon() {
   return (

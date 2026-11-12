@@ -11,13 +11,19 @@ interface Trigger {
 }
 
 /** Scheduler mit künstlicher Audio-Uhr, manuellem Timer und aufzeichnenden Stimmen. */
-function setup(initial: Pattern, initialTempo = 120, options: { loop?: boolean; timeline?: () => Timeline<unknown> | null } = {}) {
+function setup(
+  initial: Pattern,
+  initialTempo = 120,
+  options: { loop?: boolean; timeline?: () => Timeline<unknown> | null; metronome?: boolean; countIn?: number } = {},
+) {
   let now = 0;
   let tick: (() => void) | undefined;
   let frame: (() => void) | undefined;
   const triggers: Trigger[] = [];
+  const clicks: { time: number; accented: boolean }[] = [];
   let silenced = 0;
-  const source = { current: initial, tempo: initialTempo };
+  let clicksSilenced = 0;
+  const source = { current: initial, tempo: initialTempo, metronome: options.metronome ?? false };
   const scheduler = createScheduler(
     {
       trigger: (instrument, time, gain, technique) => triggers.push({ instrument, time, gain, ...(technique ? { technique } : {}) }),
@@ -30,13 +36,16 @@ function setup(initial: Pattern, initialTempo = 120, options: { loop?: boolean; 
       requestFrame: (fn) => ((frame = fn), 1),
       cancelFrame: () => (frame = undefined),
     },
+    { click: (time, accented) => clicks.push({ time, accented }), silence: () => clicksSilenced++ },
   );
   // Pattern-Quelle über die allgemeine Schnittstelle (design.md D1)
   const start = () =>
     scheduler.start({
-      timeline: options.timeline ?? (() => patternTimeline(source.current)),
+      timeline: options.timeline ?? (() => patternTimeline(source.current, 4)),
       tempo: () => source.tempo,
       loop: options.loop ?? true,
+      metronome: () => source.metronome,
+      countIn: options.countIn ?? 0,
     });
   /** Lässt die Zeit in 25-ms-Schritten laufen, wie Timer und Bildwiederholung im Browser. */
   const advanceTo = (time: number) => {
@@ -49,7 +58,18 @@ function setup(initial: Pattern, initialTempo = 120, options: { loop?: boolean; 
     }
   };
   const timesOf = (instrument: Instrument) => triggers.filter((t) => t.instrument === instrument).map((t) => t.time);
-  return { scheduler, source, start, advanceTo, triggers, timesOf, silenced: () => silenced, now: () => now };
+  return {
+    scheduler,
+    source,
+    start,
+    advanceTo,
+    triggers,
+    timesOf,
+    clicks,
+    silenced: () => silenced,
+    clicksSilenced: () => clicksSilenced,
+    now: () => now,
+  };
 }
 
 const S = START_DELAY;
@@ -240,7 +260,7 @@ describe('Einmal-Modus, Quelle und Position (song-playback, design.md D1)', () =
 
   it('Quelle liefert null: Wiedergabe endet', () => {
     let gone = false;
-    const t = setup(kickOnEveryBeat(4), 120, { timeline: () => (gone ? null : patternTimeline(kickOnEveryBeat(4))) });
+    const t = setup(kickOnEveryBeat(4), 120, { timeline: () => (gone ? null : patternTimeline(kickOnEveryBeat(4), 4)) });
     t.start();
     t.advanceTo(S + 0.3);
     gone = true;
@@ -252,7 +272,7 @@ describe('Einmal-Modus, Quelle und Position (song-playback, design.md D1)', () =
 
   it('Beliebige Marken werden gemeldet', () => {
     const t = setup(kickOnEveryBeat(1), 120, {
-      timeline: () => ({ length: 4, hits: [], marks: [{ at: 0, mark: 'bar-1' }, { at: 2, mark: 'bar-2' }] }),
+      timeline: () => ({ length: 4, hits: [], marks: [{ at: 0, mark: 'bar-1' }, { at: 2, mark: 'bar-2' }], downbeats: [0, 2] }),
     });
     t.start();
     t.advanceTo(S + 0.1);
@@ -318,6 +338,147 @@ describe('Spec playback-controls › Moduswechsel während der Wiedergabe', () =
   it('setLoop ohne laufende Wiedergabe bleibt wirkungslos', () => {
     const t = setup(kickOnEveryBeat(2));
     t.scheduler.setLoop(false);
+    expect(t.scheduler.getState()).toEqual({ playing: false, mark: null });
+  });
+});
+
+const at = (times: number[]) => times.map((x) => expect.closeTo(x, 9));
+const silentTimeline = (length: number, downbeats: number[]) => () => ({ length, hits: [], marks: [], downbeats });
+
+describe('Spec practice-click › Klick auf jedem Beat', () => {
+  it('Takt in 4/4', () => {
+    const t = setup(kickOnEveryBeat(4), 120, { loop: false, metronome: true });
+    t.start();
+    t.advanceTo(S + 3);
+    expect(t.clicks.map((c) => c.time)).toEqual(at([S, S + 0.5, S + 1, S + 1.5]));
+    expect(t.clicks.map((c) => c.accented)).toEqual([true, false, false, false]);
+  });
+
+  it('Wechselnde Taktlängen', () => {
+    const t = setup(patternOf([{}]), 120, { loop: false, metronome: true, timeline: silentTimeline(7, [0, 4]) });
+    t.start();
+    t.advanceTo(S + 5);
+    expect(t.clicks.map((c) => c.accented)).toEqual([true, false, false, false, true, false, false]);
+  });
+
+  it('Pattern länger als ein Takt', () => {
+    const t = setup(kickOnEveryBeat(6), 120, { metronome: true });
+    t.start();
+    t.advanceTo(S + 5.8);
+    const accented = t.clicks.filter((c) => c.accented).map((c) => c.time);
+    expect(accented).toEqual(at([S, S + 2, S + 3, S + 5]));
+    expect(t.clicks).toHaveLength(12);
+  });
+
+  it('Metronom aus', () => {
+    const t = setup(kickOnEveryBeat(4), 120, { loop: false });
+    t.start();
+    t.advanceTo(S + 3);
+    expect(t.clicks).toEqual([]);
+  });
+});
+
+describe('Spec practice-click › Metronom während der Wiedergabe schalten', () => {
+  it('Einschalten während der Wiedergabe', () => {
+    const t = setup(kickOnEveryBeat(1), 120, { loop: false, timeline: silentTimeline(8, [0, 4]) });
+    t.start();
+    t.advanceTo(S + 0.6); // Beat 2 des ersten Takts
+    t.source.metronome = true;
+    t.advanceTo(S + 5);
+    expect(t.clicks.map((c) => c.time)).toEqual(at([S + 2, S + 2.5, S + 3, S + 3.5]));
+    expect(t.clicks.map((c) => c.accented)).toEqual([true, false, false, false]);
+    expect(t.scheduler.getState().playing).toBe(false);
+  });
+
+  it('Einschalten in der Schleife', () => {
+    const t = setup(kickOnEveryBeat(4), 120);
+    t.start();
+    t.advanceTo(S + 0.6);
+    t.source.metronome = true;
+    t.advanceTo(S + 2.7);
+    expect(t.clicks.map((c) => c.time)).toEqual(at([S + 2, S + 2.5]));
+    expect(t.clicks[0]!.accented).toBe(true);
+    expect(t.timesOf('kick')).toEqual(at([0, 0.5, 1, 1.5, 2, 2.5].map((x) => S + x)));
+  });
+
+  it('Ausschalten während der Wiedergabe', () => {
+    const t = setup(kickOnEveryBeat(4), 120, { loop: false, metronome: true });
+    t.start();
+    t.advanceTo(S + 0.6);
+    t.source.metronome = false;
+    t.advanceTo(S + 3);
+    expect(t.clicks.map((c) => c.time)).toEqual(at([S, S + 0.5]));
+    expect(t.timesOf('kick')).toEqual(at([S, S + 0.5, S + 1, S + 1.5]));
+  });
+});
+
+describe('Spec practice-click › Einzählen vor dem Start', () => {
+  it('Song in 4/4', () => {
+    const t = setup(kickOnEveryBeat(4), 60, { loop: false, countIn: 4 });
+    t.start();
+    t.advanceTo(S + 5);
+    expect(t.clicks.map((c) => c.time)).toEqual(at([S, S + 1, S + 2, S + 3]));
+    expect(t.clicks.map((c) => c.accented)).toEqual([true, false, false, false]);
+    expect(t.timesOf('kick')[0]).toBeCloseTo(S + 4, 9);
+  });
+
+  it('Einzählen ohne Metronom', () => {
+    const t = setup(kickOnEveryBeat(4), 120, { loop: false, countIn: 3 });
+    t.start();
+    t.advanceTo(S + 5);
+    expect(t.clicks.map((c) => c.time)).toEqual(at([S, S + 0.5, S + 1]));
+    expect(t.timesOf('kick')).toEqual(at([S + 1.5, S + 2, S + 2.5, S + 3]));
+  });
+
+  it('Mit Metronom: Klicks laufen nach dem Einzählen weiter, Takt beginnt betont', () => {
+    const t = setup(kickOnEveryBeat(4), 120, { loop: false, countIn: 4, metronome: true });
+    t.start();
+    t.advanceTo(S + 5);
+    expect(t.clicks.map((c) => c.time)).toEqual(at([0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5].map((x) => S + x)));
+    expect(t.clicks.map((c) => c.accented)).toEqual([true, false, false, false, true, false, false, false]);
+  });
+
+  it('Tempo-Wechsel während des Einzählens gilt ab dem nächsten Klick', () => {
+    const t = setup(kickOnEveryBeat(4), 120, { loop: false, countIn: 4 });
+    t.start();
+    t.advanceTo(S + 0.3);
+    t.source.tempo = 60;
+    t.advanceTo(S + 6);
+    const times = t.clicks.map((c) => c.time);
+    expect(times[3]! - times[2]!).toBeCloseTo(1, 9);
+    expect(t.timesOf('kick')[0]! - times[3]!).toBeCloseTo(1, 9);
+  });
+});
+
+describe('Spec practice-click › Einzählen nur beim Start', () => {
+  it('Schleife', () => {
+    const t = setup(kickOnEveryBeat(4), 120, { countIn: 4 });
+    t.start();
+    t.advanceTo(S + 4.3);
+    expect(t.clicks).toHaveLength(4);
+    expect(t.timesOf('kick')).toEqual(at([2, 2.5, 3, 3.5, 4].map((x) => S + x)));
+  });
+});
+
+describe('Spec practice-click › Anzeige während des Einzählens', () => {
+  it('Während des Einzählens', () => {
+    const t = setup(kickOnEveryBeat(4), 120, { countIn: 4 });
+    t.start();
+    t.advanceTo(S + 0.7);
+    expect(t.scheduler.getState()).toEqual({ playing: true, mark: null, loop: true });
+    expect(t.scheduler.getPosition()).toBe(0);
+    t.advanceTo(S + 2.05);
+    expect(t.scheduler.getState().mark).toEqual({ beat: 0, position: 0 });
+  });
+
+  it('Stopp beim Einzählen', () => {
+    const t = setup(kickOnEveryBeat(4), 120, { countIn: 4 });
+    t.start();
+    t.advanceTo(S + 0.7);
+    t.scheduler.stop();
+    t.advanceTo(S + 4);
+    expect(t.triggers).toEqual([]);
+    expect(t.clicksSilenced()).toBe(1);
     expect(t.scheduler.getState()).toEqual({ playing: false, mark: null });
   });
 });

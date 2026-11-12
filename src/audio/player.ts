@@ -1,3 +1,4 @@
+import { createClick } from './click';
 import type { PlaybackSound } from './deviceSound';
 import { createSampleVoices } from './sampleVoices';
 import { createScheduler, type PlaybackSource, type PlaybackState, type Scheduler, type Voices } from './scheduler';
@@ -40,13 +41,18 @@ export function createWebAudioPlayer(win: AudioWindow = globalThis as AudioWindo
     const voices: Voices = sound
       ? createSwitchingVoices(synth, createSampleVoices(ctx, sound.loader.buffers), samplesPlayable(sound.setting, sound.loader))
       : synth;
-    const scheduler = createScheduler(voices, {
-      clock: () => ctx.currentTime,
-      setInterval: (fn, ms) => globalThis.setInterval(fn, ms),
-      clearInterval: (handle) => globalThis.clearInterval(handle as ReturnType<typeof setInterval>),
-      requestFrame: (fn) => globalThis.requestAnimationFrame(fn),
-      cancelFrame: (handle) => globalThis.cancelAnimationFrame(handle as number),
-    });
+    const scheduler = createScheduler(
+      voices,
+      {
+        clock: () => ctx.currentTime,
+        setInterval: (fn, ms) => globalThis.setInterval(fn, ms),
+        clearInterval: (handle) => globalThis.clearInterval(handle as ReturnType<typeof setInterval>),
+        requestFrame: (fn) => globalThis.requestAnimationFrame(fn),
+        cancelFrame: (handle) => globalThis.cancelAnimationFrame(handle as number),
+      },
+      // Klick unabhängig von der Klangwahl (practice-click, design.md D4)
+      createClick(ctx),
+    );
     scheduler.subscribe(() => listeners.forEach((listener) => listener()));
     audio = { ctx, scheduler };
     return audio;

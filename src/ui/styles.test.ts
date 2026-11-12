@@ -664,6 +664,22 @@ describe('Spec practice-tempo › Übetempo ändern (Stylesheet)', () => {
   });
 });
 
+describe('Spec practice-tempo › Übetempo-Steuerung (Stylesheet)', () => {
+  it('Hervorhebung nur für Tempo: Schalter und Fläche am Teil „Tempo“, nicht an der Box', () => {
+    expect(decl(ruleBody('.practice-tempo.on .practice-knob'), 'background')).toBe('var(--playhead)');
+    expect(decl(ruleBody('.practice-tempo.on'), 'background')).toMatch(/--playhead/);
+    expect(css).not.toMatch(/\.practice\.on\b/);
+  });
+});
+
+describe('Spec practice-click › Knöpfe Metronom und Einzählen (Stylesheet)', () => {
+  it('Smartphone: Metronom und Einzählen bleiben sichtbar', () => {
+    const narrow = [...css.matchAll(/@media \(max-width: 40rem\)\s*\{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n');
+    expect(narrow).not.toMatch(/\.practice-click[^{]*\{[^}]*display:\s*none/);
+    expect(ruleBody('.practice-click')).not.toBe('');
+  });
+});
+
 describe('Spec practice-tempo › Übetempo in Schritten (Stylesheet)', () => {
   it('Smartphone: Knöpfe zum Verringern und Erhöhen unter 40rem ausgeblendet', () => {
     const narrow = [...css.matchAll(/@media \(max-width: 40rem\)\s*\{([\s\S]*?)\n\}/g)].map((m) => m[1]).join('\n');

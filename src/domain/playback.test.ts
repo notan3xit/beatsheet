@@ -4,7 +4,7 @@ import { patternOf } from '../test/patterns';
 import { addAccent, appendSegment, setBarProps } from './structure';
 import { allBars } from './songPatterns';
 import type { Beat, Instrument, Pattern, Song } from './types';
-import { DRAG_GRACES, EMPHASIS_GAIN, FLAM_GRACES, GHOST_GAIN, GRACE_GAIN, patternHits, patternSteps, setTempo, songTimeline } from './playback';
+import { DRAG_GRACES, EMPHASIS_GAIN, FLAM_GRACES, GHOST_GAIN, GRACE_GAIN, patternHits, patternSteps, patternTimeline, setTempo, songTimeline } from './playback';
 
 describe('Spec song-library › Song-Tempo', () => {
   it('Tempo ändern', () => {
@@ -106,6 +106,22 @@ describe('Wiedergabe mit Zweiunddreißigsteln (thirty-second-notes)', () => {
   });
 });
 
+describe('Spec practice-click › Klick auf jedem Beat (Taktanfänge im Pattern)', () => {
+  const beats = (n: number) => patternOf(Array.from({ length: n }, () => ({})));
+
+  it('Pattern länger als ein Takt: 6 Beats in 4/4', () => {
+    expect(patternTimeline(beats(6), 4).downbeats).toEqual([0, 4]);
+  });
+
+  it('Kurzer Fill: 2 Beats in 4/4', () => {
+    expect(patternTimeline(beats(2), 4).downbeats).toEqual([0]);
+  });
+
+  it('Pattern in 3/4', () => {
+    expect(patternTimeline(beats(6), 3).downbeats).toEqual([0, 3]);
+  });
+});
+
 /** Song aus Patterns und Segmenten; `bars` je Segment mit 4-Beat-Takten. */
 function songOf(patterns: Pattern[], segments: { name: string; bars: number; grooveId?: string | null }[]): Song {
   return segments.reduce((song, segment) => appendSegment(song, segment), songWith({ patterns }));
@@ -196,6 +212,13 @@ describe('Spec song-playback › Ab hier und Schleife (Bereich)', () => {
     const song = fourBars();
     expect(songTimeline(song, { from: 'weg', to: 'end' })).toBeNull();
     expect(songTimeline(song, { from: barIds(song)[0]!, to: 'weg' })).toBeNull();
+  });
+
+  it('Taktanfänge des Bereichs, auch bei wechselnden Taktlängen (practice-click)', () => {
+    let song = fourBars();
+    song = setBarProps(song, [barIds(song)[2]!], { beats: 3 });
+    expect(songTimeline(song, whole(song))!.downbeats).toEqual([0, 4, 8, 11]);
+    expect(songTimeline(song, { from: barIds(song)[2]!, to: 'end' })!.downbeats).toEqual([0, 3]);
   });
 
   it('Zwischenspeicher: gleicher Song und Bereich liefern dasselbe Objekt', () => {

@@ -375,7 +375,7 @@ describe('Spec song-playback › Kopfknöpfe spielen die Auswahl', () => {
   it('Üben vor dem Start', async () => {
     const { user, source, bars } = setup();
     await selectBars(user, 2, 3);
-    await user.click(headerButton('Üben'));
+    await user.click(headerButton('Tempo'));
     await user.click(headerButton('Auswahl in Schleife abspielen'));
     expect(marksOf(source())).toEqual([bars()[1]!.id, bars()[2]!.id]);
     expect(source().tempo()).toBe(90);
@@ -394,7 +394,7 @@ describe('Spec songbook-view › Bearbeiten über die Auswahl (Kopf)', () => {
   it('Bedienung im Kopf', async () => {
     const { user } = setup();
     await selectBars(user, 2, 3);
-    await user.click(headerButton('Üben'));
+    await user.click(headerButton('Tempo'));
     await user.click(headerButton('Übetempo erhöhen'));
     await user.click(headerButton('Übetempo verringern'));
     expect(pressed()).toEqual(['Takt 2', 'Takt 3']);

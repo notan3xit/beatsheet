@@ -28,7 +28,7 @@ function setup(sound: Sound, initialState: LoaderState) {
     cancelFrame: () => {},
   });
   const pattern = patternOf(Array.from({ length: 4 }, () => ({ hits: { kick: [1] } })));
-  scheduler.start({ timeline: () => patternTimeline(pattern), tempo: () => 120, loop: true });
+  scheduler.start({ timeline: () => patternTimeline(pattern, 4), tempo: () => 120, loop: true });
   const advanceTo = (time: number) => {
     while (now < time - 1e-9) {
       now = Math.min(time, now + 0.025);

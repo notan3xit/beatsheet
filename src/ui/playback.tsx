@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useRef, useSyncExternalStore } fr
 import type { PlaybackSound } from '../audio/deviceSound';
 import type { Player } from '../audio/player';
 import { patternTimeline, setTempo, songTimeline, type SongRange, type Step } from '../domain/playback';
+import { patternMeter } from '../domain/meter';
 import { practiceTempo } from '../domain/practice';
 import { allBars } from '../domain/songPatterns';
 import { DEFAULT_TEMPO, type Pattern, type Song } from '../domain/types';
@@ -12,7 +13,7 @@ import { useOpenSong, useStore } from './useLibrary';
 
 export const PlayerContext = createContext<Player | null>(null);
 
-/** Tempo der Wiedergabe: bei eingeschaltetem „Üben“ das Übetempo, sonst das Song-Tempo (practice-tempo, design.md D2). */
+/** Tempo der Wiedergabe: bei eingeschaltetem „Tempo“ das Übetempo, sonst das Song-Tempo (practice-tempo, design.md D2). */
 function playbackTempo(practice: PracticeStore, song: Song): number {
   return practice.enabled(song.id) ? practiceTempo(practice.tempo(song.id), song.tempo) : song.tempo;
 }
@@ -54,12 +55,17 @@ export function usePlayback(pattern: Pattern, song: Song) {
   useEffect(() => () => player.stop(), [player, pattern.id]);
   return {
     step: state.mark as Step | null,
-    start: (loop: boolean) =>
+    start(loop: boolean) {
+      const { pattern, song } = latest.current;
       player.start({
-        timeline: () => patternTimeline(latest.current.pattern),
+        timeline: () => patternTimeline(latest.current.pattern, patternMeter(latest.current.pattern, latest.current.song)),
         tempo: () => playbackTempo(practice, latest.current.song),
         loop,
-      }),
+        // Metronom je Planungsschritt, Einzählen ein Takt der Taktart, beim Start fest (practice-click, design.md D2)
+        metronome: () => practice.metronome(song.id),
+        countIn: practice.countIn(song.id) ? patternMeter(pattern, song) : 0,
+      });
+    },
   };
 }
 
@@ -78,6 +84,12 @@ function partialRange(song: Song, range: SongRange): ReadonlySet<string> {
   return ids.length === allBars(song).length ? NO_BARS : new Set(ids);
 }
 
+/** Beats des ersten Takts im Bereich; 0, wenn es den Bereich nicht gibt. */
+function firstBarBeats(song: Song, range: SongRange): number {
+  const timeline = songTimeline(song, range);
+  return timeline ? (timeline.downbeats[1] ?? timeline.length) : 0;
+}
+
 export function useSongPlayback() {
   const player = usePlayer();
   const practice = usePractice();
@@ -94,6 +106,7 @@ export function useSongPlayback() {
     loopRange: state.loop && range ? partialRange(song, range) : NO_BARS,
     start(range: SongRange, loop: boolean) {
       const song = () => openSongOf(store.getState());
+      const atStart = song();
       activeRanges.set(player, range);
       player.start({
         timeline: () => {
@@ -105,6 +118,9 @@ export function useSongPlayback() {
           return current ? playbackTempo(practice, current) : DEFAULT_TEMPO;
         },
         loop,
+        // Metronom je Planungsschritt, Einzählen so lang wie der erste Takt des Bereichs (practice-click, design.md D2)
+        metronome: () => (atStart ? practice.metronome(atStart.id) : false),
+        countIn: atStart && practice.countIn(atStart.id) ? firstBarBeats(atStart, range) : 0,
       });
     },
     stop: () => player.stop(),

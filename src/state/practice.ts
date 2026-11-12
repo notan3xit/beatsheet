@@ -2,13 +2,20 @@ import type { SettingStorage } from './deviceSetting';
 
 export const PRACTICE_STORAGE_KEY = 'beatsheet.practice-tempo';
 
-/** Übetempo je Song auf diesem Gerät und Schalter „Üben“ je Song bis zum Neuladen (practice-tempo, design.md D4). */
+/**
+ * Übetempo je Song auf diesem Gerät und Schalter „Tempo“, „Metronom“ und „Einzählen“ je Song bis zum Neuladen
+ * (practice-tempo, design.md D4; practice-click, design.md D5).
+ */
 export interface PracticeStore {
   /** Gespeichertes Übetempo; undefined, solange der Nutzer es nie geändert hat. */
   tempo(songId: string): number | undefined;
   setTempo(songId: string, bpm: number): void;
   enabled(songId: string): boolean;
   setEnabled(songId: string, on: boolean): void;
+  metronome(songId: string): boolean;
+  setMetronome(songId: string, on: boolean): void;
+  countIn(songId: string): boolean;
+  setCountIn(songId: string, on: boolean): void;
   subscribe(listener: () => void): () => void;
 }
 
@@ -23,9 +30,24 @@ export function createPracticeStore(storage: SettingStorage | null): PracticeSto
   } catch {
     // unlesbar oder nicht zugänglich: leer
   }
-  const enabled = new Set<string>();
   const listeners = new Set<() => void>();
   const notify = () => listeners.forEach((listener) => listener());
+  /** Schalter je Song, nur im Speicher des Stores. */
+  const toggle = () => {
+    const on = new Set<string>();
+    return {
+      get: (songId: string) => on.has(songId),
+      set(songId: string, value: boolean) {
+        if (on.has(songId) === value) return;
+        if (value) on.add(songId);
+        else on.delete(songId);
+        notify();
+      },
+    };
+  };
+  const enabled = toggle();
+  const metronome = toggle();
+  const countIn = toggle();
   return {
     tempo: (songId) => tempos[songId],
     setTempo(songId, bpm) {
@@ -38,13 +60,12 @@ export function createPracticeStore(storage: SettingStorage | null): PracticeSto
       }
       notify();
     },
-    enabled: (songId) => enabled.has(songId),
-    setEnabled(songId, on) {
-      if (enabled.has(songId) === on) return;
-      if (on) enabled.add(songId);
-      else enabled.delete(songId);
-      notify();
-    },
+    enabled: enabled.get,
+    setEnabled: enabled.set,
+    metronome: metronome.get,
+    setMetronome: metronome.set,
+    countIn: countIn.get,
+    setCountIn: countIn.set,
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
