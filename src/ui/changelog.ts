@@ -8,6 +8,15 @@ export interface ChangelogEntry {
 /** Neuerungen je Version in Stichworten für Nutzer, neueste zuerst. Der oberste Eintrag ist die aktuelle Version. */
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.10.0',
+    date: '2026-11-12',
+    items: [
+      'Metronom und Einzählen neben dem Übetempo',
+      '„+ Beispiel-Song“ zum Ausprobieren in neuen Accounts',
+      'Kleine Korrekturen an UI und Datenhaltung',
+    ],
+  },
+  {
     version: '0.9.0',
     date: '2026-11-09',
     items: [
