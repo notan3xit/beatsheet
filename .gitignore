@@ -3,3 +3,5 @@ dist
 *.tsbuildinfo
 server-data
 browser-check
+
+.claude/herdr-state
